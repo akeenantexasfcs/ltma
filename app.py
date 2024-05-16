@@ -4,12 +4,6 @@
 # In[1]:
 
 
-get_ipython().system('pip install streamlit pandas python-Levenshtein')
-
-
-# In[1]:
-
-
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -162,7 +156,7 @@ if __name__ == '__main__':
 # In[ ]:
 
 
-get_ipython().system('streamlit run app.py')
+
 
 
 # In[ ]:
