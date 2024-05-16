@@ -7,10 +7,12 @@
 get_ipython().system('pip install streamlit pandas python-Levenshtein')
 
 
-# In[3]:
+# In[1]:
 
 
-streamlit_code = """
+#!/usr/bin/env python
+# coding: utf-8
+
 import io
 import json
 import pandas as pd
@@ -155,10 +157,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-"""
-
-with open("app.py", "w") as f:
-    f.write(streamlit_code)
 
 
 # In[ ]:
