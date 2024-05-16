@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[5]:
 
-
-#!/usr/bin/env python
-# coding: utf-8
 
 import io
 import json
@@ -25,7 +22,7 @@ lookup_data = {
 lookup_df = pd.DataFrame(lookup_data)
 
 def main():
-    st.title("Table Extractor and Label Generators")
+    st.title("Table Extractor and Label Generators Proto")
 
     # Define the tabs
     tab1, tab2 = st.tabs(["Table Extractor", "Mnemonic Mapping"])
@@ -62,7 +59,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
             labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
@@ -97,10 +94,10 @@ def main():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
-            st.dataframe(df)  # Display the uploaded DataFrame
-
-            # Debugging: Print the columns of the uploaded DataFrame
-            st.write("Columns in the uploaded file:", df.columns.tolist())
+            st.write("Columns in the uploaded file:", df.columns.tolist())  # Display the columns of the uploaded DataFrame
+            
+            # Display the uploaded DataFrame
+            st.dataframe(df)
 
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
@@ -130,7 +127,8 @@ def main():
                             df.at[idx, 'Manual Selection'] = st.selectbox(
                                 f"Select category for '{account_value}'",
                                 options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
-                                key=f"select_{idx}"
+                                key=f"select_{idx}",
+                                format_func=lambda x: f'**{x}**' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else x
                             )
 
                 # Create the Final Mnemonic Selection column
@@ -143,24 +141,16 @@ def main():
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results"):
-                    final_output_df = df[['Final Mnemonic Selection']]
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'] if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
+                        axis=1
+                    )
+                    final_output_df = df.copy()
                     excel_file = io.BytesIO()
                     final_output_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "mnemonic_mapping.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
 
