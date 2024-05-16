@@ -62,6 +62,11 @@ def main():
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
+
+            # Display the data preview after JSON conversion
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
+
             labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
                       "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
                       "Total Equity", "Total Equity and Liabilities"]
