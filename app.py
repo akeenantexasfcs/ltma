@@ -22,7 +22,7 @@ lookup_data = {
 lookup_df = pd.DataFrame(lookup_data)
 
 def main():
-    st.title("Table Extractor and Label Generators")
+    st.title("Table Extractor and Label Generators Proto")
 
     # Define the tabs
     tab1, tab2 = st.tabs(["Table Extractor", "Mnemonic Mapping"])
@@ -129,14 +129,8 @@ def main():
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
                         key=f"select_{idx}",
-                        format_func=lambda x: f'<span style="{manual_selection_style}">{x}</span>' if x else ''
+                        format_func=lambda x: f'<span style="{manual_selection_style}">{x}</span>' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else x
                     )
-
-                # Create the Final Mnemonic Selection column
-                df['Final Mnemonic Selection'] = df.apply(
-                    lambda row: row['Manual Selection'] if row['Mnemonic'] == 'Human Intervention Required' and row['Manual Selection'] else 'No Selection Made' if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
-                    axis=1
-                )
 
                 # Display the dataframe with the Mnemonic and Manual Selection columns for user interaction
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
