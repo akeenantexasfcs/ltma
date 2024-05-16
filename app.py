@@ -95,8 +95,19 @@ def main():
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
             st.write("Columns in the uploaded file:", df.columns.tolist())  # Display the columns of the uploaded DataFrame
+
+            # Allow the user to rename columns
+            new_column_names = {}
+            st.subheader("Rename Columns")
+            for col in df.columns:
+                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}")
+                new_column_names[col] = new_name
             
-            # Display the uploaded DataFrame
+            # Apply the new column names
+            df.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", df.columns.tolist())
+
+            # Display the updated DataFrame
             st.dataframe(df)
 
             if 'Account' not in df.columns:
