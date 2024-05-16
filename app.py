@@ -22,7 +22,7 @@ lookup_data = {
 lookup_df = pd.DataFrame(lookup_data)
 
 def main():
-    st.title("Table Extractor and Label Generators Proto")
+    st.title("Table Extractor and Label Generators")
 
     # Define the tabs
     tab1, tab2 = st.tabs(["Table Extractor", "Mnemonic Mapping"])
@@ -59,7 +59,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
             labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
@@ -124,12 +124,13 @@ def main():
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            df.at[idx, 'Manual Selection'] = st.selectbox(
-                                f"Select category for '{account_value}'",
-                                options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
-                                key=f"select_{idx}",
-                                format_func=lambda x: f'**{x}**' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else x
-                            )
+                    manual_selection_style = 'color: red; font-weight: bold;' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else ''
+                    df.at[idx, 'Manual Selection'] = st.selectbox(
+                        f"Select category for '{account_value}'",
+                        options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
+                        key=f"select_{idx}",
+                        format_func=lambda x: f'<span style="{manual_selection_style}">{x}</span>' if x else ''
+                    )
 
                 # Create the Final Mnemonic Selection column
                 df['Final Mnemonic Selection'] = df.apply(
