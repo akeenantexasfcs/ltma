@@ -167,18 +167,6 @@ with open("app.py", "w") as f:
 get_ipython().system('streamlit run app.py')
 
 
-# In[1]:
-
-
-import os
-
-# Get the current working directory
-current_directory = os.getcwd()
-
-# Print the directory location
-print("Current Directory:", current_directory)
-
-
 # In[ ]:
 
 
