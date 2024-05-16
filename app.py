@@ -22,7 +22,7 @@ lookup_data = {
 lookup_df = pd.DataFrame(lookup_data)
 
 def main():
-    st.title("Table Extractor and Label Generators Proto")
+    st.title("Table Extractor and Label Generators")
 
     # Define the tabs
     tab1, tab2 = st.tabs(["Table Extractor", "Mnemonic Mapping"])
@@ -124,12 +124,12 @@ def main():
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                    manual_selection_style = 'color: red; font-weight: bold;' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else ''
+                    if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
+                        st.markdown(f"**Human Intervention Required for:** {account_value}")
                     df.at[idx, 'Manual Selection'] = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
-                        key=f"select_{idx}",
-                        format_func=lambda x: f'<span style="{manual_selection_style}">{x}</span>' if df.at[idx, 'Mnemonic'] == 'Human Intervention Required' else x
+                        key=f"select_{idx}"
                     )
 
                 # Display the dataframe with the Mnemonic and Manual Selection columns for user interaction
