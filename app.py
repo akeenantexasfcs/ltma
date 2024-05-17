@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[1]:
 
 
 import io
@@ -73,21 +73,29 @@ def main():
             selections = []
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique())
+                options = ['REMOVE ROW'] + [''] + list(all_tables[column_a].dropna().unique())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
-            if st.button("Apply Selected Labels and Generate Excel"):
-                for label, start_label, end_label in selections:
-                    if start_label and end_label:
-                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
-                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
-                        if pd.notna(start_index) and pd.notna(end_index):
-                            all_tables.loc[start_index:end_index, 'Label'] = label
-                        else:
-                            st.error(f"Invalid label bounds for {label}. Skipping...")
+
+            # Update preview dynamically
+            for label, start_label, end_label in selections:
+                if start_label == 'REMOVE ROW' or end_label == 'REMOVE ROW':
+                    continue
+                if start_label and end_label:
+                    start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
+                    end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
+                    if pd.notna(start_index) and pd.notna(end_index):
+                        all_tables.loc[start_index:end_index, 'Label'] = label
                     else:
-                        st.info(f"No selections made for {label}. Skipping...")
+                        st.error(f"Invalid label bounds for {label}. Skipping...")
+                else:
+                    st.info(f"No selections made for {label}. Skipping...")
+
+            st.subheader("Updated Data Preview")
+            st.dataframe(all_tables)
+
+            if st.button("Apply Selected Labels and Generate Excel"):
                 excel_file = io.BytesIO()
                 all_tables.to_excel(excel_file, index=False)
                 excel_file.seek(0)
@@ -144,7 +152,7 @@ def main():
                         st.markdown(f"**Human Intervention Required for:** {account_value}")
                     df.at[idx, 'Manual Selection'] = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + lookup_df['Account'].tolist() + ['Other Category'],
+                        options=[''] + lookup_df['Account'].tolist() + ['Other Category', 'REMOVE ROW'],
                         key=f"select_{idx}"
                     )
 
@@ -156,7 +164,7 @@ def main():
                         lambda row: row['Manual Selection'] if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
                         axis=1
                     )
-                    final_output_df = df.copy()
+                    final_output_df = df[df['Final Mnemonic Selection'] != 'REMOVE ROW'].copy()
                     excel_file = io.BytesIO()
                     final_output_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
