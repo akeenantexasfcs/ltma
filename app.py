@@ -166,7 +166,7 @@ def main():
 
                 if st.button("Generate Excel with Lookup Results"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'].strip() if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
                         axis=1
                     )
                     # Remove rows where 'Final Mnemonic Selection' is 'REMOVE ROW'
