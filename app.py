@@ -59,7 +59,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
@@ -178,9 +178,13 @@ def main():
 
                 if st.button("Update Data Dictionary with Manual Mappings"):
                     for idx, row in df.iterrows():
-                        if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', '']:
-                            if row['Manual Selection'] not in lookup_df['Account'].values:
-                                lookup_df.loc[len(lookup_df)] = [row['Manual Selection'], row['Mnemonic'], '']
+                        manual_selection = row['Manual Selection']
+                        if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
+                            if manual_selection not in lookup_df['Account'].values:
+                                new_row = {'Account': manual_selection, 'Mnemonic': row['Final Mnemonic Selection'], 'CIQ': ''}
+                                lookup_df = lookup_df.append(new_row, ignore_index=True)
+                            else:
+                                lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = row['Final Mnemonic Selection']
                     lookup_df.reset_index(drop=True, inplace=True)
                     st.success("Data Dictionary Updated Successfully")
 
