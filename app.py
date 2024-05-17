@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -168,7 +168,7 @@ def main():
 
                 if st.button("Generate Excel with Lookup Results"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'].strip() if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
                     )
                     # Remove rows where 'Final Mnemonic Selection' is 'REMOVE ROW'
@@ -182,10 +182,10 @@ def main():
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
-                        final_mnemonic = row['Final Mnemonic Selection'] if 'Final Mnemonic Selection' in df.columns else row['Mnemonic']
+                        final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if manual_selection not in lookup_df['Account'].values:
-                                new_entries.append({'Account': manual_selection, 'Mnemonic': final_mnemonic, 'CIQ': ''})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': manual_selection, 'CIQ': ''})
                             else:
                                 lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = final_mnemonic
                     if new_entries:
