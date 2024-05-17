@@ -193,7 +193,7 @@ def main():
                             else:
                                 lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                     if new_entries:
-                        lookup_df = lookup_df.append(new_entries, ignore_index=True)
+                        lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
                     st.success("Data Dictionary Updated Successfully")
 
