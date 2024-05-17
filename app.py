@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -182,11 +182,12 @@ def main():
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
+                        final_mnemonic = row['Final Mnemonic Selection'] if 'Final Mnemonic Selection' in df.columns else row['Mnemonic']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if manual_selection not in lookup_df['Account'].values:
-                                new_entries.append({'Account': manual_selection, 'Mnemonic': row['Final Mnemonic Selection'], 'CIQ': ''})
+                                new_entries.append({'Account': manual_selection, 'Mnemonic': final_mnemonic, 'CIQ': ''})
                             else:
-                                lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = row['Final Mnemonic Selection']
+                                lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = final_mnemonic
                     if new_entries:
                         lookup_df = lookup_df.append(new_entries, ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
