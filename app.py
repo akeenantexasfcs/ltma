@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -59,7 +59,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
@@ -175,6 +175,14 @@ def main():
                     final_output_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                if st.button("Update Data Dictionary with Manual Mappings"):
+                    for idx, row in df.iterrows():
+                        if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', '']:
+                            if row['Manual Selection'] not in lookup_df['Account'].values:
+                                lookup_df.loc[len(lookup_df)] = [row['Manual Selection'], row['Mnemonic'], '']
+                    lookup_df.reset_index(drop=True, inplace=True)
+                    st.success("Data Dictionary Updated Successfully")
 
     with tab3:
         st.subheader("Balance Sheet Data Dictionary")
