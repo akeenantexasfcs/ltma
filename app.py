@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[34]:
 
 
 import io
 import json
+import os
 import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
 
-# Lookup table
-lookup_data = {
+# Define the initial lookup data
+initial_lookup_data = {
     "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill", 
                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
     "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill", 
@@ -19,10 +20,22 @@ lookup_data = {
     "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW", 
             "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
 }
-lookup_df = pd.DataFrame(lookup_data)
+
+# Define the file path for the data dictionary CSV file
+data_dictionary_file = 'data_dictionary.csv'
+
+# Load the lookup table from a CSV file, or create it if it doesn't exist
+if os.path.exists(data_dictionary_file):
+    lookup_df = pd.read_csv(data_dictionary_file)
+else:
+    lookup_df = pd.DataFrame(initial_lookup_data)
+    lookup_df.to_csv(data_dictionary_file, index=False)
+
+def save_lookup_table(df):
+    df.to_csv(data_dictionary_file, index=False)
 
 def main():
-    global lookup_df  # Use global here
+    global lookup_df
 
     st.title("Table Extractor and Label Generators")
 
@@ -195,6 +208,7 @@ def main():
                     if new_entries:
                         lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(lookup_df)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab3:
