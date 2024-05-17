@@ -71,9 +71,10 @@ def main():
                       "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
+
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique()) + ['REMOVE ROW']
+                options = [''] + list(all_tables[column_a].dropna().unique())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
@@ -81,8 +82,6 @@ def main():
             def update_labels():
                 all_tables['Label'] = ''
                 for label, start_label, end_label in selections:
-                    if start_label == 'REMOVE ROW' or end_label == 'REMOVE ROW':
-                        continue
                     if start_label and end_label:
                         start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
                         end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
@@ -92,18 +91,15 @@ def main():
                             st.error(f"Invalid label bounds for {label}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
-                st.experimental_rerun()
-
-            # Add an update button to apply the changes and update the preview
-            if st.button("Update Labels Preview"):
-                update_labels()
+                return all_tables
 
             st.subheader("Updated Data Preview")
-            st.dataframe(all_tables)
+            updated_table = update_labels()
+            st.dataframe(updated_table)
 
             if st.button("Apply Selected Labels and Generate Excel"):
                 excel_file = io.BytesIO()
-                all_tables.to_excel(excel_file, index=False)
+                updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
