@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -179,15 +179,19 @@ def main():
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings"):
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        axis=1
+                    )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
-                            if manual_selection not in lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': manual_selection, 'CIQ': ''})
+                            if row['Account'] not in lookup_df['Account'].values:
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ''})
                             else:
-                                lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = final_mnemonic
+                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                     if new_entries:
                         lookup_df = lookup_df.append(new_entries, ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
