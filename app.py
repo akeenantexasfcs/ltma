@@ -159,7 +159,7 @@ def main():
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Account'].tolist() + ['Other Category', 'REMOVE ROW'],
                         key=f"select_{idx}"
-                    )
+                    ).strip()  # Strip any whitespace
 
                 # Display the dataframe with the Mnemonic and Manual Selection columns for user interaction
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
@@ -170,7 +170,7 @@ def main():
                         axis=1
                     )
                     # Remove rows where 'Final Mnemonic Selection' is 'REMOVE ROW'
-                    final_output_df = df[df['Final Mnemonic Selection'] != 'REMOVE ROW'].copy()
+                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     excel_file = io.BytesIO()
                     final_output_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
