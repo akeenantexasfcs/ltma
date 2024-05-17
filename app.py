@@ -169,6 +169,7 @@ def main():
                         lambda row: row['Manual Selection'] if row['Mnemonic'] == 'Human Intervention Required' else row['Mnemonic'], 
                         axis=1
                     )
+                    # Remove rows where 'Final Mnemonic Selection' is 'REMOVE ROW'
                     final_output_df = df[df['Final Mnemonic Selection'] != 'REMOVE ROW'].copy()
                     excel_file = io.BytesIO()
                     final_output_df.to_excel(excel_file, index=False)
