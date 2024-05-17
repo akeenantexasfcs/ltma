@@ -93,11 +93,14 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
-            st.subheader("Updated Data Preview")
-            updated_table = update_labels()
-            st.dataframe(updated_table)
+            # Add an update button to apply the changes and update the preview
+            if st.button("Update Labels Preview"):
+                updated_table = update_labels()
+                st.subheader("Updated Data Preview")
+                st.dataframe(updated_table)
 
             if st.button("Apply Selected Labels and Generate Excel"):
+                updated_table = update_labels()
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
