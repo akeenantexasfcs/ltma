@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[9]:
 
 
 import io
@@ -22,6 +22,8 @@ lookup_data = {
 lookup_df = pd.DataFrame(lookup_data)
 
 def main():
+    global lookup_df  # Use global here
+
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
@@ -177,14 +179,16 @@ def main():
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings"):
+                    new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if manual_selection not in lookup_df['Account'].values:
-                                new_row = {'Account': manual_selection, 'Mnemonic': row['Final Mnemonic Selection'], 'CIQ': ''}
-                                lookup_df = lookup_df.append(new_row, ignore_index=True)
+                                new_entries.append({'Account': manual_selection, 'Mnemonic': row['Final Mnemonic Selection'], 'CIQ': ''})
                             else:
                                 lookup_df.loc[lookup_df['Account'] == manual_selection, 'Mnemonic'] = row['Final Mnemonic Selection']
+                    if new_entries:
+                        lookup_df = lookup_df.append(new_entries, ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
                     st.success("Data Dictionary Updated Successfully")
 
