@@ -25,7 +25,7 @@ def main():
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
-    tab1, tab2 = st.tabs(["Table Extractor", "Mnemonic Mapping"])
+    tab1, tab2, tab3 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Data Dictionary"])
 
     with tab1:
         # File uploader for the Table Extractor
@@ -175,6 +175,16 @@ def main():
                     final_output_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    with tab3:
+        st.subheader("Data Dictionary")
+        st.dataframe(lookup_df)
+
+        if st.button("Download Data Dictionary"):
+            excel_file = io.BytesIO()
+            lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == '__main__':
     main()
