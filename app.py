@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
+import xlsxwriter  # Ensure this is installed and imported
 
 # Define the initial lookup data
 initial_lookup_data = {
