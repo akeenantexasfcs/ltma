@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -240,11 +240,6 @@ def main():
 
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
-
-            output_path = '/mnt/data/Combined_File.xlsx'
-            with pd.ExcelWriter(output_path) as writer:
-                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Combined', index=False)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
