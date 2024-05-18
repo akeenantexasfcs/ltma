@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[34]:
+# In[1]:
 
 
 import io
@@ -34,18 +34,35 @@ else:
 def save_lookup_table(df):
     df.to_csv(data_dictionary_file, index=False)
 
+def process_file(file):
+    df = pd.read_excel(file, sheet_name=None)
+    return list(df.values())[0]
+
+def create_combined_df(dfs):
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        df_grouped = df.groupby(final_mnemonic_col).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
+        df_pivot = df_melted.pivot(index=final_mnemonic_col, columns='Date', values='Value')
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
 def main():
     global lookup_df
 
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
-    tab1, tab2, tab3 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
-        # File uploader for the Table Extractor
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
-
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             tables = []
@@ -78,7 +95,6 @@ def main():
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
-            # Display the data preview after JSON conversion
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
@@ -108,7 +124,6 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
-            # Add an update button to apply the changes and update the preview
             if st.button("Update Labels Preview"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
@@ -122,25 +137,20 @@ def main():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
-        # File uploader for Mnemonic Mapping
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
-            st.write("Columns in the uploaded file:", df.columns.tolist())  # Display the columns of the uploaded DataFrame
+            st.write("Columns in the uploaded file:", df.columns.tolist())
 
-            # Allow the user to rename columns
             new_column_names = {}
             st.subheader("Rename Columns")
             for col in df.columns:
                 new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}")
                 new_column_names[col] = new_name
             
-            # Apply the new column names
             df.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", df.columns.tolist())
-
-            # Display the updated DataFrame
             st.dataframe(df)
 
             if 'Account' not in df.columns:
@@ -150,7 +160,6 @@ def main():
                     best_score = float('inf')
                     best_match = None
                     for lookup_account in lookup_df['Account']:
-                        # Ensure account is a string
                         account_str = str(account)
                         score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                         if score < best_score:
@@ -162,7 +171,7 @@ def main():
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
-                    if pd.notna(account_value):  # Ensure the account value is not NaN
+                    if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
                         if score < 0.2:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
@@ -174,9 +183,8 @@ def main():
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Account'].tolist() + ['Other Category', 'REMOVE ROW'],
                         key=f"select_{idx}"
-                    ).strip()  # Strip any whitespace
+                    ).strip()
 
-                # Display the dataframe with the Mnemonic and Manual Selection columns for user interaction
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results"):
@@ -184,7 +192,6 @@ def main():
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
                     )
-                    # Remove rows where 'Final Mnemonic Selection' is 'REMOVE ROW'
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     excel_file = io.BytesIO()
                     final_output_df.to_excel(excel_file, index=False)
@@ -220,6 +227,37 @@ def main():
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    with tab4:
+        st.subheader("Data Aggregation")
+        uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader')
+
+        if uploaded_files and st.button("Aggregate Data"):
+            dfs = [process_file(file) for file in uploaded_files]
+
+            # Combine the data into the "As Presented" sheet by stacking them vertically
+            as_presented = pd.concat(dfs, ignore_index=True)
+
+            # Combine the data into the "Combined" sheet
+            combined_df = create_combined_df(dfs)
+
+            output_path = '/mnt/data/Combined_File.xlsx'
+            with pd.ExcelWriter(output_path) as writer:
+                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
+                combined_df.to_excel(writer, sheet_name='Combined', index=False)
+
+            excel_file = io.BytesIO()
+            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
+                combined_df.to_excel(writer, sheet_name='Combined', index=False)
+            excel_file.seek(0)
+
+            st.download_button(
+                label="Download Aggregated Excel",
+                data=excel_file,
+                file_name="aggregated_data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 if __name__ == '__main__':
     main()
