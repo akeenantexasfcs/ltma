@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -10,7 +10,7 @@ import os
 import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
-import xlsxwriter  # Ensure this is installed and imported
+import xlsxwriter
 
 # Define the initial lookup data
 initial_lookup_data = {
@@ -221,7 +221,25 @@ def main():
 
     with tab3:
         st.subheader("Balance Sheet Data Dictionary")
+
+        # Upload feature
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            lookup_df = new_lookup_df
+            save_lookup_table(lookup_df)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        # Display the data dictionary
         st.dataframe(lookup_df)
+
+        # Record removal feature
+        remove_indices = st.multiselect("Select rows to remove", lookup_df.index)
+        if st.button("Remove Selected Rows"):
+            lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(lookup_df)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(lookup_df)
 
         if st.button("Download Data Dictionary"):
             excel_file = io.BytesIO()
