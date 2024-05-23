@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -181,14 +181,21 @@ def main():
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
+                    label_value = row.get('Label', '')  # Get the label value if it exists
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
                         if score < 0.2:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+                    
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        st.markdown(f"**Human Intervention Required for:** {account_value}")
+                        if label_value:
+                            message = f"**Human Intervention Required for:** {account_value} [{label_value}]"
+                        else:
+                            message = f"**Human Intervention Required for:** {account_value}"
+                        st.markdown(message)
+                    
                     df.at[idx, 'Manual Selection'] = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Account'].tolist() + ['Other Category', 'REMOVE ROW'],
