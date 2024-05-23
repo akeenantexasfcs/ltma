@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -43,11 +43,20 @@ def create_combined_df(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+        
         date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
+
         df_grouped = df.groupby(final_mnemonic_col).sum(numeric_only=True).reset_index()
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
         df_pivot = df_melted.pivot(index=final_mnemonic_col, columns='Date', values='Value')
+        
         if combined_df.empty:
             combined_df = df_pivot
         else:
