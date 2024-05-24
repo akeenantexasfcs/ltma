@@ -64,6 +64,11 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
+    # Check for the presence of 'Row Labels' and 'Account' columns dynamically
+    if 'Row Labels' not in df.columns or 'Account' not in df.columns:
+        st.error("'Row Labels' and/or 'Account' columns not found in the data.")
+        return df
+    
     # Example aggregation function: Pivoting the data
     pivot_table = df.pivot_table(index=['Row Labels', 'Account'], 
                                  values=[col for col in df.columns if col not in ['Row Labels', 'Account']], 
@@ -287,7 +292,7 @@ def main():
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
             
-            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+            # Filter to include 'Row Labels', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
