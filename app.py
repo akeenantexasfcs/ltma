@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[4]:
 
 
 import io
@@ -114,8 +114,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Total Assets", "Current Liabilities", 
-                      "Total Liabilities", 
+            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
+                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
 
@@ -170,18 +170,9 @@ def main():
 
             new_column_names = {}
             st.subheader("Rename Columns")
-            predefined_columns = ["Q1-2024", "Q2-2024", "Q3-2024", "Q4-2024"]
-
             for col in df.columns:
-                st.write(f"Current Column: {col}")
-                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_predefined = st.selectbox(f"Select predefined name for '{col}'", options=[""] + predefined_columns, key=f"rename_{col}_select")
-
-                # Use the predefined name if selected, otherwise use the typed name
-                if new_name_predefined != "":
-                    new_column_names[col] = new_name_predefined
-                else:
-                    new_column_names[col] = new_name
+                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}")
+                new_column_names[col] = new_name
             
             df.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", df.columns.tolist())
