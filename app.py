@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -101,7 +101,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
@@ -142,8 +142,9 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
                 
-                # Filter to only include the 'Label' and 'Account' columns
-                filtered_table = updated_table[['Label', 'Account']]
+                # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+                columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
+                filtered_table = updated_table[columns_to_include]
                 
                 excel_file = io.BytesIO()
                 filtered_table.to_excel(excel_file, index=False)
@@ -284,8 +285,9 @@ def main():
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
             
-            # Filter to only include the 'Label' and 'Account' columns
-            as_presented_filtered = as_presented[['Label', 'Account']]
+            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
+            as_presented_filtered = as_presented[columns_to_include]
 
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
