@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -64,16 +64,16 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Ensure the DataFrame contains the required columns
-    required_columns = ['Label', 'Account']
-    for col in required_columns:
-        if col not in df.columns:
-            st.error(f"Column '{col}' not found in DataFrame. Available columns: {df.columns.tolist()}")
-            raise ValueError(f"Column '{col}' not found in DataFrame")
+    # Print the columns for debugging
+    st.write("Columns available for aggregation:", df.columns.tolist())
+    
+    if 'Label' not in df.columns or 'Account' not in df.columns:
+        st.error("Required columns ('Label', 'Account') not found in DataFrame")
+        return pd.DataFrame()  # Return an empty DataFrame to prevent further errors
     
     # Aggregate data as shown in the provided example
-    aggregation_columns = [col for col in df.columns if col not in required_columns]
-    df_aggregated = df.groupby(required_columns)[aggregation_columns].sum(numeric_only=True).reset_index()
+    aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
+    df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
     return df_aggregated
 
 def main():
@@ -81,12 +81,8 @@ def main():
 
     st.title("Table Extractor and Label Generators")
 
-    try:
-        # Define the tabs
-        tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
-    except AttributeError:
-        st.error("The `st.tabs` function is not supported in your version of Streamlit. Please update Streamlit to the latest version.")
-        return
+    # Define the tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -125,8 +121,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Total Assets", "Current Liabilities", 
-                      "Total Liabilities", 
+            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
+                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
 
@@ -162,10 +158,7 @@ def main():
                 # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
                 columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
                 filtered_table = updated_table[columns_to_include]
-                
-                # Check columns before aggregation
-                st.write(f"Filtered table columns before aggregation: {filtered_table.columns.tolist()}")
-                
+
                 # Aggregate data
                 aggregated_table = aggregate_data(filtered_table)
                 
@@ -321,9 +314,6 @@ def main():
             # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
-
-            # Check columns before aggregation
-            st.write(f"As Presented filtered columns before aggregation: {as_presented_filtered.columns.tolist()}")
 
             # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
