@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -65,7 +65,7 @@ def create_combined_df(dfs):
 
 def aggregate_data(df):
     # Aggregate data as shown in the provided example
-    aggregation_columns = [col for col in df.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
+    aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
     df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
     return df_aggregated
 
