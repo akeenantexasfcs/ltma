@@ -1,16 +1,92 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[9]:
 
+
+import io
+import json
+import os
+import pandas as pd
+import streamlit as st
+from Levenshtein import distance as levenshtein_distance
+import xlsxwriter
+
+# Define the initial lookup data
+initial_lookup_data = {
+    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill", 
+                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill", 
+                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW", 
+            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
+}
+
+# Define the file path for the data dictionary CSV file
+data_dictionary_file = 'data_dictionary.csv'
+
+# Load the lookup table from a CSV file, or create it if it doesn't exist
+if os.path.exists(data_dictionary_file):
+    lookup_df = pd.read_csv(data_dictionary_file)
+else:
+    lookup_df = pd.DataFrame(initial_lookup_data)
+    lookup_df.to_csv(data_dictionary_file, index=False)
+
+def save_lookup_table(df):
+    df.to_csv(data_dictionary_file, index=False)
+
+def process_file(file):
+    df = pd.read_excel(file, sheet_name=None)
+    return list(df.values())[0]
+
+def create_combined_df(dfs):
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+        
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
+
+        df_grouped = df.groupby(final_mnemonic_col).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
+        df_pivot = df_melted.pivot(index=final_mnemonic_col, columns='Date', values='Value')
+        
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
+def aggregate_data(df):
+    # Ensure the DataFrame contains the required columns
+    required_columns = ['Label', 'Account']
+    for col in required_columns:
+        if col not in df.columns:
+            st.error(f"Column '{col}' not found in DataFrame. Available columns: {df.columns.tolist()}")
+            raise ValueError(f"Column '{col}' not found in DataFrame")
+    
+    # Aggregate data as shown in the provided example
+    aggregation_columns = [col for col in df.columns if col not in required_columns]
+    df_aggregated = df.groupby(required_columns)[aggregation_columns].sum(numeric_only=True).reset_index()
+    return df_aggregated
 
 def main():
     global lookup_df
 
     st.title("Table Extractor and Label Generators")
 
-    # Define the tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
+    try:
+        # Define the tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
+    except AttributeError:
+        st.error("The `st.tabs` function is not supported in your version of Streamlit. Please update Streamlit to the latest version.")
+        return
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
