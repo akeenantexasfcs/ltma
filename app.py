@@ -63,6 +63,13 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
+def aggregate_data(df):
+    # Example aggregation function: Pivoting the data
+    pivot_table = df.pivot_table(index=['Row Labels', 'Account'], 
+                                 values=[col for col in df.columns if col not in ['Row Labels', 'Account']], 
+                                 aggfunc='sum').reset_index()
+    return pivot_table
+
 def main():
     global lookup_df
 
@@ -279,27 +286,21 @@ def main():
 
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
+            
+            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
+            as_presented_filtered = as_presented[columns_to_include]
 
-            # Determine the columns to exclude
-            exclude_cols = ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']
-            include_cols = [col for col in as_presented.columns if col not in exclude_cols]
-
-            # Filter out columns for "As Presented" sheet processing for Tab 4
-            tab4_df = as_presented[include_cols].copy()
-
-            # Create the pivot table for Tab 4
-            pivot_table = tab4_df.pivot_table(index=['Row Labels', 'Account'], 
-                                              values=[col for col in include_cols if col not in ['Row Labels', 'Account']], 
-                                              aggfunc='sum').reset_index()
+            # Aggregate data
+            aggregated_table = aggregate_data(as_presented_filtered)
 
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
+                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
-                pivot_table.to_excel(writer, sheet_name='Tab 4 Pivot', index=False)
                 
                 # Create the "Cover" sheet with the selections
                 cover_df = pd.DataFrame({
