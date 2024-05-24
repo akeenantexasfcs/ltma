@@ -141,8 +141,12 @@ def main():
 
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
+                
+                # Filter to only include the 'Label' and 'Account' columns
+                filtered_table = updated_table[['Label', 'Account']]
+                
                 excel_file = io.BytesIO()
-                updated_table.to_excel(excel_file, index=False)
+                filtered_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -279,13 +283,16 @@ def main():
 
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
+            
+            # Filter to only include the 'Label' and 'Account' columns
+            as_presented_filtered = as_presented[['Label', 'Account']]
 
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
+                as_presented_filtered.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
                 
                 # Create the "Cover" sheet with the selections
