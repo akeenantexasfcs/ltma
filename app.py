@@ -114,8 +114,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
-                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
+            labels = ["Current Assets", "Total Assets", "Current Liabilities", 
+                      "Total Liabilities", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
 
