@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -63,14 +63,9 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def aggregate_data(df):
-    required_columns = ['Label', 'Account']
-    for col in required_columns:
-        if col not in df.columns:
-            st.error(f"Column '{col}' not found in the dataframe.")
-            return pd.DataFrame()
-    aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
-    df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
+def aggregate_data(df, groupby_columns):
+    aggregation_columns = [col for col in df.columns if col not in groupby_columns]
+    df_aggregated = df.groupby(groupby_columns)[aggregation_columns].sum().reset_index()
     return df_aggregated
 
 def main():
@@ -152,12 +147,12 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
                 
-                # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+                # Filter to include 'Label' and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
                 columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
                 filtered_table = updated_table[columns_to_include]
 
                 # Aggregate data
-                aggregated_table = aggregate_data(filtered_table)
+                aggregated_table = aggregate_data(filtered_table, groupby_columns=['Label'])
                 
                 if aggregated_table.empty:
                     st.error("Aggregation failed due to missing columns.")
@@ -307,7 +302,7 @@ def main():
             as_presented_filtered = as_presented[columns_to_include]
 
             # Aggregate data
-            aggregated_table = aggregate_data(as_presented_filtered)
+            aggregated_table = aggregate_data(as_presented_filtered, groupby_columns=['Label', 'Account'])
 
             if aggregated_table.empty:
                 st.error("Aggregation failed due to missing columns.")
