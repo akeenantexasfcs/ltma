@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[11]:
 
 
 import io
@@ -64,7 +64,11 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Aggregate data as shown in the provided example
+    required_columns = ['Label', 'Account']
+    for col in required_columns:
+        if col not in df.columns:
+            st.error(f"Column '{col}' not found in the dataframe.")
+            return pd.DataFrame()
     aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
     df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
     return df_aggregated
@@ -155,11 +159,14 @@ def main():
                 # Aggregate data
                 aggregated_table = aggregate_data(filtered_table)
                 
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if aggregated_table.empty:
+                    st.error("Aggregation failed due to missing columns.")
+                else:
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
@@ -302,29 +309,32 @@ def main():
             # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
 
-            # Combine the data into the "Combined" sheet
-            combined_df = create_combined_df(dfs)
+            if aggregated_table.empty:
+                st.error("Aggregation failed due to missing columns.")
+            else:
+                # Combine the data into the "Combined" sheet
+                combined_df = create_combined_df(dfs)
 
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                    
+                    # Create the "Cover" sheet with the selections
+                    cover_df = pd.DataFrame({
+                        'Selection': ['Currency', 'Magnitude'],
+                        'Value': [selected_currency, selected_magnitude]
+                    })
+                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
                 
-                # Create the "Cover" sheet with the selections
-                cover_df = pd.DataFrame({
-                    'Selection': ['Currency', 'Magnitude'],
-                    'Value': [selected_currency, selected_magnitude]
-                })
-                cover_df.to_excel(writer, sheet_name='Cover', index=False)
-            
-            excel_file.seek(0)
+                excel_file.seek(0)
 
-            st.download_button(
-                label="Download Aggregated Excel",
-                data=excel_file,
-                file_name="aggregated_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+                st.download_button(
+                    label="Download Aggregated Excel",
+                    data=excel_file,
+                    file_name="aggregated_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
 if __name__ == '__main__':
     main()
