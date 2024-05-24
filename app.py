@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[5]:
 
 
 import io
@@ -64,13 +64,6 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Print the columns for debugging
-    st.write("Columns available for aggregation:", df.columns.tolist())
-    
-    if 'Label' not in df.columns or 'Account' not in df.columns:
-        st.error("Required columns ('Label', 'Account') not found in DataFrame")
-        return pd.DataFrame()  # Return an empty DataFrame to prevent further errors
-    
     # Aggregate data as shown in the provided example
     aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
     df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
@@ -121,8 +114,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
-                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
+            labels = ["Current Assets", "Total Assets", "Current Liabilities", 
+                      "Total Liabilities", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
 
