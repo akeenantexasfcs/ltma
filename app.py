@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -63,10 +63,9 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def aggregate_data(df):
-    # Aggregate data as shown in the provided example
-    aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
-    df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
+def aggregate_data(df, groupby_columns):
+    aggregation_columns = [col for col in df.columns if col not in groupby_columns]
+    df_aggregated = df.groupby(groupby_columns)[aggregation_columns].sum().reset_index()
     return df_aggregated
 
 def main():
@@ -148,18 +147,21 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
                 
-                # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+                # Filter to include 'Label' and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
                 columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
                 filtered_table = updated_table[columns_to_include]
 
                 # Aggregate data
-                aggregated_table = aggregate_data(filtered_table)
+                aggregated_table = aggregate_data(filtered_table, groupby_columns=['Label'])
                 
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if aggregated_table.empty:
+                    st.error("Aggregation failed due to missing columns.")
+                else:
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
@@ -300,31 +302,34 @@ def main():
             as_presented_filtered = as_presented[columns_to_include]
 
             # Aggregate data
-            aggregated_table = aggregate_data(as_presented_filtered)
+            aggregated_table = aggregate_data(as_presented_filtered, groupby_columns=['Label', 'Account'])
 
-            # Combine the data into the "Combined" sheet
-            combined_df = create_combined_df(dfs)
+            if aggregated_table.empty:
+                st.error("Aggregation failed due to missing columns.")
+            else:
+                # Combine the data into the "Combined" sheet
+                combined_df = create_combined_df(dfs)
 
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                    
+                    # Create the "Cover" sheet with the selections
+                    cover_df = pd.DataFrame({
+                        'Selection': ['Currency', 'Magnitude'],
+                        'Value': [selected_currency, selected_magnitude]
+                    })
+                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
                 
-                # Create the "Cover" sheet with the selections
-                cover_df = pd.DataFrame({
-                    'Selection': ['Currency', 'Magnitude'],
-                    'Value': [selected_currency, selected_magnitude]
-                })
-                cover_df.to_excel(writer, sheet_name='Cover', index=False)
-            
-            excel_file.seek(0)
+                excel_file.seek(0)
 
-            st.download_button(
-                label="Download Aggregated Excel",
-                data=excel_file,
-                file_name="aggregated_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+                st.download_button(
+                    label="Download Aggregated Excel",
+                    data=excel_file,
+                    file_name="aggregated_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
 if __name__ == '__main__':
     main()
