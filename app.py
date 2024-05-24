@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -64,9 +64,15 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
+    # Ensure the DataFrame contains the required columns
+    required_columns = ['Label', 'Account']
+    for col in required_columns:
+        if col not in df.columns:
+            raise ValueError(f"Column '{col}' not found in DataFrame")
+    
     # Aggregate data as shown in the provided example
-    aggregation_columns = [col for col in df.columns if col not in ['Label', 'Account']]
-    df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
+    aggregation_columns = [col for col in df.columns if col not in required_columns]
+    df_aggregated = df.groupby(required_columns)[aggregation_columns].sum(numeric_only=True).reset_index()
     return df_aggregated
 
 def main():
