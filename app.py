@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -280,6 +280,14 @@ def main():
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
 
+            # Filter out columns for "As Presented" sheet processing for Tab 4
+            tab4_df = as_presented[['Row Labels', 'Account', 'Sum of 4Q22', 'Sum of 3Q22', 'Sum of 4Q23', 'Sum of 3Q23']].copy()
+
+            # Create the pivot table for Tab 4
+            pivot_table = tab4_df.pivot_table(index=['Row Labels', 'Account'], 
+                                              values=['Sum of 4Q22', 'Sum of 3Q22', 'Sum of 4Q23', 'Sum of 3Q23'], 
+                                              aggfunc='sum').reset_index()
+
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
 
@@ -287,6 +295,7 @@ def main():
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 as_presented.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                pivot_table.to_excel(writer, sheet_name='Tab 4 Pivot', index=False)
                 
                 # Create the "Cover" sheet with the selections
                 cover_df = pd.DataFrame({
