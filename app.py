@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -280,12 +280,16 @@ def main():
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
 
+            # Determine the columns to exclude
+            exclude_cols = ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']
+            include_cols = [col for col in as_presented.columns if col not in exclude_cols]
+
             # Filter out columns for "As Presented" sheet processing for Tab 4
-            tab4_df = as_presented[['Row Labels', 'Account', 'Sum of 4Q22', 'Sum of 3Q22', 'Sum of 4Q23', 'Sum of 3Q23']].copy()
+            tab4_df = as_presented[include_cols].copy()
 
             # Create the pivot table for Tab 4
             pivot_table = tab4_df.pivot_table(index=['Row Labels', 'Account'], 
-                                              values=['Sum of 4Q22', 'Sum of 3Q22', 'Sum of 4Q23', 'Sum of 3Q23'], 
+                                              values=[col for col in include_cols if col not in ['Row Labels', 'Account']], 
                                               aggfunc='sum').reset_index()
 
             # Combine the data into the "Combined" sheet
