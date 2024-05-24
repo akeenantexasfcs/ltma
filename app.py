@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -265,6 +265,13 @@ def main():
 
     with tab4:
         st.subheader("Data Aggregation")
+
+        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+        magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection')
+
         uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader')
 
         if uploaded_files and st.button("Aggregate Data"):
@@ -280,6 +287,14 @@ def main():
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 as_presented.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                
+                # Create the "Cover" sheet with the selections
+                cover_df = pd.DataFrame({
+                    'Selection': ['Currency', 'Magnitude'],
+                    'Value': [selected_currency, selected_magnitude]
+                })
+                cover_df.to_excel(writer, sheet_name='Cover', index=False)
+            
             excel_file.seek(0)
 
             st.download_button(
