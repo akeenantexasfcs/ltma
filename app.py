@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -63,6 +63,12 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
+def aggregate_data(df):
+    # Aggregate data as shown in the provided example
+    aggregation_columns = [col for col in df.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
+    df_aggregated = df.groupby(['Label', 'Account'])[aggregation_columns].sum().reset_index()
+    return df_aggregated
+
 def main():
     global lookup_df
 
@@ -101,7 +107,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
@@ -145,9 +151,13 @@ def main():
                 # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
                 columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
                 filtered_table = updated_table[columns_to_include]
+
+                # Aggregate data
+                aggregated_table = aggregate_data(filtered_table)
                 
                 excel_file = io.BytesIO()
-                filtered_table.to_excel(excel_file, index=False)
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -289,12 +299,15 @@ def main():
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
+            # Aggregate data
+            aggregated_table = aggregate_data(as_presented_filtered)
+
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                as_presented_filtered.to_excel(writer, sheet_name='As Presented', index=False)
+                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
                 
                 # Create the "Cover" sheet with the selections
