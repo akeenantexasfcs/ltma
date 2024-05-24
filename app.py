@@ -63,30 +63,13 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def aggregate_data(df):
-    # Ensure the DataFrame contains the required columns
-    required_columns = ['Label', 'Account']
-    for col in required_columns:
-        if col not in df.columns:
-            st.error(f"Column '{col}' not found in DataFrame. Available columns: {df.columns.tolist()}")
-            raise ValueError(f"Column '{col}' not found in DataFrame")
-    
-    # Aggregate data as shown in the provided example
-    aggregation_columns = [col for col in df.columns if col not in required_columns]
-    df_aggregated = df.groupby(required_columns)[aggregation_columns].sum(numeric_only=True).reset_index()
-    return df_aggregated
-
 def main():
     global lookup_df
 
     st.title("Table Extractor and Label Generators")
 
-    try:
-        # Define the tabs
-        tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
-    except AttributeError:
-        st.error("The `st.tabs` function is not supported in your version of Streamlit. Please update Streamlit to the latest version.")
-        return
+    # Define the tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -125,8 +108,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Total Assets", "Current Liabilities", 
-                      "Total Liabilities", 
+            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
+                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
                       "Total Equity", "Total Equity and Liabilities"]
             selections = []
 
@@ -158,20 +141,8 @@ def main():
 
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
-                
-                # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
-                columns_to_include = [col for col in updated_table.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
-                filtered_table = updated_table[columns_to_include]
-                
-                # Check columns before aggregation
-                st.write(f"Filtered table columns before aggregation: {filtered_table.columns.tolist()}")
-                
-                # Aggregate data
-                aggregated_table = aggregate_data(filtered_table)
-                
                 excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -184,18 +155,9 @@ def main():
 
             new_column_names = {}
             st.subheader("Rename Columns")
-            predefined_columns = ["Q1-2024", "Q2-2024", "Q3-2024", "Q4-2024"]
-
             for col in df.columns:
-                st.write(f"Current Column: {col}")
-                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_predefined = st.selectbox(f"Select predefined name for '{col}'", options=[""] + predefined_columns, key=f"rename_{col}_select")
-
-                # Use the predefined name if selected, otherwise use the typed name
-                if new_name_predefined != "":
-                    new_column_names[col] = new_name_predefined
-                else:
-                    new_column_names[col] = new_name
+                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}")
+                new_column_names[col] = new_name
             
             df.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", df.columns.tolist())
@@ -317,23 +279,13 @@ def main():
 
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
-            
-            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
-            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
-            as_presented_filtered = as_presented[columns_to_include]
-
-            # Check columns before aggregation
-            st.write(f"As Presented filtered columns before aggregation: {as_presented_filtered.columns.tolist()}")
-
-            # Aggregate data
-            aggregated_table = aggregate_data(as_presented_filtered)
 
             # Combine the data into the "Combined" sheet
             combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                as_presented.to_excel(writer, sheet_name='As Presented', index=False)
                 combined_df.to_excel(writer, sheet_name='Combined', index=False)
                 
                 # Create the "Cover" sheet with the selections
