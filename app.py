@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -37,7 +37,10 @@ def save_lookup_table(df):
 
 def process_file(file):
     df = pd.read_excel(file, sheet_name=None)
-    return list(df.values())[0]
+    # Assuming the relevant sheet is the first one
+    first_sheet_name = list(df.keys())[0]
+    df = df[first_sheet_name]
+    return df
 
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
@@ -65,13 +68,13 @@ def create_combined_df(dfs):
 
 def aggregate_data(df):
     # Check for the presence of 'Row Labels' and 'Account' columns dynamically
-    if 'Row Labels' not in df.columns or 'Account' not in df.columns:
-        st.error("'Row Labels' and/or 'Account' columns not found in the data.")
+    if 'Label' not in df.columns or 'Account' not in df.columns:
+        st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
     
     # Example aggregation function: Pivoting the data
-    pivot_table = df.pivot_table(index=['Row Labels', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Row Labels', 'Account']], 
+    pivot_table = df.pivot_table(index=['Label', 'Account'], 
+                                 values=[col for col in df.columns if col not in ['Label', 'Account']], 
                                  aggfunc='sum').reset_index()
     return pivot_table
 
@@ -292,7 +295,7 @@ def main():
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
             
-            # Filter to include 'Row Labels', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
