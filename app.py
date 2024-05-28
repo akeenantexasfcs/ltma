@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -87,10 +87,17 @@ def clean_numeric_value(value):
     """
     Clean the given value to convert it to a numeric format.
     Removes special characters like $, commas, and parentheses.
-    Converts to a float.
+    Converts to a float and handles negative numbers correctly.
     """
-    # Remove any non-numeric characters except the decimal point and negative sign
-    cleaned_value = re.sub(r'[^0-9.-]', '', str(value))
+    value_str = str(value).strip()
+    
+    # Handle parentheses indicating negative numbers
+    if value_str.startswith('(') and value_str.endswith(')'):
+        value_str = '-' + value_str[1:-1]
+    
+    # Remove dollar signs and commas
+    cleaned_value = re.sub(r'[$,]', '', value_str)
+    
     try:
         return float(cleaned_value)
     except ValueError:
