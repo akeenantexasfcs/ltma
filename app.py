@@ -160,6 +160,13 @@ def main():
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
+            # Adding radio buttons for numerical column selection
+            st.subheader("Select numerical columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                    numerical_columns.append(col)
+
             if st.button("Update Labels Preview"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
@@ -168,6 +175,10 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
                 updated_table = updated_table[columns_to_keep]  # Apply column removal
+                
+                # Convert selected numerical columns to numbers and remove leading/trailing spaces
+                for col in numerical_columns:
+                    updated_table[col] = updated_table[col].apply(lambda x: pd.to_numeric(str(x).strip(), errors='coerce'))
                 
                 # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
