@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -141,9 +141,8 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            labels = ["Current Assets", "Non Current Assets", "Total Assets", "Current Liabilities", 
-                      "Non Current Liabilities", "Total Liabilities", "Shareholder's Equity", 
-                      "Total Equity", "Total Equity and Liabilities"]
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
             for label in labels:
@@ -240,7 +239,7 @@ def main():
                     label_value = row.get('Label', '')  # Get the label value if it exists
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
-                        if score < 0.3:
+                        if score < 0.2:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
