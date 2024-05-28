@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -149,13 +149,21 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
+            # Adding radio buttons for column removal
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
+
             if st.button("Update Labels Preview"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
-                st.dataframe(updated_table)
+                st.dataframe(updated_table[columns_to_keep])
 
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
+                updated_table = updated_table[columns_to_keep]  # Apply column removal
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
@@ -328,4 +336,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
