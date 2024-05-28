@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -142,8 +142,7 @@ def main():
                         start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
                         end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
                         if pd.notna(start_index) and pd.notna(end_index):
-                            label_with_index = f"{label} [{start_index}-{end_index}]"
-                            all_tables.loc[start_index:end_index, 'Label'] = label_with_index
+                            all_tables.loc[start_index:end_index, 'Label'] = label
                         else:
                             st.error(f"Invalid label bounds for {label}. Skipping...")
                     else:
@@ -219,9 +218,9 @@ def main():
                     
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
                         if label_value:
-                            message = f"**Human Intervention Required for:** {account_value} [{label_value}]"
+                            message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
                         else:
-                            message = f"**Human Intervention Required for:** {account_value}"
+                            message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
                     
                     df.at[idx, 'Manual Selection'] = st.selectbox(
