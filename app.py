@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -25,15 +25,19 @@ initial_lookup_data = {
 # Define the file path for the data dictionary CSV file
 data_dictionary_file = 'data_dictionary.csv'
 
-# Load the lookup table from a CSV file, or create it if it doesn't exist
-if os.path.exists(data_dictionary_file):
-    lookup_df = pd.read_csv(data_dictionary_file)
-else:
-    lookup_df = pd.DataFrame(initial_lookup_data)
-    lookup_df.to_csv(data_dictionary_file, index=False)
+# Load or initialize the lookup table
+def load_or_initialize_lookup():
+    if os.path.exists(data_dictionary_file):
+        lookup_df = pd.read_csv(data_dictionary_file)
+    else:
+        lookup_df = pd.DataFrame(initial_lookup_data)
+        lookup_df.to_csv(data_dictionary_file, index=False)
+    return lookup_df
 
 def save_lookup_table(df):
     df.to_csv(data_dictionary_file, index=False)
+
+lookup_df = load_or_initialize_lookup()
 
 def process_file(file):
     df = pd.read_excel(file, sheet_name=None)
