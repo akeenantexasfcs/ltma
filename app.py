@@ -164,6 +164,10 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel"):
                 updated_table = update_labels()
                 updated_table = updated_table[columns_to_keep]  # Apply column removal
+                
+                # Convert all instances of '-' to '0'
+                updated_table.replace('-', 0, inplace=True)
+                
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
