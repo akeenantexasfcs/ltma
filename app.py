@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -258,11 +258,18 @@ def main():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
                     
-                    df.at[idx, 'Manual Selection'] = st.selectbox(
+                    # Add dropdown for selection
+                    quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+                    ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+                    dropdown_options = [''] + quarter_options + ytd_options
+
+                    manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + lookup_df['Account'].tolist() + ['Other Category', 'REMOVE ROW'],
+                        options=dropdown_options,
                         key=f"select_{idx}"
-                    ).strip()
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
 
@@ -375,4 +382,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
