@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -216,10 +216,16 @@ def main():
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
             new_column_names = {}
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            dropdown_options = [''] + quarter_options + ytd_options
+
             st.subheader("Rename Columns")
             for col in df.columns:
-                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}")
-                new_column_names[col] = new_name
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
             
             df.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", df.columns.tolist())
@@ -258,11 +264,6 @@ def main():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
                     
-                    # Add dropdown for selection
-                    quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
-                    ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-                    dropdown_options = [''] + quarter_options + ytd_options
-
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=dropdown_options,
