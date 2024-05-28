@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
 import xlsxwriter
+import re
 
 # Define the initial lookup data
 initial_lookup_data = {
@@ -81,6 +82,19 @@ def aggregate_data(df):
                                  values=[col for col in df.columns if col not in ['Label', 'Account']], 
                                  aggfunc='sum').reset_index()
     return pivot_table
+
+def clean_numeric_value(value):
+    """
+    Clean the given value to convert it to a numeric format.
+    Removes special characters like $, commas, and parentheses.
+    Converts to a float.
+    """
+    # Remove any non-numeric characters except the decimal point and negative sign
+    cleaned_value = re.sub(r'[^0-9.-]', '', str(value))
+    try:
+        return float(cleaned_value)
+    except ValueError:
+        return 0  # Return 0 if conversion fails
 
 def main():
     global lookup_df
@@ -176,9 +190,9 @@ def main():
                 updated_table = update_labels()
                 updated_table = updated_table[columns_to_keep]  # Apply column removal
                 
-                # Convert selected numerical columns to numbers and remove leading/trailing spaces
+                # Convert selected numerical columns to numbers
                 for col in numerical_columns:
-                    updated_table[col] = updated_table[col].apply(lambda x: pd.to_numeric(str(x).strip(), errors='coerce'))
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
                 # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
@@ -226,7 +240,7 @@ def main():
                     label_value = row.get('Label', '')  # Get the label value if it exists
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
-                        if score < 0.2:
+                        if score < 0.3:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
