@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -142,7 +142,8 @@ def main():
                         start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
                         end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
                         if pd.notna(start_index) and pd.notna(end_index):
-                            all_tables.loc[start_index:end_index, 'Label'] = label
+                            label_with_index = f"{label} [{start_index}-{end_index}]"
+                            all_tables.loc[start_index:end_index, 'Label'] = label_with_index
                         else:
                             st.error(f"Invalid label bounds for {label}. Skipping...")
                     else:
@@ -340,10 +341,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
