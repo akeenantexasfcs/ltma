@@ -343,50 +343,49 @@ def main():
 
         uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader')
 
-        if uploaded_files and st.button("Aggregate Data"):
-            dfs = [process_file(file) for file in uploaded_files]
+      if uploaded_files and st.button("Aggregate Data"):
+    dfs = [process_file(file) for file in uploaded_files]
 
-            # Combine the data into the "As Presented" sheet by stacking them vertically
-            as_presented = pd.concat(dfs, ignore_index=True)
-            
-            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
-            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
-            as_presented_filtered = as_presented[columns_to_include]
+    # Combine the data into the "As Presented" sheet by stacking them vertically
+    as_presented = pd.concat(dfs, ignore_index=True)
+    
+    # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+    columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection']]
+    as_presented_filtered = as_presented[columns_to_include]
 
-            # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
-            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented['Final Mnemonic Selection'])
+    # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
+    as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented['Final Mnemonic Selection'])
 
-            # Reorder columns to 'Label', 'Account', 'Final Mnemonic Mapping' and the rest
-            columns_order = ['Label', 'Account', 'Final Mnemonic Mapping'] + [col for col in as_presented_filtered.columns if col not in ['Label', 'Account', 'Final Mnemonic Mapping']]
-            as_presented_filtered = as_presented_filtered[columns_order]
+    # Reorder columns to 'Label', 'Account', 'Final Mnemonic Mapping' and the rest
+    columns_order = ['Label', 'Account', 'Final Mnemonic Mapping'] + [col for col in as_presented_filtered.columns if col not in ['Label', 'Account', 'Final Mnemonic Mapping']]
+    as_presented_filtered = as_presented_filtered[columns_order]
 
-            # Aggregate data
-            aggregated_table = aggregate_data(as_presented_filtered)
+    # Aggregate data
+    aggregated_table = aggregate_data(as_presented_filtered)
 
-            # Combine the data into the "Standardized" sheet
-            combined_df = create_combined_df(dfs)
+    # Combine the data into the "Standardized" sheet
+    combined_df = create_combined_df(dfs)
 
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Standardized', index=False)
-                
-                # Create the "Cover" sheet with the selections
-                cover_df = pd.DataFrame({
-                    'Selection': ['Currency', 'Magnitude'],
-                    'Value': [selected_currency, selected_magnitude]
-                })
-                cover_df.to_excel(writer, sheet_name='Cover', index=False)
-            
-            excel_file.seek(0)
+    excel_file = io.BytesIO()
+    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+        aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+        
+        # Create the "Cover" sheet with the selections
+        cover_df = pd.DataFrame({
+            'Selection': ['Currency', 'Magnitude'],
+            'Value': [selected_currency, selected_magnitude]
+        })
+        cover_df.to_excel(writer, sheet_name='Cover', index=False)
+    
+    excel_file.seek(0)
 
-            st.download_button(
-                label="Download Aggregated Excel",
-                data=excel_file,
-                file_name="aggregated_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
+    st.download_button(
+        label="Download Aggregated Excel",
+        data=excel_file,
+        file_name="aggregated_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 if __name__ == '__main__':
     main()
 
