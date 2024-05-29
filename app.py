@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -60,10 +60,10 @@ def create_combined_df(dfs):
             st.error(f"No date columns found in dataframe {i+1}")
             continue
 
-        df_grouped = df.groupby(final_mnemonic_col).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
         df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
-        df_pivot = df_melted.pivot(index=final_mnemonic_col, columns='Date', values='Value')
+        df_pivot = df_melted.pivot(index=[final_mnemonic_col, 'Label'], columns='Date', values='Value')
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -72,7 +72,7 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Check for the presence of 'Row Labels' and 'Account' columns dynamically
+    # Check for the presence of 'Label' and 'Account' columns dynamically
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
@@ -354,16 +354,19 @@ def main():
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
+            # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
+            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented['Final Mnemonic Selection'])
+
             # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
 
-            # Combine the data into the "Combined" sheet
+            # Combine the data into the "Standardized" sheet
             combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Combined', index=False)
+                combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                 
                 # Create the "Cover" sheet with the selections
                 cover_df = pd.DataFrame({
