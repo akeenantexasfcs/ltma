@@ -62,8 +62,7 @@ def create_combined_df(dfs):
 
         df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
-        df_pivot = df_melted.pivot(index=[final_mnemonic_col, 'Label'], columns='Date', values='Value')
+        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -356,6 +355,10 @@ def main():
 
             # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
             as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented['Final Mnemonic Selection'])
+
+            # Reorder columns to 'Label', 'Account', 'Final Mnemonic Mapping' and the rest
+            columns_order = ['Label', 'Account', 'Final Mnemonic Mapping'] + [col for col in as_presented_filtered.columns if col not in ['Label', 'Account', 'Final Mnemonic Mapping']]
+            as_presented_filtered = as_presented_filtered[columns_order]
 
             # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
