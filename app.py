@@ -47,7 +47,7 @@ def process_file(file):
     df = df[first_sheet_name]
     return df
 
-def create_standardized_df(dfs):
+def create_combined_df(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
@@ -60,19 +60,19 @@ def create_standardized_df(dfs):
             st.error(f"No date columns found in dataframe {i+1}")
             continue
 
-        df_grouped = df.groupby(['Label', final_mnemonic_col]).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=['Label', final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_grouped = df.groupby(final_mnemonic_col).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_melted['Date'] = df_melted['Date'] + f'_{i+1}'
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value').reset_index()
+        df_pivot = df_melted.pivot(index=final_mnemonic_col, columns='Date', values='Value')
         
         if combined_df.empty:
             combined_df = df_pivot
         else:
-            combined_df = combined_df.join(df_pivot.set_index(['Label', final_mnemonic_col]), on=['Label', final_mnemonic_col], how='outer')
-    return combined_df.reset_index(drop=True)
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Check for the presence of 'Label' and 'Account' columns dynamically
+    # Check for the presence of 'Row Labels' and 'Account' columns dynamically
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
@@ -216,7 +216,7 @@ def main():
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
             new_column_names = {}
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 4)]
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
             dropdown_options = [''] + quarter_options + ytd_options
 
@@ -354,19 +354,16 @@ def main():
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection', 'Final Mnemonic Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
-            # Add 'Final Mnemonic Selection' next to 'Account'
-            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Selection', as_presented['Final Mnemonic Selection'])
-
-            # Aggregate data for 'As Presented' sheet
+            # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
 
-            # Combine the data into the "Standardized" sheet
-            standardized_df = create_standardized_df(dfs)
+            # Combine the data into the "Combined" sheet
+            combined_df = create_combined_df(dfs)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                standardized_df.to_excel(writer, sheet_name='Standardized', index=False)
+                combined_df.to_excel(writer, sheet_name='Combined', index=False)
                 
                 # Create the "Cover" sheet with the selections
                 cover_df = pd.DataFrame({
