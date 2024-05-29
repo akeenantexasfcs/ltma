@@ -218,7 +218,7 @@ def main():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + lookup_df['Mnemonic'].tolist() + quarter_options + ytd_options
+            dropdown_options = [''] + quarter_options + ytd_options
 
             st.subheader("Rename Columns")
             for col in df.columns:
@@ -266,7 +266,7 @@ def main():
                     
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=dropdown_options,
+                        options=[''] + lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
                         key=f"select_{idx}"
                     )
                     if manual_selection:
