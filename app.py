@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import io
@@ -218,7 +218,7 @@ def main():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + quarter_options + ytd_options
+            dropdown_options = [''] + lookup_df['Mnemonic'].tolist() + quarter_options + ytd_options
 
             st.subheader("Rename Columns")
             for col in df.columns:
