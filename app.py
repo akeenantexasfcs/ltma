@@ -78,7 +78,7 @@ def aggregate_data(df):
     
     # Example aggregation function: Pivoting the data
     pivot_table = df.pivot_table(index=['Label', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Label', 'Account']], 
+                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
                                  aggfunc='sum').reset_index()
     return pivot_table
 
@@ -353,15 +353,12 @@ def main():
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
-            # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
-            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented.pop('Final Mnemonic Selection'))
-
-            # Reorder columns to 'Label', 'Account', 'Final Mnemonic Mapping' and the rest
-            columns_order = ['Label', 'Account', 'Final Mnemonic Mapping'] + [col for col in as_presented_filtered.columns if col not in ['Label', 'Account', 'Final Mnemonic Mapping']]
-            as_presented_filtered = as_presented_filtered[columns_order]
-
             # Aggregate data
             aggregated_table = aggregate_data(as_presented_filtered)
+
+            # Ensure the columns are ordered as Label, Account, Final Mnemonic Selection, and then the remaining columns
+            columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                             [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+            aggregated_table = aggregated_table[columns_order]
 
             # Combine the data into the "Standardized" sheet
             combined_df = create_combined_df(dfs)
