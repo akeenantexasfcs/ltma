@@ -348,13 +348,13 @@ def main():
 
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
-            
+
             # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
             columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection']]
             as_presented_filtered = as_presented[columns_to_include]
 
             # Add 'Final Mnemonic Mapping' one column to the right of 'Account'
-            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented['Final Mnemonic Selection'])
+            as_presented_filtered.insert(as_presented_filtered.columns.get_loc('Account') + 1, 'Final Mnemonic Mapping', as_presented.pop('Final Mnemonic Selection'))
 
             # Reorder columns to 'Label', 'Account', 'Final Mnemonic Mapping' and the rest
             columns_order = ['Label', 'Account', 'Final Mnemonic Mapping'] + [col for col in as_presented_filtered.columns if col not in ['Label', 'Account', 'Final Mnemonic Mapping']]
