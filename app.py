@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[1]:
 
 
 import io
@@ -101,6 +101,20 @@ def clean_numeric_value(value):
         return float(cleaned_value)
     except ValueError:
         return 0  # Return 0 if conversion fails
+
+def sort_by_label(df):
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df = df.sort_values(by='Label_Order').drop(columns=['Label_Order'])
+    return df
 
 def main():
     global lookup_df
@@ -362,6 +376,10 @@ def main():
 
             # Combine the data into the "Standardized" sheet
             combined_df = create_combined_df(dfs)
+
+            # Sort by Label
+            aggregated_table = sort_by_label(aggregated_table)
+            combined_df = sort_by_label(combined_df)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
