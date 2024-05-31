@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -382,6 +382,28 @@ def main():
             # Sort by Label and ensure 'Total' records are at the end within each label
             aggregated_table = sort_by_label(aggregated_table)
             combined_df = sort_by_label(combined_df)
+
+            st.subheader("Data Preview")
+            st.dataframe(aggregated_table)
+
+            # Add button and dropdown functionality for unit conversion
+            st.subheader("Convert Units")
+            selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000], key="conversion_value")
+            if st.button("Apply Conversion"):
+                for col in aggregated_table.select_dtypes(include=['number']).columns:
+                    aggregated_table[col] *= selected_value
+                st.success(f"Applied conversion factor of {selected_value} to all numerical columns.")
+                st.dataframe(aggregated_table)
+
+            if st.button("Revert to Original"):
+                # Re-load the original data
+                dfs = [process_file(file) for file in uploaded_files]
+                as_presented = pd.concat(dfs, ignore_index=True)
+                as_presented_filtered = as_presented[columns_to_include]
+                aggregated_table = aggregate_data(as_presented_filtered)
+                aggregated_table = aggregated_table[columns_order]
+                st.success("Reverted to original data.")
+                st.dataframe(aggregated_table)
 
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
