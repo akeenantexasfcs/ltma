@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -404,6 +404,8 @@ def main():
                     if selected_column in aggregated_table.columns:
                         aggregated_table[selected_column] = aggregated_table[selected_column].apply(
                             lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                        combined_df[selected_column] = combined_df[selected_column].apply(
+                            lambda x: x * selected_value if isinstance(x, (int, float)) else x)
                 st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
                 st.dataframe(aggregated_table)
 
@@ -415,6 +417,7 @@ def main():
                     as_presented_filtered = as_presented[columns_to_include]
                     aggregated_table = aggregate_data(as_presented_filtered)
                     aggregated_table = aggregated_table[columns_order]
+                    combined_df = create_combined_df(dfs)
                     st.success("Reverted to original data.")
                     st.dataframe(aggregated_table)
 
@@ -440,7 +443,7 @@ def main():
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
         else:
-            st.warning("No valid files uploaded or processed successfully. Please upload valid Excel files.")
+            st.warning("Please upload valid Excel files for aggregation.")
 
 if __name__ == '__main__':
     main()
