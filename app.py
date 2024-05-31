@@ -395,11 +395,11 @@ def main():
             # Add button and dropdown functionality for unit conversion
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=aggregated_table.columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000], key="conversion_value")
+            selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000, "No Conversions Necessary"], key="conversion_value")
             apply_conversion = st.button("Apply Conversion")
             revert_conversion = st.button("Revert to Original")
 
-            if apply_conversion and selected_columns:
+            if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
                 for selected_column in selected_columns:
                     if selected_column in aggregated_table.columns:
                         aggregated_table[selected_column] = aggregated_table[selected_column].apply(
