@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -82,7 +82,13 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            
+            # Ensure the column exists
+            if not all_tables.columns:
+                st.error("The uploaded JSON does not contain any tables or columns.")
+                return
+
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
@@ -107,10 +113,14 @@ def main():
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(edited_table[column_a].dropna().unique())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
-                selections.append((label, start_label, end_label))
+                if column_a in edited_table.columns:
+                    options = [''] + list(edited_table[column_a].dropna().unique())
+                    start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                    end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                    selections.append((label, start_label, end_label))
+                else:
+                    st.error(f"Column '{column_a}' not found in the table.")
+                    return
 
             def update_labels():
                 edited_table['Label'] = ''
@@ -344,10 +354,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
