@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[9]:
 
 
 import io
@@ -41,11 +41,15 @@ def save_lookup_table(df):
 lookup_df = load_or_initialize_lookup()
 
 def process_file(file):
-    df = pd.read_excel(file, sheet_name=None)
-    # Assuming the relevant sheet is the first one
-    first_sheet_name = list(df.keys())[0]
-    df = df[first_sheet_name]
-    return df
+    try:
+        df = pd.read_excel(file, sheet_name=None)
+        # Assuming the relevant sheet is the first one
+        first_sheet_name = list(df.keys())[0]
+        df = df[first_sheet_name]
+        return df
+    except Exception as e:
+        st.error(f"Error processing file {file.name}: {e}")
+        return None
 
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
@@ -359,9 +363,11 @@ def main():
 
         uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader')
 
-        if uploaded_files and st.button("Aggregate Data"):
-            dfs = [process_file(file) for file in uploaded_files]
+        dfs = []
+        if uploaded_files:
+            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
 
+        if dfs:
             # Combine the data into the "As Presented" sheet by stacking them vertically
             as_presented = pd.concat(dfs, ignore_index=True)
 
@@ -388,43 +394,51 @@ def main():
 
             # Add button and dropdown functionality for unit conversion
             st.subheader("Convert Units")
+            selected_column = st.selectbox("Select column for conversion", options=aggregated_table.columns, key="column_selection")
             selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000], key="conversion_value")
-            if st.button("Apply Conversion"):
-                for col in aggregated_table.select_dtypes(include=['number']).columns:
-                    aggregated_table[col] *= selected_value
-                st.success(f"Applied conversion factor of {selected_value} to all numerical columns.")
-                st.dataframe(aggregated_table)
+            apply_conversion = st.button("Apply Conversion")
+            revert_conversion = st.button("Revert to Original")
 
-            if st.button("Revert to Original"):
+            if apply_conversion and selected_column:
+                if selected_column in aggregated_table.columns:
+                    aggregated_table[selected_column] = aggregated_table[selected_column].apply(lambda x: x * selected_value if pd.api.types.is_numeric_dtype(x) else x)
+                    st.success(f"Applied conversion factor of {selected_value} to column '{selected_column}'.")
+                    st.dataframe(aggregated_table)
+
+            if revert_conversion:
                 # Re-load the original data
-                dfs = [process_file(file) for file in uploaded_files]
-                as_presented = pd.concat(dfs, ignore_index=True)
-                as_presented_filtered = as_presented[columns_to_include]
-                aggregated_table = aggregate_data(as_presented_filtered)
-                aggregated_table = aggregated_table[columns_order]
-                st.success("Reverted to original data.")
-                st.dataframe(aggregated_table)
+                dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+                if dfs:
+                    as_presented = pd.concat(dfs, ignore_index=True)
+                    as_presented_filtered = as_presented[columns_to_include]
+                    aggregated_table = aggregate_data(as_presented_filtered)
+                    aggregated_table = aggregated_table[columns_order]
+                    st.success("Reverted to original data.")
+                    st.dataframe(aggregated_table)
 
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+            if st.button("Download Aggregated Excel"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                    
+                    # Create the "Cover" sheet with the selections
+                    cover_df = pd.DataFrame({
+                        'Selection': ['Currency', 'Magnitude'],
+                        'Value': [selected_currency, selected_magnitude]
+                    })
+                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
                 
-                # Create the "Cover" sheet with the selections
-                cover_df = pd.DataFrame({
-                    'Selection': ['Currency', 'Magnitude'],
-                    'Value': [selected_currency, selected_magnitude]
-                })
-                cover_df.to_excel(writer, sheet_name='Cover', index=False)
-            
-            excel_file.seek(0)
+                excel_file.seek(0)
 
-            st.download_button(
-                label="Download Aggregated Excel",
-                data=excel_file,
-                file_name="aggregated_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+                st.download_button(
+                    label="Download Aggregated Excel",
+                    data=excel_file,
+                    file_name="aggregated_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.warning("No valid files uploaded or processed successfully. Please upload valid Excel files.")
 
 if __name__ == '__main__':
     main()
