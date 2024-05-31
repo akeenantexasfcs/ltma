@@ -405,6 +405,15 @@ def main():
                 st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
 
             if st.button("Download Aggregated Excel"):
+                if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
+                    # Apply conversion if not already applied
+                    for selected_column in selected_columns:
+                        if selected_column in aggregated_table.columns:
+                            aggregated_table[selected_column] = aggregated_table[selected_column].apply(
+                                lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                            combined_df[selected_column] = combined_df[selected_column].apply(
+                                lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
