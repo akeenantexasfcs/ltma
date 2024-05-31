@@ -113,7 +113,9 @@ def sort_by_label(df):
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
-    df = df.sort_values(by='Label_Order').drop(columns=['Label_Order'])
+    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
+    
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
 def main():
@@ -377,7 +379,7 @@ def main():
             # Combine the data into the "Standardized" sheet
             combined_df = create_combined_df(dfs)
 
-            # Sort by Label
+            # Sort by Label and ensure 'Total' records are at the end within each label
             aggregated_table = sort_by_label(aggregated_table)
             combined_df = sort_by_label(combined_df)
 
