@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -10,7 +10,6 @@ import os
 import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
-import xlsxwriter
 import re
 
 # Define the initial lookup data
@@ -38,90 +37,17 @@ def load_or_initialize_lookup():
 def save_lookup_table(df):
     df.to_csv(data_dictionary_file, index=False)
 
-lookup_df = load_or_initialize_lookup()
-
 def process_file(file):
     df = pd.read_excel(file, sheet_name=None)
-    # Assuming the relevant sheet is the first one
     first_sheet_name = list(df.keys())[0]
     df = df[first_sheet_name]
     return df
 
-def create_combined_df(dfs):
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            continue
-        
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-        
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
-
-def aggregate_data(df):
-    # Check for the presence of 'Label' and 'Account' columns dynamically
-    if 'Label' not in df.columns or 'Account' not in df.columns:
-        st.error("'Label' and/or 'Account' columns not found in the data.")
-        return df
-    
-    # Example aggregation function: Pivoting the data
-    pivot_table = df.pivot_table(index=['Label', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
-                                 aggfunc='sum').reset_index()
-    return pivot_table
-
-def clean_numeric_value(value):
-    """
-    Clean the given value to convert it to a numeric format.
-    Removes special characters like $, commas, and parentheses.
-    Converts to a float and handles negative numbers correctly.
-    """
-    value_str = str(value).strip()
-    
-    # Handle parentheses indicating negative numbers
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    
-    # Remove dollar signs and commas
-    cleaned_value = re.sub(r'[$,]', '', value_str)
-    
-    try:
-        return float(cleaned_value)
-    except ValueError:
-        return 0  # Return 0 if conversion fails
-
-def sort_by_label(df):
-    sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
 def main():
-    global lookup_df
-
     st.title("Table Extractor and Label Generators")
+
+    # Ensure lookup_df is loaded or initialized at the start of the function
+    lookup_df = load_or_initialize_lookup()
 
     # Define the tabs
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
@@ -161,44 +87,56 @@ def main():
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
-            st.dataframe(all_tables)
 
+            # Store initial state
+            if 'initial_state' not in st.session_state:
+                st.session_state['initial_state'] = all_tables.copy()
+
+            # Display the interactive table
+            edited_table = st.data_editor(all_tables)
+
+            # Button to undo changes
+            if st.button("Undo Changes"):
+                edited_table = st.session_state['initial_state'].copy()
+                st.experimental_rerun()
+
+            # Process the selections
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
                       "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique())
+                options = [''] + list(edited_table[column_a].dropna().unique())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
             def update_labels():
-                all_tables['Label'] = ''
+                edited_table['Label'] = ''
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
-                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
-                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
+                        start_index = edited_table[edited_table[column_a].eq(start_label)].index.min()
+                        end_index = edited_table[edited_table[column_a].eq(end_label)].index.max()
                         if pd.notna(start_index) and pd.notna(end_index):
-                            all_tables.loc[start_index:end_index, 'Label'] = label
+                            edited_table.loc[start_index:end_index, 'Label'] = label
                         else:
                             st.error(f"Invalid label bounds for {label}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
-                return all_tables
+                return edited_table
 
             # Adding radio buttons for column removal
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
-            for col in all_tables.columns:
+            for col in edited_table.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
             # Adding radio buttons for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
-            for col in all_tables.columns:
+            for col in edited_table.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
@@ -406,4 +344,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
