@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -389,15 +389,11 @@ def main():
             aggregated_table = sort_by_label(aggregated_table)
             combined_df = sort_by_label(combined_df)
 
-            st.subheader("Data Preview")
-            st.dataframe(aggregated_table)
-
             # Add button and dropdown functionality for unit conversion
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=aggregated_table.columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000, "No Conversions Necessary"], key="conversion_value")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
             apply_conversion = st.button("Apply Conversion")
-            revert_conversion = st.button("Revert to Original")
 
             if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
                 for selected_column in selected_columns:
@@ -407,19 +403,6 @@ def main():
                         combined_df[selected_column] = combined_df[selected_column].apply(
                             lambda x: x * selected_value if isinstance(x, (int, float)) else x)
                 st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
-                st.dataframe(aggregated_table)
-
-            if revert_conversion:
-                # Re-load the original data
-                dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
-                if dfs:
-                    as_presented = pd.concat(dfs, ignore_index=True)
-                    as_presented_filtered = as_presented[columns_to_include]
-                    aggregated_table = aggregate_data(as_presented_filtered)
-                    aggregated_table = aggregated_table[columns_order]
-                    combined_df = create_combined_df(dfs)
-                    st.success("Reverted to original data.")
-                    st.dataframe(aggregated_table)
 
             if st.button("Download Aggregated Excel"):
                 excel_file = io.BytesIO()
@@ -447,10 +430,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
