@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -394,16 +394,18 @@ def main():
 
             # Add button and dropdown functionality for unit conversion
             st.subheader("Convert Units")
-            selected_column = st.selectbox("Select column for conversion", options=aggregated_table.columns, key="column_selection")
+            selected_columns = st.multiselect("Select columns for conversion", options=aggregated_table.columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", [1000, 1000000, 1000000000], key="conversion_value")
             apply_conversion = st.button("Apply Conversion")
             revert_conversion = st.button("Revert to Original")
 
-            if apply_conversion and selected_column:
-                if selected_column in aggregated_table.columns:
-                    aggregated_table[selected_column] = aggregated_table[selected_column].apply(lambda x: x * selected_value if pd.api.types.is_numeric_dtype(type(x)) else x)
-                    st.success(f"Applied conversion factor of {selected_value} to column '{selected_column}'.")
-                    st.dataframe(aggregated_table)
+            if apply_conversion and selected_columns:
+                for selected_column in selected_columns:
+                    if selected_column in aggregated_table.columns:
+                        aggregated_table[selected_column] = aggregated_table[selected_column].apply(
+                            lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
+                st.dataframe(aggregated_table)
 
             if revert_conversion:
                 # Re-load the original data
@@ -442,4 +444,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
