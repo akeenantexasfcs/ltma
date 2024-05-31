@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -401,7 +401,7 @@ def main():
 
             if apply_conversion and selected_column:
                 if selected_column in aggregated_table.columns:
-                    aggregated_table[selected_column] = aggregated_table[selected_column].apply(lambda x: x * selected_value if pd.api.types.is_numeric_dtype(x) else x)
+                    aggregated_table[selected_column] = aggregated_table[selected_column].apply(lambda x: x * selected_value if pd.api.types.is_numeric_dtype(type(x)) else x)
                     st.success(f"Applied conversion factor of {selected_value} to column '{selected_column}'.")
                     st.dataframe(aggregated_table)
 
