@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -43,6 +43,16 @@ def process_file(file):
     df = df[first_sheet_name]
     return df
 
+def clean_numeric_value(value):
+    value_str = str(value).strip()
+    if value_str.startswith('(') and value_str.endswith(')'):
+        value_str = '-' + value_str[1:-1]
+    cleaned_value = re.sub(r'[$,]', '', value_str)
+    try:
+        return float(cleaned_value)
+    except ValueError:
+        return 0  # Return 0 if conversion fails
+
 def main():
     st.title("Table Extractor and Label Generators")
 
@@ -82,7 +92,7 @@ def main():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             
             # Ensure the column exists
             if not all_tables.columns:
@@ -93,18 +103,7 @@ def main():
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
-
-            # Store initial state
-            if 'initial_state' not in st.session_state:
-                st.session_state['initial_state'] = all_tables.copy()
-
-            # Display the interactive table
-            edited_table = st.data_editor(all_tables)
-
-            # Button to undo changes
-            if st.button("Undo Changes"):
-                edited_table = st.session_state['initial_state'].copy()
-                st.experimental_rerun()
+            st.dataframe(all_tables)
 
             # Process the selections
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
@@ -113,8 +112,8 @@ def main():
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                if column_a in edited_table.columns:
-                    options = [''] + list(edited_table[column_a].dropna().unique())
+                if column_a in all_tables.columns:
+                    options = [''] + list(all_tables[column_a].dropna().unique())
                     start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                     end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                     selections.append((label, start_label, end_label))
@@ -122,54 +121,25 @@ def main():
                     st.error(f"Column '{column_a}' not found in the table.")
                     return
 
-            def update_labels():
-                edited_table['Label'] = ''
+            if st.button("Generate Final Preview"):
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
-                        start_index = edited_table[edited_table[column_a].eq(start_label)].index.min()
-                        end_index = edited_table[edited_table[column_a].eq(end_label)].index.max()
+                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
+                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
                         if pd.notna(start_index) and pd.notna(end_index):
-                            edited_table.loc[start_index:end_index, 'Label'] = label
+                            all_tables.loc[start_index:end_index, 'Label'] = label
                         else:
                             st.error(f"Invalid label bounds for {label}. Skipping...")
-                    else:
-                        st.info(f"No selections made for {label}. Skipping...")
-                return edited_table
 
-            # Adding radio buttons for column removal
-            st.subheader("Select columns to keep before export")
-            columns_to_keep = []
-            for col in edited_table.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
-                    columns_to_keep.append(col)
-
-            # Adding radio buttons for numerical column selection
-            st.subheader("Select numerical columns")
-            numerical_columns = []
-            for col in edited_table.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
-                    numerical_columns.append(col)
-
-            if st.button("Update Labels Preview"):
-                updated_table = update_labels()
-                st.subheader("Updated Data Preview")
-                st.dataframe(updated_table[columns_to_keep])
-
-            if st.button("Apply Selected Labels and Generate Excel"):
-                updated_table = update_labels()
-                updated_table = updated_table[columns_to_keep]  # Apply column removal
+                st.subheader("Final Data Preview")
+                final_preview = st.data_editor(all_tables)
                 
-                # Convert selected numerical columns to numbers
-                for col in numerical_columns:
-                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
-                # Convert all instances of '-' to '0'
-                updated_table.replace('-', 0, inplace=True)
-                
-                excel_file = io.BytesIO()
-                updated_table.to_excel(excel_file, index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if st.button("Apply and Download Excel"):
+                    final_preview.replace('-', 0, inplace=True)
+                    excel_file = io.BytesIO()
+                    final_preview.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
