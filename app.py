@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -395,24 +395,23 @@ def main():
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
             apply_conversion = st.button("Apply Conversion")
 
+            def apply_unit_conversion(df, columns, factor):
+                for selected_column in columns:
+                    if selected_column in df.columns:
+                        df[selected_column] = df[selected_column].apply(
+                            lambda x: x * factor if isinstance(x, (int, float)) else x)
+                return df
+
             if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
-                for selected_column in selected_columns:
-                    if selected_column in aggregated_table.columns:
-                        aggregated_table[selected_column] = aggregated_table[selected_column].apply(
-                            lambda x: x * selected_value if isinstance(x, (int, float)) else x)
-                        combined_df[selected_column] = combined_df[selected_column].apply(
-                            lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                aggregated_table = apply_unit_conversion(aggregated_table, selected_columns, selected_value)
+                combined_df = apply_unit_conversion(combined_df, selected_columns, selected_value)
                 st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
 
             if st.button("Download Aggregated Excel"):
-                if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
-                    # Apply conversion if not already applied
-                    for selected_column in selected_columns:
-                        if selected_column in aggregated_table.columns:
-                            aggregated_table[selected_column] = aggregated_table[selected_column].apply(
-                                lambda x: x * selected_value if isinstance(x, (int, float)) else x)
-                            combined_df[selected_column] = combined_df[selected_column].apply(
-                                lambda x: x * selected_value if isinstance(x, (int, float)) else x)
+                # Ensure conversions are applied before export
+                if selected_value != "No Conversions Necessary" and selected_columns:
+                    aggregated_table = apply_unit_conversion(aggregated_table, selected_columns, selected_value)
+                    combined_df = apply_unit_conversion(combined_df, selected_columns, selected_value)
                 
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
