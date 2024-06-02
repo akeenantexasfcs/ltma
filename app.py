@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[1]:
 
 
 import io
@@ -122,6 +122,13 @@ def sort_by_label(df):
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
+
 def main():
     global lookup_df
 
@@ -226,6 +233,22 @@ def main():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            # Unit conversion functionality moved from Tab 4
+            st.subheader("Convert Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=updated_table.columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+            apply_conversion = st.button("Apply Conversion")
+
+            if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
+                updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
+                st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
+
+                # Regenerate the download button with converted data
+                excel_file = io.BytesIO()
+                updated_table.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Converted Excel", excel_file, "extracted_combined_tables_with_labels_converted.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
@@ -389,30 +412,7 @@ def main():
             aggregated_table = sort_by_label(aggregated_table)
             combined_df = sort_by_label(combined_df)
 
-            # Add button and dropdown functionality for unit conversion
-            st.subheader("Convert Units")
-            selected_columns = st.multiselect("Select columns for conversion", options=aggregated_table.columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
-            apply_conversion = st.button("Apply Conversion")
-
-            def apply_unit_conversion(df, columns, factor):
-                for selected_column in columns:
-                    if selected_column in df.columns:
-                        df[selected_column] = df[selected_column].apply(
-                            lambda x: x * factor if isinstance(x, (int, float)) else x)
-                return df
-
-            if apply_conversion and selected_value != "No Conversions Necessary" and selected_columns:
-                aggregated_table = apply_unit_conversion(aggregated_table, selected_columns, selected_value)
-                combined_df = apply_unit_conversion(combined_df, selected_columns, selected_value)
-                st.success(f"Applied conversion factor of {selected_value} to columns {selected_columns}.")
-
             if st.button("Download Aggregated Excel"):
-                # Ensure conversions are applied before export
-                if selected_value != "No Conversions Necessary" and selected_columns:
-                    aggregated_table = apply_unit_conversion(aggregated_table, selected_columns, selected_value)
-                    combined_df = apply_unit_conversion(combined_df, selected_columns, selected_value)
-                
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
