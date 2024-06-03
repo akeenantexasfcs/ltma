@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import io
@@ -178,13 +178,25 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
+            # Update dropdown options to include occurrence number
+            def get_unique_options(series):
+                counts = {}
+                unique_options = []
+                for item in series:
+                    if item in counts:
+                        counts[item] += 1
+                    else:
+                        counts[item] = 1
+                    unique_options.append(f"{item} {counts[item]}")
+                return unique_options
+
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
                       "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique())
+                options = [''] + get_unique_options(all_tables[column_a].dropna())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
@@ -198,8 +210,10 @@ def main():
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
-                            start_index = df[df[account_column].eq(start_label)].index.min()
-                            end_index = df[df[account_column].eq(end_label)].index.max()
+                            start_label_base = " ".join(start_label.split()[:-1])
+                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
+                            end_label_base = " ".join(end_label.split()[:-1])
+                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
                             if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
