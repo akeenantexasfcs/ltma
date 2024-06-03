@@ -191,17 +191,18 @@ def main():
 
             def update_labels(df):
                 df['Label'] = ''
+                account_column = new_column_names.get(column_a, column_a)
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
-                            start_index = df[df[column_a].eq(start_label)].index.min()
-                            end_index = df[df[column_a].eq(end_label)].index.max()
+                            start_index = df[df[account_column].eq(start_label)].index.min()
+                            end_index = df[df[account_column].eq(end_label)].index.max()
                             if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
                                 st.error(f"Invalid label bounds for {label}. Skipping...")
                         except KeyError as e:
-                            st.error(f"Error accessing column '{column_a}': {e}. Skipping...")
+                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
