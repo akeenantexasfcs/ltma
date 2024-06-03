@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -384,9 +384,14 @@ def main():
                     # Sort by Label and Account with "Total" entries last within each label
                     aggregated_table = sort_by_label_and_account(aggregated_table)
 
+                    # Create the combined data for the Standardized sheet
+                    combined_df = create_combined_df([final_output_df])
+                    combined_df = sort_by_label_and_account(combined_df)
+
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         # Create the "Cover" sheet with the selections
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
