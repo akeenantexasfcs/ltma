@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -138,7 +138,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
-        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_tab1')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             tables = []
@@ -181,8 +181,8 @@ def main():
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
                 options = [''] + list(all_tables[column_a].dropna().unique())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}_tab1")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}_tab1")
                 selections.append((label, start_label, end_label))
 
             def update_labels():
@@ -199,13 +199,13 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
-            if st.button("Update Labels Preview"):
+            if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
                 st.dataframe(updated_table)
 
     with tab2:
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader')
+        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab2')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
@@ -247,14 +247,14 @@ def main():
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
-                        key=f"select_{idx}"
+                        key=f"select_{idx}_tab2"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate Excel with Lookup Results"):
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab2"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
@@ -265,7 +265,7 @@ def main():
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                if st.button("Update Data Dictionary with Manual Mappings"):
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab2"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
@@ -289,7 +289,7 @@ def main():
         st.subheader("Balance Sheet Data Dictionary")
 
         # Upload feature
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab3')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             lookup_df = new_lookup_df
@@ -300,14 +300,14 @@ def main():
         st.dataframe(lookup_df)
 
         # Record removal feature
-        remove_indices = st.multiselect("Select rows to remove", lookup_df.index)
-        if st.button("Remove Selected Rows"):
+        remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_tab3')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab3"):
             lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table(lookup_df)
             st.success("Selected rows removed successfully!")
             st.dataframe(lookup_df)
 
-        if st.button("Download Data Dictionary"):
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab3"):
             excel_file = io.BytesIO()
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
@@ -317,10 +317,10 @@ def main():
         st.subheader("Data Aggregation")
 
         # Upload feature for renaming columns
-        uploaded_excel = st.file_uploader("Upload your Excel file for renaming columns", type=['xlsx'], key='rename_excel_uploader')
-        if uploaded_excel is not None:
-            df = pd.read_excel(uploaded_excel)
-            st.write("Columns in the uploaded file:", df.columns.tolist())
+        uploaded_excel_rename = st.file_uploader("Upload your Excel file for renaming columns", type=['xlsx'], key='rename_excel_uploader_tab4')
+        if uploaded_excel_rename is not None:
+            df_rename = pd.read_excel(uploaded_excel_rename)
+            st.write("Columns in the uploaded file:", df_rename.columns.tolist())
 
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
@@ -328,60 +328,60 @@ def main():
             dropdown_options = [''] + quarter_options + ytd_options
 
             st.subheader("Rename Columns")
-            for col in df.columns:
-                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+            for col in df_rename.columns:
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_tab4")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_tab4")
                 
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
             
-            df.rename(columns=new_column_names, inplace=True)
-            st.write("Updated Columns:", df.columns.tolist())
-            st.dataframe(df)
+            df_rename.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", df_rename.columns.tolist())
+            st.dataframe(df_rename)
 
         # Add option to select columns to keep before export
         st.subheader("Select columns to keep before export")
         columns_to_keep = []
-        if uploaded_excel is not None:
-            for col in df.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+        if uploaded_excel_rename is not None:
+            for col in df_rename.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_tab4"):
                     columns_to_keep.append(col)
 
         # Adding radio buttons for numerical column selection
         st.subheader("Select numerical columns")
         numerical_columns = []
-        if uploaded_excel is not None:
-            for col in df.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+        if uploaded_excel_rename is not None:
+            for col in df_rename.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_tab4"):
                     numerical_columns.append(col)
 
         # Unit conversion functionality moved from Tab 4
         st.subheader("Convert Units")
-        selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-        selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+        selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_tab4")
+        selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value_tab4")
 
-        if st.button("Update Labels Preview"):
-            if uploaded_excel is not None:
+        if st.button("Update Labels Preview", key="update_labels_preview_tab4"):
+            if uploaded_excel_rename is not None:
                 st.subheader("Updated Data Preview")
-                st.dataframe(df[columns_to_keep])
+                st.dataframe(df_rename[columns_to_keep])
 
-        if st.button("Apply Selected Labels and Generate Excel"):
-            if uploaded_excel is not None:
+        if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab4"):
+            if uploaded_excel_rename is not None:
                 # Apply column removal
-                df = df[columns_to_keep]
+                df_rename = df_rename[columns_to_keep]
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
-                    df[col] = df[col].apply(clean_numeric_value)
+                    df_rename[col] = df_rename[col].apply(clean_numeric_value)
                 
                 # Apply unit conversion if selected
                 if selected_value != "No Conversions Necessary":
-                    df = apply_unit_conversion(df, selected_columns, selected_value)
+                    df_rename = apply_unit_conversion(df_rename, selected_columns, selected_value)
 
                 # Convert all instances of '-' to '0'
-                df.replace('-', 0, inplace=True)
+                df_rename.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
-                df.to_excel(excel_file, index=False)
+                df_rename.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "renamed_and_filtered_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
