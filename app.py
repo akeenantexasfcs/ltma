@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -318,6 +318,12 @@ def main():
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3')
 
+        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+        magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3')
+
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
             st.write("Columns in the uploaded file:", df.columns.tolist())
@@ -371,10 +377,24 @@ def main():
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+                    
+                    # Aggregate data
+                    aggregated_table = aggregate_data(final_output_df)
+                    
+                    # Sort by Label and Account with "Total" entries last within each label
+                    aggregated_table = sort_by_label_and_account(aggregated_table)
+
                     excel_file = io.BytesIO()
-                    final_output_df.to_excel(excel_file, index=False)
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                        # Create the "Cover" sheet with the selections
+                        cover_df = pd.DataFrame({
+                            'Selection': ['Currency', 'Magnitude'],
+                            'Value': [selected_currency, selected_magnitude]
+                        })
+                        cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_aggregation.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -487,10 +507,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
