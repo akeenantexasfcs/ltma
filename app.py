@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -388,6 +388,10 @@ def main():
                     # Create the combined data for the Standardized sheet
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_account(combined_df)
+
+                    # Ensure the columns are ordered as Label, Account, Final Mnemonic Selection, and then the remaining columns
+                    columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                     [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    aggregated_table = aggregated_table[columns_order]
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
