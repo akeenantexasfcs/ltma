@@ -28,7 +28,7 @@ data_dictionary_file = 'data_dictionary.csv'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup():
-    if os.path.exists(data_dictionary_file):
+    if (os.path.exists(data_dictionary_file)):
         lookup_df = pd.read_csv(data_dictionary_file)
     else:
         lookup_df = pd.DataFrame(initial_lookup_data)
