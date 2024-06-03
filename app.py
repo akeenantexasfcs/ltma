@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -261,6 +261,9 @@ def main():
 
                 # Remove rows where 'Label' column is blank
                 updated_table = updated_table[updated_table['Label'].str.strip() != '']
+
+                # Remove rows where 'Account' column is blank
+                updated_table = updated_table[updated_table['Account'].str.strip() != '']
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
