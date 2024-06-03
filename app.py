@@ -209,7 +209,7 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
 
-            if st.button("Preview Setting Bounds", key="preview_setting_bounds"):
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
                 preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
