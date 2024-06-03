@@ -168,7 +168,7 @@ def main():
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
-            column_a = all_tables.columns[0]
+            column_a = all_tables.columns[0] if len(all_tables.columns) > 0 else None
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
@@ -180,12 +180,15 @@ def main():
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique())
+                options = [''] + list(all_tables[column_a].dropna().unique()) if column_a else []
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
             def update_labels():
+                if column_a is None:
+                    st.error("No columns found in the table data.")
+                    return all_tables
                 all_tables['Label'] = ''
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
