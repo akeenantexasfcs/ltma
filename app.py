@@ -138,7 +138,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
-        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_tab1')
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             tables = []
@@ -181,8 +181,8 @@ def main():
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
                 options = [''] + list(all_tables[column_a].dropna().unique())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}_tab1")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}_tab1")
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
             def update_labels():
@@ -199,10 +199,65 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
+            # Adding column renaming functionality
+            st.subheader("Rename Columns")
+            new_column_names = {}
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            dropdown_options = [''] + quarter_options + ytd_options
+
+            for col in all_tables.columns:
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+            
+            all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables)
+
+            # Adding radio buttons for column removal
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
+
+            # Adding radio buttons for numerical column selection
+            st.subheader("Select numerical columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                    numerical_columns.append(col)
+
+            # Unit conversion functionality moved from Tab 4
+            st.subheader("Convert Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+
             if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
-                st.dataframe(updated_table)
+                st.dataframe(updated_table[columns_to_keep])
+
+            if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
+                updated_table = update_labels()
+                updated_table = updated_table[columns_to_keep]  # Apply column removal
+
+                # Convert selected numerical columns to numbers
+                for col in numerical_columns:
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                
+                # Apply unit conversion if selected
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
+
+                # Convert all instances of '-' to '0'
+                updated_table.replace('-', 0, inplace=True)
+
+                excel_file = io.BytesIO()
+                updated_table.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab2')
@@ -316,74 +371,63 @@ def main():
     with tab4:
         st.subheader("Data Aggregation")
 
-        # Upload feature for renaming columns
-        uploaded_excel_rename = st.file_uploader("Upload your Excel file for renaming columns", type=['xlsx'], key='rename_excel_uploader_tab4')
-        if uploaded_excel_rename is not None:
-            df_rename = pd.read_excel(uploaded_excel_rename)
-            st.write("Columns in the uploaded file:", df_rename.columns.tolist())
+        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+        magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-            new_column_names = {}
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
-            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + quarter_options + ytd_options
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab4')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab4')
 
-            st.subheader("Rename Columns")
-            for col in df_rename.columns:
-                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_tab4")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_tab4")
-                
-                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-            
-            df_rename.rename(columns=new_column_names, inplace=True)
-            st.write("Updated Columns:", df_rename.columns.tolist())
-            st.dataframe(df_rename)
+        uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab4')
 
-        # Add option to select columns to keep before export
-        st.subheader("Select columns to keep before export")
-        columns_to_keep = []
-        if uploaded_excel_rename is not None:
-            for col in df_rename.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_tab4"):
-                    columns_to_keep.append(col)
+        dfs = []
+        if uploaded_files:
+            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
 
-        # Adding radio buttons for numerical column selection
-        st.subheader("Select numerical columns")
-        numerical_columns = []
-        if uploaded_excel_rename is not None:
-            for col in df_rename.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_tab4"):
-                    numerical_columns.append(col)
+        if dfs:
+            # Combine the data into the "As Presented" sheet by stacking them vertically
+            as_presented = pd.concat(dfs, ignore_index=True)
 
-        # Unit conversion functionality moved from Tab 4
-        st.subheader("Convert Units")
-        selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_tab4")
-        selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value_tab4")
+            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
+            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection']]
+            as_presented_filtered = as_presented[columns_to_include]
 
-        if st.button("Update Labels Preview", key="update_labels_preview_tab4"):
-            if uploaded_excel_rename is not None:
-                st.subheader("Updated Data Preview")
-                st.dataframe(df_rename[columns_to_keep])
+            # Aggregate data
+            aggregated_table = aggregate_data(as_presented_filtered)
 
-        if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab4"):
-            if uploaded_excel_rename is not None:
-                # Apply column removal
-                df_rename = df_rename[columns_to_keep]
+            # Ensure the columns are ordered as Label, Account, Final Mnemonic Selection, and then the remaining columns
+            columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                             [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+            aggregated_table = aggregated_table[columns_order]
 
-                # Convert selected numerical columns to numbers
-                for col in numerical_columns:
-                    df_rename[col] = df_rename[col].apply(clean_numeric_value)
-                
-                # Apply unit conversion if selected
-                if selected_value != "No Conversions Necessary":
-                    df_rename = apply_unit_conversion(df_rename, selected_columns, selected_value)
+            # Combine the data into the "Standardized" sheet
+            combined_df = create_combined_df(dfs)
 
-                # Convert all instances of '-' to '0'
-                df_rename.replace('-', 0, inplace=True)
+            # Sort by Label and ensure 'Total' records are at the end within each label
+            aggregated_table = sort_by_label(aggregated_table)
+            combined_df = sort_by_label(combined_df)
 
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab4"):
                 excel_file = io.BytesIO()
-                df_rename.to_excel(excel_file, index=False)
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
+                    combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                    
+                    # Create the "Cover" sheet with the selections
+                    cover_df = pd.DataFrame({
+                        'Selection': ['Currency', 'Magnitude'],
+                        'Value': [selected_currency, selected_magnitude]
+                    })
+                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
+                
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "renamed_and_filtered_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                st.download_button(
+                    label="Download Aggregated Excel",
+                    data=excel_file,
+                    file_name="aggregated_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.warning("Please upload valid Excel files for aggregation.")
 
 if __name__ == '__main__':
     main()
