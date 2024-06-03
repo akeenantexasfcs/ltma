@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -209,11 +209,11 @@ def main():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = ['Account'] + quarter_options + ytd_options
+            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
             
             all_tables.rename(columns=new_column_names, inplace=True)
