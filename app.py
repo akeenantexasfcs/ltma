@@ -28,7 +28,7 @@ data_dictionary_file = 'data_dictionary.csv'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup():
-    if (os.path.exists(data_dictionary_file)):
+    if os.path.exists(data_dictionary_file):
         lookup_df = pd.read_csv(data_dictionary_file)
     else:
         lookup_df = pd.DataFrame(initial_lookup_data)
@@ -172,7 +172,7 @@ def main():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
-            column_a = all_tables.columns[0]
+            column_a = all_tables.columns[1]  # Use the correct column for the setting bounds
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
@@ -240,6 +240,10 @@ def main():
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
+
+            # Ensure Label column is kept
+            if 'Label' not in columns_to_keep:
+                columns_to_keep.insert(0, 'Label')
 
             # Unit conversion functionality moved from Tab 4
             st.subheader("Convert Units")
