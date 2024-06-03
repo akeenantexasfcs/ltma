@@ -175,7 +175,7 @@ def main():
             st.dataframe(all_tables)
 
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
-                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities", "Account"]
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
             for label in labels:
@@ -199,15 +199,62 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
 
+            if st.button("Preview Setting Bounds", key="preview_setting_bounds"):
+                preview_table = update_labels()
+                st.subheader("Preview of Setting Bounds")
+                st.dataframe(preview_table)
+
+            # Adding column renaming functionality
+            st.subheader("Rename Columns")
+            new_column_names = {}
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            dropdown_options = ['Account'] + quarter_options + ytd_options
+
+            for col in all_tables.columns:
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+            
+            all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables)
+
+            # Adding radio buttons for column removal
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
+
+            # Adding radio buttons for numerical column selection
+            st.subheader("Select numerical columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                    numerical_columns.append(col)
+
+            # Unit conversion functionality moved from Tab 4
+            st.subheader("Convert Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+
             if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
                 updated_table = update_labels()
                 st.subheader("Updated Data Preview")
-                st.dataframe(updated_table)
+                st.dataframe(updated_table[columns_to_keep])
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels()
-                st.subheader("Updated Data Preview")
-                st.dataframe(updated_table)
+                updated_table = updated_table[columns_to_keep]  # Apply column removal
+
+                # Convert selected numerical columns to numbers
+                for col in numerical_columns:
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                
+                # Apply unit conversion if selected
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
 
                 # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
