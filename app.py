@@ -172,7 +172,7 @@ def main():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
-            column_a = all_tables.columns[1]  # Use the correct column for the setting bounds
+            column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
@@ -244,6 +244,9 @@ def main():
             # Ensure Label column is kept
             if 'Label' not in columns_to_keep:
                 columns_to_keep.insert(0, 'Label')
+
+            if 'Account' not in columns_to_keep:
+                columns_to_keep.insert(1, 'Account')
 
             # Unit conversion functionality moved from Tab 4
             st.subheader("Convert Units")
