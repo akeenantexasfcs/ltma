@@ -105,7 +105,7 @@ def clean_numeric_value(value):
     except ValueError:
         return 0  # Return 0 if conversion fails
 
-def sort_by_label(df):
+def sort_by_label_and_account(df):
     sort_order = {
         "Current Assets": 0,
         "Non Current Assets": 1,
@@ -116,9 +116,9 @@ def sort_by_label(df):
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
+    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
     
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
 def apply_unit_conversion(df, columns, factor):
@@ -134,7 +134,7 @@ def main():
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -283,7 +283,40 @@ def main():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab2')
+        st.subheader("Aggregate My Data")
+        
+        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
+
+        dfs = []
+        if uploaded_files:
+            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+
+        if dfs:
+            combined_df = pd.concat(dfs, ignore_index=True)
+            st.dataframe(combined_df)
+
+            # Aggregate data
+            aggregated_table = aggregate_data(combined_df)
+
+            # Sort by Label and Account with "Total" entries last within each label
+            aggregated_table = sort_by_label_and_account(aggregated_table)
+
+            st.subheader("Aggregated Data")
+            st.dataframe(aggregated_table)
+
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("Please upload valid Excel files for aggregation.")
+
+    with tab3:
+        st.subheader("Mnemonic Mapping")
+
+        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
@@ -325,14 +358,14 @@ def main():
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
-                        key=f"select_{idx}_tab2"
+                        key=f"select_{idx}_tab3"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab2"):
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
@@ -343,7 +376,7 @@ def main():
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_final_selection.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab2"):
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
@@ -363,11 +396,11 @@ def main():
                     save_lookup_table(lookup_df)
                     st.success("Data Dictionary Updated Successfully")
 
-    with tab3:
+    with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
         # Upload feature
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab3')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             lookup_df = new_lookup_df
@@ -378,29 +411,29 @@ def main():
         st.dataframe(lookup_df)
 
         # Record removal feature
-        remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_tab3')
-        if st.button("Remove Selected Rows", key="remove_selected_rows_tab3"):
+        remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_tab4')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4"):
             lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table(lookup_df)
             st.success("Selected rows removed successfully!")
             st.dataframe(lookup_df)
 
-        if st.button("Download Data Dictionary", key="download_data_dictionary_tab3"):
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4"):
             excel_file = io.BytesIO()
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-    with tab4:
+    with tab5:
         st.subheader("Data Aggregation")
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab4')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab4')
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab5')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab5')
 
-        uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab4')
+        uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab5')
 
         dfs = []
         if uploaded_files:
@@ -425,10 +458,10 @@ def main():
             combined_df = create_combined_df(dfs)
 
             # Sort by Label and ensure 'Total' records are at the end within each label
-            aggregated_table = sort_by_label(aggregated_table)
-            combined_df = sort_by_label(combined_df)
+            aggregated_table = sort_by_label_and_account(aggregated_table)
+            combined_df = sort_by_label_and_account(combined_df)
 
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab4"):
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab5"):
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
