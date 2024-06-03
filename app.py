@@ -193,12 +193,15 @@ def main():
                 all_tables['Label'] = ''
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
-                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
-                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
-                        if pd.notna(start_index) and pd.notna(end_index):
-                            all_tables.loc[start_index:end_index, 'Label'] = label
-                        else:
-                            st.error(f"Invalid label bounds for {label}. Skipping...")
+                        try:
+                            start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
+                            end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
+                            if pd.notna(start_index) and pd.notna(end_index):
+                                all_tables.loc[start_index:end_index, 'Label'] = label
+                            else:
+                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                        except KeyError as e:
+                            st.error(f"Error accessing column {column_a}: {e}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
                 return all_tables
