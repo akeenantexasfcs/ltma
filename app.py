@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -116,7 +116,12 @@ def sort_by_label_and_account(df):
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
+    
+    if 'Account' in df.columns:
+        df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
+    else:
+        st.error("Column 'Account' not found in dataframe during sorting.")
+        return df
     
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
