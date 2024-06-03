@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[6]:
 
 
 import io
@@ -134,7 +134,7 @@ def main():
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Table Extractor", "Aggregate My Data", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -250,7 +250,7 @@ def main():
             if 'Account' not in columns_to_keep:
                 columns_to_keep.insert(1, 'Account')
 
-            # Unit conversion functionality moved from Tab 4
+            # Unit conversion functionality moved from Tab 5
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
@@ -487,4 +487,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
