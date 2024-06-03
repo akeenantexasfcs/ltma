@@ -189,25 +189,25 @@ def main():
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
-            def update_labels():
-                all_tables['Label'] = ''
+            def update_labels(df):
+                df['Label'] = ''
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
-                            start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
-                            end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
+                            start_index = df[df[column_a].eq(start_label)].index.min()
+                            end_index = df[df[column_a].eq(end_label)].index.max()
                             if pd.notna(start_index) and pd.notna(end_index):
-                                all_tables.loc[start_index:end_index, 'Label'] = label
+                                df.loc[start_index:end_index, 'Label'] = label
                             else:
                                 st.error(f"Invalid label bounds for {label}. Skipping...")
                         except KeyError as e:
                             st.error(f"Error accessing column {column_a}: {e}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
-                return all_tables
+                return df
 
             if st.button("Preview Setting Bounds", key="preview_setting_bounds"):
-                preview_table = update_labels()
+                preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
 
@@ -247,7 +247,7 @@ def main():
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = update_labels()
+                updated_table = update_labels(all_tables.copy())
                 updated_table = updated_table[columns_to_keep]  # Apply column removal
 
                 # Convert selected numerical columns to numbers
