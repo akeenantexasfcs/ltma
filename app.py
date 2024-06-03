@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[1]:
 
 
 import io
@@ -10,7 +10,6 @@ import os
 import pandas as pd
 import streamlit as st
 from Levenshtein import distance as levenshtein_distance
-import xlsxwriter
 import re
 
 # Define the initial lookup data
@@ -189,6 +188,9 @@ def main():
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
+            # Initialize new_column_names before the function is called
+            new_column_names = {col: col for col in all_tables.columns}
+
             def update_labels(df):
                 df['Label'] = ''
                 account_column = new_column_names.get(column_a, column_a)
@@ -214,7 +216,6 @@ def main():
 
             # Adding column renaming functionality
             st.subheader("Rename Columns")
-            new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
