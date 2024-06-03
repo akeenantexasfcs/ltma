@@ -201,7 +201,7 @@ def main():
                             else:
                                 st.error(f"Invalid label bounds for {label}. Skipping...")
                         except KeyError as e:
-                            st.error(f"Error accessing column {column_a}: {e}. Skipping...")
+                            st.error(f"Error accessing column '{column_a}': {e}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
