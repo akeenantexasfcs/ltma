@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -135,7 +135,7 @@ def main():
     st.title("Table Extractor and Label Generators")
 
     # Define the tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Table Extractor", "Aggregate My Data", "Mnemonic Mapping", "Balance Sheet Data Dictionary", "Data Aggregation"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -315,7 +315,7 @@ def main():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mnemonic Mapping")
+        st.subheader("Mappings and Data Aggregation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3')
 
@@ -449,67 +449,6 @@ def main():
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    with tab5:
-        st.subheader("Data Aggregation")
-
-        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
-
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab5')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab5')
-
-        uploaded_files = st.file_uploader("Upload your Excel files", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab5')
-
-        dfs = []
-        if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
-
-        if dfs:
-            # Combine the data into the "As Presented" sheet by stacking them vertically
-            as_presented = pd.concat(dfs, ignore_index=True)
-
-            # Filter to include 'Label', 'Account', and all other columns except 'Mnemonic', 'Manual Selection', and 'Final Mnemonic Selection'
-            columns_to_include = [col for col in as_presented.columns if col not in ['Mnemonic', 'Manual Selection']]
-            as_presented_filtered = as_presented[columns_to_include]
-
-            # Aggregate data
-            aggregated_table = aggregate_data(as_presented_filtered)
-
-            # Ensure the columns are ordered as Label, Account, Final Mnemonic Selection, and then the remaining columns
-            columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                             [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
-            aggregated_table = aggregated_table[columns_order]
-
-            # Combine the data into the "Standardized" sheet
-            combined_df = create_combined_df(dfs)
-
-            # Sort by Label and ensure 'Total' records are at the end within each label
-            aggregated_table = sort_by_label_and_account(aggregated_table)
-            combined_df = sort_by_label_and_account(combined_df)
-
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab5"):
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='As Presented', index=False)
-                    combined_df.to_excel(writer, sheet_name='Standardized', index=False)
-                    
-                    # Create the "Cover" sheet with the selections
-                    cover_df = pd.DataFrame({
-                        'Selection': ['Currency', 'Magnitude'],
-                        'Value': [selected_currency, selected_magnitude]
-                    })
-                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
-                
-                excel_file.seek(0)
-
-                st.download_button(
-                    label="Download Aggregated Excel",
-                    data=excel_file,
-                    file_name="aggregated_data.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        else:
-            st.warning("Please upload valid Excel files for aggregation.")
 
 if __name__ == '__main__':
     main()
