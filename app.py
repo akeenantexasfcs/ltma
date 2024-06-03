@@ -209,7 +209,7 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
 
-            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+            if st.button("Preview Setting Bounds", key="preview_setting_bounds"):
                 preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
@@ -258,6 +258,9 @@ def main():
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
                 updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]  # Apply column removal
+
+                # Remove rows where 'Label' column is blank
+                updated_table = updated_table[updated_table['Label'].str.strip() != '']
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
