@@ -239,11 +239,6 @@ def main():
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
-            if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
-                updated_table = update_labels()
-                st.subheader("Updated Data Preview")
-                st.dataframe(updated_table[columns_to_keep])
-
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels()
                 updated_table = updated_table[columns_to_keep]  # Apply column removal
