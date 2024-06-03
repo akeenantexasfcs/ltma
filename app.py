@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -74,36 +74,24 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    # Check for the presence of 'Label' and 'Account' columns dynamically
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
     
-    # Example aggregation function: Pivoting the data
     pivot_table = df.pivot_table(index=['Label', 'Account'], 
                                  values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
                                  aggfunc='sum').reset_index()
     return pivot_table
 
 def clean_numeric_value(value):
-    """
-    Clean the given value to convert it to a numeric format.
-    Removes special characters like $, commas, and parentheses.
-    Converts to a float and handles negative numbers correctly.
-    """
     value_str = str(value).strip()
-    
-    # Handle parentheses indicating negative numbers
     if value_str.startswith('(') and value_str.endswith(')'):
         value_str = '-' + value_str[1:-1]
-    
-    # Remove dollar signs and commas
     cleaned_value = re.sub(r'[$,]', '', value_str)
-    
     try:
         return float(cleaned_value)
     except ValueError:
-        return 0  # Return 0 if conversion fails
+        return 0
 
 def sort_by_label_and_account(df):
     sort_order = {
@@ -116,7 +104,22 @@ def sort_by_label_and_account(df):
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
     
+    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def sort_by_label_and_final_mnemonic(df):
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
     df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
     
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
@@ -134,7 +137,6 @@ def main():
 
     st.title("Table Extractor and Label Generators")
 
-    # Define the tabs
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
     with tab1:
@@ -178,7 +180,6 @@ def main():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            # Update dropdown options to include occurrence number if more than one instance
             def get_unique_options(series):
                 counts = series.value_counts()
                 unique_options = []
@@ -205,7 +206,6 @@ def main():
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
-            # Initialize new_column_names before the function is called
             new_column_names = {col: col for col in all_tables.columns}
 
             def update_labels(df):
@@ -233,7 +233,6 @@ def main():
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
 
-            # Adding column renaming functionality
             st.subheader("Rename Columns")
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
@@ -248,52 +247,42 @@ def main():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
-            # Adding radio buttons for column removal
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
             for col in all_tables.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
-            # Adding radio buttons for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
-            # Ensure Label column is kept
             if 'Label' not in columns_to_keep:
                 columns_to_keep.insert(0, 'Label')
 
             if 'Account' not in columns_to_keep:
                 columns_to_keep.insert(1, 'Account')
 
-            # Unit conversion functionality moved from Tab 5
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
-                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]  # Apply column removal
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
 
-                # Remove rows where 'Label' column is blank
                 updated_table = updated_table[updated_table['Label'].str.strip() != '']
-
-                # Remove rows where 'Account' column is blank
                 updated_table = updated_table[updated_table['Account'].str.strip() != '']
 
-                # Convert selected numerical columns to numbers
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
-                # Apply unit conversion if selected
                 if selected_value != "No Conversions Necessary":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
 
-                # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
@@ -314,10 +303,7 @@ def main():
             combined_df = pd.concat(dfs, ignore_index=True)
             st.dataframe(combined_df)
 
-            # Aggregate data
             aggregated_table = aggregate_data(combined_df)
-
-            # Sort by Label and Account with "Total" entries last within each label
             aggregated_table = sort_by_label_and_account(aggregated_table)
 
             st.subheader("Aggregated Data")
@@ -365,7 +351,7 @@ def main():
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
-                    label_value = row.get('Label', '')  # Get the label value if it exists
+                    label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
                         if score < 0.2:
@@ -397,17 +383,11 @@ def main():
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
-                    # Aggregate data
                     aggregated_table = aggregate_data(final_output_df)
                     
-                    # Sort by Label and Account with "Total" entries last within each label
-                    aggregated_table = sort_by_label_and_account(aggregated_table)
-
-                    # Create the combined data for the Standardized sheet
                     combined_df = create_combined_df([final_output_df])
-                    combined_df = sort_by_label_and_account(combined_df)
+                    combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Ensure the columns are ordered as Label, Account, Final Mnemonic Selection, and then the remaining columns
                     columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                     [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     aggregated_table = aggregated_table[columns_order]
 
@@ -415,7 +395,6 @@ def main():
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
-                        # Create the "Cover" sheet with the selections
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
                             'Value': [selected_currency, selected_magnitude]
@@ -447,7 +426,6 @@ def main():
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
-        # Upload feature
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
@@ -455,10 +433,8 @@ def main():
             save_lookup_table(lookup_df)
             st.success("Data Dictionary uploaded and updated successfully!")
 
-        # Display the data dictionary
         st.dataframe(lookup_df)
 
-        # Record removal feature
         remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_tab4')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4"):
             lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
