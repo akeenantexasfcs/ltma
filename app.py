@@ -256,11 +256,12 @@ def main():
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
-                updated_table = updated_table[columns_to_keep]  # Apply column removal
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]  # Apply column removal
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
-                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                    if col in updated_table.columns:
+                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
                 # Apply unit conversion if selected
                 if selected_value != "No Conversions Necessary":
