@@ -143,7 +143,7 @@ def main():
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
-            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
+            st.warning("PLEASE NOTE: For the Setting Bounds Preview Window, you will see your respecive Labels ONLY. In the Updated Coumns Preview Window, you will only see your renamed column headers. You will not not see the Labels from the Setting Bounds section appear.")
             
             tables = []
             for block in data['Blocks']:
@@ -356,7 +356,7 @@ def main():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
-                        if score < 0.25:
+                        if score < 0.2:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
