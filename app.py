@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -269,14 +269,13 @@ def main():
 
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            conversion_options = {
+            conversion_factors = {
                 "No Conversions Necessary": 1,
                 "Thousands": 1000,
                 "Millions": 1000000,
                 "Billions": 1000000000
             }
-            selected_option = st.radio("Select conversion option", list(conversion_options.keys()), index=0, key="conversion_option")
-            selected_value = conversion_options[selected_option]
+            selected_value = st.selectbox("Select conversion value", list(conversion_factors.keys()), key="conversion_value")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
@@ -288,9 +287,9 @@ def main():
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
-                if selected_value != 1:
-                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
+
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
 
@@ -298,7 +297,6 @@ def main():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab2:
         st.subheader("Aggregate My Data")
         
@@ -459,10 +457,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
