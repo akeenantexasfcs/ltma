@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -144,7 +144,8 @@ def main():
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
-            
+            st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
+
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -333,7 +334,7 @@ def main():
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["MI standard", "Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3')
