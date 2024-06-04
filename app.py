@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -140,11 +140,11 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
     with tab1:
-        st.warning("PLEASE NOTE: In the Account Column Preview Window, you will not see the labels selected during the Setting Bounds Process. This is for Column Names Only.")
-        
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
+            st.warning("PLEASE NOTE: In the Account Column Preview Window, you will not see the labels selected during the Setting Bounds Process. This is for Column Names Only.")
+            
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
