@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -269,7 +269,14 @@ def main():
 
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+            conversion_options = {
+                "No Conversions Necessary": 1,
+                "Thousands": 1000,
+                "Millions": 1000000,
+                "Billions": 1000000000
+            }
+            selected_option = st.radio("Select conversion option", list(conversion_options.keys()), index=0, key="conversion_option")
+            selected_value = conversion_options[selected_option]
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
@@ -282,7 +289,7 @@ def main():
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
-                if selected_value != "No Conversions Necessary":
+                if selected_value != 1:
                     updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
 
                 updated_table.replace('-', 0, inplace=True)
@@ -452,4 +459,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
