@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -269,8 +269,20 @@ def main():
 
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
+            # Modified conversion value options with labels
+            conversion_options = {
+                "No Conversions Necessary": 1,
+                "Thousands": 1000,
+                "Millions": 1000000,
+                "Billions": 1000000000,
+            }
+
+            selected_label = st.radio("Select conversion value", options=list(conversion_options.keys()), index=0, key="conversion_value")
+            selected_value = conversion_options[selected_label]  # Get the actual conversion factor
+
+            
+            
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
                 updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
@@ -356,7 +368,7 @@ def main():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(account_value)
-                        if score < 0.3:
+                        if score < 0.25:
                             df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
@@ -452,4 +464,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
