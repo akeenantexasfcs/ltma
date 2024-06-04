@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -132,10 +132,10 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def main():
+def balance_sheet():
     global lookup_df
 
-    st.title("Table Extractor and Label Generators")
+    st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
@@ -468,6 +468,34 @@ def main():
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def cash_flow_statement():
+    st.title("CASH FLOW STATEMENT LTMA")
+    tab1, tab2, tab3, tab4 = st.tabs(["Tab 1", "Tab 2", "Tab 3", "Tab 4"])
+
+    with tab1:
+        st.write("Content for Cash Flow Statement Tab 1")
+
+    with tab2:
+        st.write("Content for Cash Flow Statement Tab 2")
+
+    with tab3:
+        st.write("Content for Cash Flow Statement Tab 3")
+
+    with tab4:
+        st.write("Content for Cash Flow Statement Tab 4")
+
+
+def main():
+    st.sidebar.title("Navigation")
+    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement"])
+
+    if selection == "Balance Sheet":
+        balance_sheet()
+    elif selection == "Cash Flow Statement":
+        cash_flow_statement()
+
 
 if __name__ == '__main__':
     main()
