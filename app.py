@@ -144,7 +144,7 @@ def main():
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
-            
+            st.warning("PLEASE ALSO NOTE: You must label an Account column before exporting your data. ")
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -267,7 +267,7 @@ def main():
             if 'Account' not in columns_to_keep:
                 columns_to_keep.insert(1, 'Account')
 
-            st.subheader("Convert Units")
+            st.subheader("Label Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
