@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[9]:
 
 
 import io
@@ -144,7 +144,7 @@ def main():
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
-            st.warning("PLEASE ALSO NOTE: You must label an Account column before exporting your data. ")
+            
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -267,7 +267,7 @@ def main():
             if 'Account' not in columns_to_keep:
                 columns_to_keep.insert(1, 'Account')
 
-            st.subheader("Label Units")
+            st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
@@ -397,7 +397,18 @@ def main():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                     [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    # Add CIQ column based on lookup
+                    def lookup_ciq(mnemonic):
+                        if mnemonic == 'Human Intervention Required':
+                            return 'CIQ IQ Required'
+                        ciq_value = lookup_df.loc[lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        if ciq_value.empty:
+                            return 'CIQ IQ Required'
+                        return ciq_value.values[0]
+                    
+                    aggregated_table['CIQ'] = aggregated_table['Final Mnemonic Selection'].apply(lookup_ciq)
+
+                    columns_order = ['Label', 'Account', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection', 'CIQ']]
                     aggregated_table = aggregated_table[columns_order]
 
                     excel_file = io.BytesIO()
@@ -459,10 +470,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
