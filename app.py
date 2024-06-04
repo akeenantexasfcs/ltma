@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -143,7 +143,7 @@ def main():
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
-            st.warning("PLEASE NOTE: In the Account Column Preview Window, you will not see the labels selected during the Setting Bounds Process. This is for Column Names Only.")
+            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
             
             tables = []
             for block in data['Blocks']:
