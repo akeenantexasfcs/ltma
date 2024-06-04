@@ -140,6 +140,8 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
     with tab1:
+        st.warning("PLEASE NOTE: In the Account Column Preview Window, you will not see the labels selected during the Setting Bounds Process. This is for Column Names Only.")
+        
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
@@ -228,7 +230,7 @@ def main():
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
 
-            if st.button("Preview Setting Bounds", key="preview_setting_bounds"):
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
                 preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
