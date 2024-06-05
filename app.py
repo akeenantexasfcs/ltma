@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -410,9 +410,13 @@ def balance_sheet():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
+                    # Include the "As Presented" sheet without the CIQ column
+                    as_presented_df = final_output_df.drop(columns=['CIQ'], errors='ignore')
+
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                        as_presented_df.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
                             'Value': [selected_currency, selected_magnitude]
