@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -393,8 +393,6 @@ def balance_sheet():
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
-                    aggregated_table = aggregate_data(final_output_df)
-                    
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
@@ -407,14 +405,13 @@ def balance_sheet():
                             return 'CIQ IQ Required'
                         return ciq_value.values[0]
                     
-                    aggregated_table['CIQ'] = aggregated_table['Final Mnemonic Selection'].apply(lookup_ciq)
+                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
-                    columns_order = ['Label', 'Account', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in aggregated_table.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection', 'CIQ']]
-                    aggregated_table = aggregated_table[columns_order]
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    combined_df = combined_df[columns_order]
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
@@ -426,7 +423,7 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] if row['Manual Selection'] else row['Mnemonic'],
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
@@ -643,7 +640,28 @@ def cash_flow_statement():
 
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
-        st.write("Content for Cash Flow Statement Tab 4")
+
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_cfs_tab4')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            lookup_df = new_lookup_df
+            save_lookup_table(lookup_df)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        st.dataframe(lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_cfs_tab4')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_cfs_tab4"):
+            lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(lookup_df)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(lookup_df)
+
+        if st.button("Download Data Dictionary", key="download_data_dictionary_cfs_tab4"):
+            excel_file = io.BytesIO()
+            lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def main():
     st.sidebar.title("Navigation")
