@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -640,7 +640,31 @@ def cash_flow_statement():
 
     with tab2:
         st.subheader("Aggregate My Data")
-        st.write("Content for Cash Flow Statement Tab 2")
+        
+        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_cfs')
+
+        dfs = []
+        if uploaded_files:
+            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+
+        if dfs:
+            combined_df = pd.concat(dfs, ignore_index=True)
+            st.dataframe(combined_df)
+
+            aggregated_table = aggregate_data(combined_df)
+            aggregated_table = sort_by_label_and_account(aggregated_table)
+
+            st.subheader("Aggregated Data")
+            st.dataframe(aggregated_table)
+
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
