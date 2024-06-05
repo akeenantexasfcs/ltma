@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -317,6 +317,14 @@ def balance_sheet():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            st.subheader("Check for Duplicate Accounts")
+            duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+            if not duplicated_accounts.empty:
+                st.warning("Duplicates identified:")
+                st.dataframe(duplicated_accounts)
+            else:
+                st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
