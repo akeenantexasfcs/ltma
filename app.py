@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -323,6 +323,7 @@ def balance_sheet():
             if not duplicated_accounts.empty:
                 st.warning("Duplicates identified:")
                 st.dataframe(duplicated_accounts)
+                st.error("Error: Please ensure your account is mapped first!")
             else:
                 st.success("No duplicates identified")
 
@@ -464,9 +465,10 @@ def balance_sheet():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if row['Account'] not in lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ''})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
                             else:
                                 lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
                     if new_entries:
                         lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
@@ -710,15 +712,19 @@ def cash_flow_statement():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                def get_best_match(account):
+                def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
-                    for lookup_account in cash_flow_lookup_df['Account']:
+                    for _, lookup_row in cash_flow_lookup_df.iterrows():
+                        lookup_label = lookup_row['Label']
+                        lookup_account = lookup_row['Account']
+                        label_str = str(label)
                         account_str = str(account)
-                        score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                        score = (levenshtein_distance(label_str.lower(), lookup_label.lower()) +
+                                 levenshtein_distance(account_str.lower(), lookup_account.lower())) / (max(len(label_str), len(lookup_label)) + max(len(account_str), len(lookup_account)))
                         if score < best_score:
                             best_score = score
-                            best_match = lookup_account
+                            best_match = lookup_row
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -727,9 +733,9 @@ def cash_flow_statement():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
-                        best_match, score = get_best_match(account_value)
+                        best_match, score = get_best_match(label_value, account_value)
                         if score < 0.25:
-                            df.at[idx, 'Mnemonic'] = cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                     
@@ -802,9 +808,10 @@ def cash_flow_statement():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ''})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
                             else:
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
