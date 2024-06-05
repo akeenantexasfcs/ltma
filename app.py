@@ -410,8 +410,10 @@ def balance_sheet():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
-                    # Include the "As Presented" sheet without the CIQ column
-                    as_presented_df = final_output_df.drop(columns=['CIQ'], errors='ignore')
+                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
+                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                                  [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_df = as_presented_df[as_presented_columns_order]
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
@@ -676,6 +678,7 @@ def main():
     elif selection == "Cash Flow Statement":
         cash_flow_statement()
 
-if __name__ == '__main__':
+if __name__ == '__
+__main__':
     main()
 
