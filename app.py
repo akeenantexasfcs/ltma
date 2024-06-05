@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import io
@@ -14,11 +14,11 @@ import re
 
 # Define the initial lookup data
 initial_lookup_data = {
-    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill", 
+    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill", 
+    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
                  "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW", 
+    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
             "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
 }
 
@@ -198,7 +198,7 @@ def balance_sheet():
                         unique_options.append(item)
                 return unique_options
 
-            labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
                       "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
@@ -268,12 +268,12 @@ def balance_sheet():
             if 'Account' not in columns_to_keep:
                 columns_to_keep.insert(1, 'Account')
 
-            st.subheader("Convert Units")
+            st.subheader("Label Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
             conversion_factors = {
-                "No Conversions Necessary": 1,
+                "Actuals": 1,
                 "Thousands": 1000,
                 "Millions": 1000000,
                 "Billions": 1000000000
@@ -426,7 +426,7 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] if row['Manual Selection'] else row['Mnemonic'],
                         axis=1
                     )
                     new_entries = []
@@ -468,7 +468,6 @@ def balance_sheet():
             lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 def cash_flow_statement():
     st.title("CASH FLOW STATEMENT LTMA")
@@ -533,7 +532,7 @@ def cash_flow_statement():
                         unique_options.append(item)
                 return unique_options
 
-            labels = ["Operating Activities", "Investing Activities", "Financing Activities"]
+            labels = ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"]
             selections = []
 
             for label in labels:
@@ -646,7 +645,6 @@ def cash_flow_statement():
         st.subheader("Cash Flow Data Dictionary")
         st.write("Content for Cash Flow Statement Tab 4")
 
-
 def main():
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement"])
@@ -655,7 +653,6 @@ def main():
         balance_sheet()
     elif selection == "Cash Flow Statement":
         cash_flow_statement()
-
 
 if __name__ == '__main__':
     main()
