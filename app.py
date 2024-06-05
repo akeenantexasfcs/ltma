@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[5]:
 
 
 import io
@@ -678,7 +678,6 @@ def main():
     elif selection == "Cash Flow Statement":
         cash_flow_statement()
 
-if __name__ == '__
-__main__':
+if __name__ == '__main__':
     main()
 
