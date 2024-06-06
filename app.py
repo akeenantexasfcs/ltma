@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -327,7 +327,6 @@ def balance_sheet():
                 if not duplicated_accounts.empty:
                     st.warning("Duplicates identified:")
                     st.dataframe(duplicated_accounts)
-                    st.error("Error: Please ensure your account is mapped first!")
                 else:
                     st.success("No duplicates identified")
 
@@ -879,10 +878,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
