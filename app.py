@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -24,6 +24,7 @@ initial_lookup_data = {
 
 # Define the initial lookup data for Cash Flow
 initial_cash_flow_lookup_data = {
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
     "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
     "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
     "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
