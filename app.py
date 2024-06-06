@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -713,19 +713,19 @@ def cash_flow_statement():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Function to get the best match based on Label first, then Levenshtein distance on Account
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
                     for _, lookup_row in cash_flow_lookup_df.iterrows():
-                        lookup_label = lookup_row['Label']
-                        lookup_account = lookup_row['Account']
-                        label_str = str(label)
-                        account_str = str(account)
-                        score = (levenshtein_distance(label_str.lower(), lookup_label.lower()) +
-                                 levenshtein_distance(account_str.lower(), lookup_account.lower())) / (max(len(label_str), len(lookup_label)) + max(len(account_str), len(lookup_account)))
-                        if score < best_score:
-                            best_score = score
-                            best_match = lookup_row
+                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            # Levenshtein distance for Account
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < best_score:
+                                best_score = score
+                                best_match = lookup_row
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -735,7 +735,7 @@ def cash_flow_statement():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if score < 0.25:
+                        if best_match is not None and score < 0.25:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
