@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[1]:
 
 
 import io
@@ -494,7 +494,7 @@ def balance_sheet():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
-            lookup_df = pd.concat([lookup_df, new_lookup_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
+            lookup_df = new_lookup_df  # Always override with the new uploaded dictionary
             save_lookup_table(lookup_df, data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
