@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -885,6 +885,6 @@ def main():
     elif selection == "Income Statement":
         income_statement()
 
-if __name__ == '__1__':
+if __name__ == '__main__':
     main()
 
