@@ -578,7 +578,7 @@ def cash_flow_statement():
                         unique_options.append(item)
                 return unique_options
 
-            labels = ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"]
+            labels = ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Items"]
             selections = []
 
             for label in labels:
