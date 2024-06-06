@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -470,18 +470,12 @@ def balance_sheet():
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'Other Category':
-                            ciq_value = 'CIQ IQ Required'
-                        else:
-                            ciq_value = lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
-                        
                         if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
                             if row['Account'] not in lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
                             else:
                                 lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                                 lookup_df.loc[lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     lookup_df.reset_index(drop=True, inplace=True)
