@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -320,13 +320,16 @@ def balance_sheet():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             st.subheader("Check for Duplicate Accounts")
-            duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
-            if not duplicated_accounts.empty:
-                st.warning("Duplicates identified:")
-                st.dataframe(duplicated_accounts)
-                st.error("Error: Please ensure your account is mapped first!")
+            if 'Account' not in all_tables.columns:
+                st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
             else:
-                st.success("No duplicates identified")
+                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                if not duplicated_accounts.empty:
+                    st.warning("Duplicates identified:")
+                    st.dataframe(duplicated_accounts)
+                    st.error("Error: Please ensure your account is mapped first!")
+                else:
+                    st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
@@ -779,6 +782,7 @@ def cash_flow_statement():
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                   
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
@@ -875,4 +879,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
