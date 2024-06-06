@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -105,12 +105,11 @@ def clean_numeric_value(value):
 
 def sort_by_label_and_account(df):
     sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
+        "Operating Activities": 0,
+        "Investing Activities": 1,
+        "Financing Activities": 2,
+        "Cash Flow from Other": 3,
+        "Supplemental Cash Flow": 4
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
@@ -121,12 +120,11 @@ def sort_by_label_and_account(df):
 
 def sort_by_label_and_final_mnemonic(df):
     sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
+        "Operating Activities": 0,
+        "Investing Activities": 1,
+        "Financing Activities": 2,
+        "Cash Flow from Other": 3,
+        "Supplemental Cash Flow": 4
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
@@ -828,7 +826,7 @@ def cash_flow_statement():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
-            cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, new_lookup_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
+            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
