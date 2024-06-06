@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -105,11 +105,12 @@ def clean_numeric_value(value):
 
 def sort_by_label_and_account(df):
     sort_order = {
-        "Operating Activities": 0,
-        "Investing Activities": 1,
-        "Financing Activities": 2,
-        "Cash Flow from Other": 3,
-        "Supplemental Cash Flow": 4
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
@@ -120,11 +121,12 @@ def sort_by_label_and_account(df):
 
 def sort_by_label_and_final_mnemonic(df):
     sort_order = {
-        "Operating Activities": 0,
-        "Investing Activities": 1,
-        "Financing Activities": 2,
-        "Cash Flow from Other": 3,
-        "Supplemental Cash Flow": 4
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
     }
     
     df['Label_Order'] = df['Label'].map(sort_order)
@@ -401,7 +403,7 @@ def balance_sheet():
                     
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
+                        options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
@@ -452,19 +454,18 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'Other Category':
-                            ciq_value = 'CIQ IQ Required'
-                        else:
-                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
                         
-                        if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
+                        if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
@@ -750,7 +751,7 @@ def cash_flow_statement():
                     
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
+                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
@@ -801,19 +802,24 @@ def cash_flow_statement():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        
+                        if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
