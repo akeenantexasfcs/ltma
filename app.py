@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -851,7 +851,6 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 # Global variables and functions assumed to be defined elsewhere
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -915,7 +914,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
