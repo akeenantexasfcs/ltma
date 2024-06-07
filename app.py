@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -920,16 +920,13 @@ def income_statement():
                 return
 
             st.subheader("Data Preview")
-            all_tables["Remove"] = False
-
             st.dataframe(all_tables)
 
-            # Create checkboxes for each row to remove
-            for index, row in all_tables.iterrows():
-                all_tables.at[index, "Remove"] = st.checkbox(f"Remove row {index}", key=f"remove_{index}")
+            # Create data editor for row removal
+            all_tables["Remove"] = False
+            edited_table = st.data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
 
-            # Filter out rows marked for removal
-            rows_to_remove = all_tables[all_tables["Remove"] == True].index.tolist()
+            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
             if rows_to_remove:
                 all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
                 st.subheader("Updated Data Preview")
@@ -1033,4 +1030,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
