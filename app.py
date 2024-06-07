@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -915,17 +915,22 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
             st.subheader("Data Preview")
+            all_tables["Remove"] = False
+
             st.dataframe(all_tables)
 
-            # Dynamic preview window with checkboxes for removing rows
-            st.subheader("Select Rows to Remove")
-            rows_to_remove = st.multiselect("Select rows to remove", all_tables.index.tolist(), key="rows_to_remove_is")
+            # Create checkboxes for each row to remove
+            for index, row in all_tables.iterrows():
+                all_tables.at[index, "Remove"] = st.checkbox(f"Remove row {index}", key=f"remove_{index}")
+
+            # Filter out rows marked for removal
+            rows_to_remove = all_tables[all_tables["Remove"] == True].index.tolist()
             if rows_to_remove:
                 all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
                 st.subheader("Updated Data Preview")
