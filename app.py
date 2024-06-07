@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -851,6 +851,12 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+import io
+import json
+import re
+import pandas as pd
+import streamlit as st
+
 # Global variables and functions assumed to be defined elsewhere
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -997,8 +1003,8 @@ def income_statement():
                 updated_table.replace('-', 0, inplace=True)
 
                 # Append Statement Date row
-                statement_date_row = {col: statement_date_values.get(col, "") for col in updated_table.columns}
-                updated_table = updated_table.append(statement_date_row, ignore_index=True)
+                statement_date_row = pd.DataFrame({col: [statement_date_values.get(col, "")] for col in updated_table.columns})
+                updated_table = pd.concat([updated_table, statement_date_row], ignore_index=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
