@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -851,16 +851,30 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-import streamlit as st
-import pandas as pd
-import io
 
-# Assume these global variables and functions are defined elsewhere
+# Global variables and functions assumed to be defined elsewhere
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
+
+def clean_numeric_value(value):
+    value_str = str(value).strip()
+    if value_str.startswith('(') and value_str.endswith(')'):
+        value_str = '-' + value_str[1:-1]
+    cleaned_value = re.sub(r'[$,]', '', value_str)
+    try:
+        return float(cleaned_value)
+    except ValueError:
+        return 0
+
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
 
 def income_statement():
     global income_statement_lookup_df
@@ -869,7 +883,107 @@ def income_statement():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
 
     with tab1:
-        st.subheader("Placeholder for Table Extractor")
+        st.subheader("Table Extractor")
+
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_is')
+        if uploaded_file is not None:
+            data = json.load(uploaded_file)
+
+            tables = []
+            for block in data['Blocks']:
+                if block['BlockType'] == 'TABLE':
+                    table = {}
+                    if 'Relationships' in block:
+                        for relationship in block['Relationships']:
+                            if relationship['Type'] == 'CHILD':
+                                for cell_id in relationship['Ids']:
+                                    cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                    if cell_block:
+                                        row_index = cell_block.get('RowIndex', 0)
+                                        col_index = cell_block.get('ColumnIndex', 0)
+                                        if row_index not in table:
+                                            table[row_index] = {}
+                                        cell_text = ''
+                                        if 'Relationships' in cell_block:
+                                            for rel in cell_block['Relationships']:
+                                                if rel['Type'] == 'CHILD':
+                                                    for word_id in rel['Ids']:
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        if word_block and word_block['BlockType'] == 'WORD':
+                                                            cell_text += ' ' + word_block.get('Text', '')
+                                        table[row_index][col_index] = cell_text.strip()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
+                    tables.append(table_df)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            if len(all_tables.columns) == 0:
+                st.error("No columns found in the uploaded JSON file.")
+                return
+
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
+
+            # Dynamic preview window with checkboxes for removing rows
+            st.subheader("Select Rows to Remove")
+            rows_to_remove = st.multiselect("Select rows to remove", all_tables.index.tolist(), key="rows_to_remove_is")
+            if rows_to_remove:
+                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
+                st.subheader("Updated Data Preview")
+                st.dataframe(all_tables)
+
+            # Column Naming setup
+            st.subheader("Rename Columns")
+            new_column_names = {col: col for col in all_tables.columns}
+            for col in all_tables.columns:
+                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_is")
+                new_column_names[col] = new_name
+            all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables)
+
+            # Columns to keep setup
+            st.subheader("Select Columns to Keep Before Export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_is"):
+                    columns_to_keep.append(col)
+
+            # Select Numerical Columns conversion
+            st.subheader("Select Numerical Columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_is"):
+                    numerical_columns.append(col)
+
+            # Unit labeling
+            st.subheader("Convert Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_is")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_is")
+
+            conversion_factors = {
+                "No Conversions Necessary": 1,
+                "Thousands": 1000,
+                "Millions": 1000000,
+                "Billions": 1000000000
+            }
+
+            if st.button("Apply and Generate Excel", key="apply_generate_excel_is"):
+                updated_table = all_tables.copy()
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
+
+                for col in numerical_columns:
+                    if col in updated_table.columns:
+                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
+
+                updated_table.replace('-', 0, inplace=True)
+
+                excel_file = io.BytesIO()
+                updated_table.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         st.subheader("Placeholder for Aggregate My Data")
