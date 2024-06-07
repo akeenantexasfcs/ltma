@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[6]:
 
 
 import io
@@ -851,6 +851,17 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+import streamlit as st
+import pandas as pd
+import io
+
+# Assume these global variables and functions are defined elsewhere
+income_statement_lookup_df = pd.DataFrame()
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
+
 def income_statement():
     global income_statement_lookup_df
 
@@ -867,7 +878,29 @@ def income_statement():
         st.subheader("Placeholder for Mappings and Data Aggregation")
 
     with tab4:
-        st.subheader("Placeholder for Data Dictionary")
+        st.subheader("Income Statement Data Dictionary")
+
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        st.dataframe(income_statement_lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
+            income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(income_statement_lookup_df)
+
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
+            excel_file = io.BytesIO()
+            income_statement_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def main():
     st.sidebar.title("Navigation")
