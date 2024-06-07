@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -934,10 +934,16 @@ def income_statement():
 
             # Column Naming setup
             st.subheader("Rename Columns")
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options + ['Remove']
+
             new_column_names = {col: col for col in all_tables.columns}
             for col in all_tables.columns:
-                new_name = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_is")
-                new_column_names[col] = new_name
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_is")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_is", index=0)
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
@@ -955,6 +961,15 @@ def income_statement():
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_is"):
                     numerical_columns.append(col)
+
+            # Add Statement Date
+            st.subheader("Add Statement Date")
+            statement_date_values = {}
+            for col in columns_to_keep:
+                if col == "Account":
+                    statement_date_values[col] = "Statement Date:"
+                else:
+                    statement_date_values[col] = st.text_input(f"Statement date for '{col}'", key=f"statement_date_{col}")
 
             # Unit labeling
             st.subheader("Convert Units")
@@ -975,11 +990,15 @@ def income_statement():
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
+
                 if selected_value != "No Conversions Necessary":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
+
+                # Append Statement Date row
+                statement_date_row = {col: statement_date_values.get(col, "") for col in updated_table.columns}
+                updated_table = updated_table.append(statement_date_row, ignore_index=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
