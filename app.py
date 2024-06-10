@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -856,8 +856,6 @@ def cash_flow_statement():
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-initial_upload_data = None  # Variable to store the initial uploaded data
-initial_aggregated_data = None  # Variable to store the initial aggregated data
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
@@ -895,7 +893,7 @@ def aggregate_data(files):
     return aggregated_df
 
 def income_statement():
-    global income_statement_lookup_df, initial_upload_data, initial_aggregated_data
+    global income_statement_lookup_df
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
@@ -938,9 +936,20 @@ def income_statement():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
+            st.subheader("Data Preview")
             all_tables["Remove"] = False
             all_tables["Remove"] = all_tables["Remove"].astype(bool)
-            initial_upload_data = all_tables.copy()  # Store the initial upload data
+
+            st.dataframe(all_tables.astype(str))
+
+            # Create data editor for row removal
+            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+
+            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
+            if rows_to_remove:
+                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
+                st.subheader("Updated Data Preview")
+                st.dataframe(all_tables.astype(str))
 
             # Column Naming setup
             st.subheader("Rename Columns")
@@ -955,6 +964,8 @@ def income_statement():
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
 
             all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables.astype(str))
 
             # Exclude columns that are renamed to 'Remove'
             columns_to_keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
@@ -1031,18 +1042,6 @@ def income_statement():
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-            st.subheader("Data Preview")
-            st.dataframe(all_tables.astype(str))
-
-            # Create data editor for row removal
-            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
-
-            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
-            if rows_to_remove:
-                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
-                st.subheader("Updated Data Preview")
-                st.dataframe(all_tables.astype(str))
-
     with tab2:
         st.subheader("Aggregate My Data")
 
@@ -1051,15 +1050,17 @@ def income_statement():
         if uploaded_files:
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
-                initial_aggregated_data = aggregated_df.copy()  # Store the initial aggregated data
-
                 st.subheader("Aggregated Data Preview")
-                st.dataframe(aggregated_df)
 
                 # Adding statement intent columns
-                st.subheader("Interactive Data Frame")
                 aggregated_df["Positive Number Increases Net Income"] = False
                 aggregated_df["Statement Intent"] = ""
+
+                # Reorder columns for consistency
+                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                aggregated_df = aggregated_df[columns_order]
+
+                st.dataframe(aggregated_df)
 
                 edited_df = st.experimental_data_editor(
                     aggregated_df,
@@ -1067,7 +1068,7 @@ def income_statement():
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
 
-                # Ensure only one of "Positive Number Increases Net Income" or "Decreases NI" can be selected at a time
+                # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
                         df.at[index, "Statement Intent"] = "Positive Number Increases Net Income"
@@ -1076,12 +1077,6 @@ def income_statement():
 
                 for i in edited_df.index:
                     update_selection(edited_df, i)
-
-                # Dynamic column ordering
-                columns = edited_df.columns.tolist()
-                ordered_columns = st.multiselect("Reorder Columns", options=columns, default=columns, key='reorder_columns')
-
-                edited_df = edited_df[ordered_columns]
 
                 st.dataframe(edited_df)
 
@@ -1101,12 +1096,6 @@ def income_statement():
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                # Button to revert to initial upload data
-                if st.button("Revert to Initial Data"):
-                    if initial_aggregated_data is not None:
-                        aggregated_df = initial_aggregated_data.copy()
-                        st.experimental_rerun()
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
