@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -851,6 +851,12 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+import io
+import json
+import pandas as pd
+import re
+import streamlit as st
+
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -934,20 +940,8 @@ def income_statement():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
-            st.subheader("Data Preview")
             all_tables["Remove"] = False
             all_tables["Remove"] = all_tables["Remove"].astype(bool)
-
-            st.dataframe(all_tables.astype(str))
-
-            # Create data editor for row removal
-            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
-
-            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
-            if rows_to_remove:
-                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
-                st.subheader("Updated Data Preview")
-                st.dataframe(all_tables.astype(str))
 
             # Column Naming setup
             st.subheader("Rename Columns")
@@ -962,8 +956,6 @@ def income_statement():
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
 
             all_tables.rename(columns=new_column_names, inplace=True)
-            st.write("Updated Columns:", all_tables.columns.tolist())
-            st.dataframe(all_tables.astype(str))
 
             # Exclude columns that are renamed to 'Remove'
             columns_to_keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
@@ -1039,6 +1031,18 @@ def income_statement():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            st.subheader("Data Preview")
+            st.dataframe(all_tables.astype(str))
+
+            # Create data editor for row removal
+            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+
+            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
+            if rows_to_remove:
+                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
+                st.subheader("Updated Data Preview")
+                st.dataframe(all_tables.astype(str))
 
     with tab2:
         st.subheader("Aggregate My Data")
