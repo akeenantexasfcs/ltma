@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[8]:
 
 
 import io
@@ -882,6 +882,15 @@ def sort_by_account(df):
         st.error("'Account' column not found in the data.")
     return df
 
+def aggregate_by_account(df):
+    if 'Account' in df.columns:
+        aggregation_functions = {col: 'sum' for col in df.columns if col != 'Account'}
+        aggregated_df = df.groupby('Account').agg(aggregation_functions).reset_index()
+        return aggregated_df
+    else:
+        st.error("'Account' column not found in the data.")
+        return df
+
 def income_statement():
     global income_statement_lookup_df
 
@@ -1041,8 +1050,7 @@ def income_statement():
             final_df = edited_combined_df[edited_combined_df["Statement Intent"] != "Remove"]
 
             st.dataframe(final_df)
-
-            aggregated_table = aggregate_data(final_df)
+            aggregated_table = aggregate_by_account(final_df)
             aggregated_table = sort_by_account(aggregated_table)
 
             st.subheader("Aggregated Data")
