@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -875,6 +875,13 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
+def sort_by_account(df):
+    if 'Account' in df.columns:
+        df = df.sort_values(by=['Account'])
+    else:
+        st.error("'Account' column not found in the data.")
+    return df
+
 def income_statement():
     global income_statement_lookup_df
 
@@ -914,7 +921,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
@@ -1036,7 +1043,7 @@ def income_statement():
             st.dataframe(final_df)
 
             aggregated_table = aggregate_data(final_df)
-            aggregated_table = sort_by_label_and_account(aggregated_table)
+            aggregated_table = sort_by_account(aggregated_table)
 
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
