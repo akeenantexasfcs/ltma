@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[22]:
+# In[23]:
 
 
 import io
@@ -1048,7 +1048,7 @@ def income_statement():
             if edited_df.at[i, "Increases NI"]:
                 edited_df.at[i, "Decreases NI"] = False
                 edited_df.at[i, "Statement Intent"] = "Increase NI"
-            elif edited_df.at[i, "Decreases NI"]:
+            elif edited_df.at(i, "Decreases NI"):
                 edited_df.at[i, "Increases NI"] = False
                 edited_df.at[i, "Statement Intent"] = "Decrease NI"
             else:
@@ -1065,22 +1065,7 @@ def income_statement():
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
-
-        # Example of potential content for this tab
-        st.write("This section can be used to define and manage mappings for data aggregation.")
-        st.write("You can upload mappings, define rules, and manage aggregated data here.")
-
-        uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
-        if uploaded_mapping_file:
-            if uploaded_mapping_file.name.endswith('.xlsx'):
-                mapping_df = pd.read_excel(uploaded_mapping_file)
-            else:
-                mapping_df = pd.read_csv(uploaded_mapping_file)
-
-            st.write("Uploaded Mapping Data")
-            st.dataframe(mapping_df)
-
-            # Here you can add more functionality such as editing the mapping, applying it to data, etc.
+        st.write("This section is a placeholder for future content related to mappings and data aggregation.")
 
     with tab4:
         st.subheader("Income Statement Data Dictionary")
@@ -1118,6 +1103,6 @@ def main():
     elif selection == "Income Statement":
         income_statement()
 
-if __name__ == '__main__':
+if __name__ == '__nain__':
     main()
 
