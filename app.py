@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -851,11 +851,7 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-import io
-import json
-import pandas as pd
-import re
-import streamlit as st
+
 
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
@@ -1066,7 +1062,7 @@ def income_statement():
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
 
-                # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
+                # Ensure only one of "Positive Number Increases Net Income" or "Decreases NI" can be selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
                         df.at[index, "Statement Intent"] = "Positive Number Increases Net Income"
