@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -856,6 +856,7 @@ def cash_flow_statement():
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+initial_upload_data = None  # Variable to store the initial uploaded data
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
@@ -893,7 +894,7 @@ def aggregate_data(files):
     return aggregated_df
 
 def income_statement():
-    global income_statement_lookup_df
+    global income_statement_lookup_df, initial_upload_data
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
@@ -938,6 +939,7 @@ def income_statement():
 
             all_tables["Remove"] = False
             all_tables["Remove"] = all_tables["Remove"].astype(bool)
+            initial_upload_data = all_tables.copy()  # Store the initial upload data
 
             # Column Naming setup
             st.subheader("Rename Columns")
@@ -1072,9 +1074,11 @@ def income_statement():
                 for i in edited_df.index:
                     update_selection(edited_df, i)
 
-                # Reorder columns in edited_df
-                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in edited_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
-                edited_df = edited_df[columns_order]
+                # Dynamic column ordering
+                columns = edited_df.columns.tolist()
+                ordered_columns = st.multiselect("Reorder Columns", options=columns, default=columns, key='reorder_columns')
+
+                edited_df = edited_df[ordered_columns]
 
                 st.dataframe(edited_df)
 
@@ -1094,6 +1098,10 @@ def income_statement():
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                # Button to revert to initial upload data
+                if st.button("Revert to Initial Data"):
+                    st.experimental_rerun()
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
