@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1031,6 +1031,10 @@ def income_statement():
                 if 'Positive Number Increases Net Income' in updated_table.columns:
                     updated_table.rename(columns={'Positive Number Increases Net Income': 'Positive Number Increases Net Income'}, inplace=True)
 
+                # Drop 'Positive Number Increases Net Income' from export
+                if 'Positive Number Increases Net Income' in updated_table.columns:
+                    updated_table.drop(columns=['Positive Number Increases Net Income'], inplace=True)
+
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
@@ -1068,6 +1072,10 @@ def income_statement():
                 for i in edited_df.index:
                     update_selection(edited_df, i)
 
+                # Reorder columns in edited_df
+                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in edited_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                edited_df = edited_df[columns_order]
+
                 st.dataframe(edited_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
@@ -1078,9 +1086,9 @@ def income_statement():
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
-                    # Reorder columns
-                    columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in filtered_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
-                    filtered_df = filtered_df[columns_order]
+                    # Drop 'Positive Number Increases Net Income' from export
+                    if 'Positive Number Increases Net Income' in filtered_df.columns:
+                        filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
 
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
