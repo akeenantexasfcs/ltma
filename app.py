@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -1027,6 +1027,10 @@ def income_statement():
                 if 'Decreases NI' in updated_table.columns:
                     updated_table.drop(columns=['Decreases NI'], inplace=True)
 
+                # Rename 'Increases NI' to 'Positive Number Increases Net Income'
+                if 'Positive Number Increases Net Income' in updated_table.columns:
+                    updated_table.rename(columns={'Positive Number Increases Net Income': 'Positive Number Increases Net Income'}, inplace=True)
+
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
@@ -1045,8 +1049,7 @@ def income_statement():
 
                 # Adding statement intent columns
                 st.subheader("Interactive Data Frame")
-                aggregated_df["Increases NI"] = False
-                aggregated_df["Decreases NI"] = False
+                aggregated_df["Positive Number Increases Net Income"] = False
                 aggregated_df["Statement Intent"] = ""
 
                 edited_df = st.experimental_data_editor(
@@ -1057,12 +1060,8 @@ def income_statement():
 
                 # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
                 def update_selection(df, index):
-                    if df.at[index, "Increases NI"]:
-                        df.at[index, "Decreases NI"] = False
-                        df.at[index, "Statement Intent"] = "Increase NI"
-                    elif df.at[index, "Decreases NI"]:
-                        df.at[index, "Increases NI"] = False
-                        df.at[index, "Statement Intent"] = "Decrease NI"
+                    if df.at[index, "Positive Number Increases Net Income"]:
+                        df.at[index, "Statement Intent"] = "Positive Number Increases Net Income"
                     else:
                         df.at[index, "Statement Intent"] = ""
 
@@ -1072,18 +1071,16 @@ def income_statement():
                 st.dataframe(edited_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = edited_df[edited_df["Statement Intent"] != ""]
+                    filtered_df = edited_df
 
                     # Move Statement Date row to the last row if it exists
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
-                    # Drop 'Increases NI' and 'Decreases NI' columns
-                    if 'Increases NI' in filtered_df.columns:
-                        filtered_df.drop(columns=['Increases NI'], inplace=True)
-                    if 'Decreases NI' in filtered_df.columns:
-                        filtered_df.drop(columns=['Decreases NI'], inplace=True)
+                    # Reorder columns
+                    columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in filtered_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                    filtered_df = filtered_df[columns_order]
 
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
