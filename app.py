@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[14]:
 
 
 import io
@@ -875,6 +875,21 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
+def aggregate_data(files):
+    dataframes = []
+    for file in files:
+        df = pd.read_excel(file)
+        dataframes.append(df)
+    concatenated_df = pd.concat(dataframes, ignore_index=True)
+    
+    # Aggregation logic
+    if 'Account' in concatenated_df.columns:
+        aggregated_df = concatenated_df.groupby('Account').sum().reset_index()
+    else:
+        st.error("Account column is not present in one or more files.")
+        return None
+    return aggregated_df
+
 def income_statement():
     global income_statement_lookup_df
 
@@ -1016,62 +1031,69 @@ def income_statement():
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            dataframes = []
-            for uploaded_file in uploaded_files:
-                df = pd.read_excel(uploaded_file)
-                dataframes.append(df)
-            
-            # Concatenate all dataframes
-            concatenated_df = pd.concat(dataframes, ignore_index=True)
-            st.subheader("Data Preview")
-            st.dataframe(concatenated_df)
+            aggregated_df = aggregate_data(uploaded_files)
+            if aggregated_df is not None:
+                st.subheader("Aggregated Data Preview")
+                st.dataframe(aggregated_df)
 
-            st.subheader("Aggregated Data Preview")
-            st.dataframe(concatenated_df)
+                # Adding statement intent column
+                st.subheader("Interactive Data Frame")
+                aggregated_df["Statement Intent"] = ""
+                options = ["Increase NI", "Decrease NI", "Remove"]
+                for index in aggregated_df.index:
+                    aggregated_df.at[index, "Statement Intent"] = st.selectbox(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
 
-            # Adding statement intent column
-            st.subheader("Interactive Data Frame")
-            concatenated_df["Statement Intent"] = ""
-            options = ["Increase NI", "Decrease NI", "Remove"]
-            for index in concatenated_df.index:
-                concatenated_df.at[index, "Statement Intent"] = st.selectbox(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
+                st.dataframe(aggregated_df)
 
-            st.dataframe(concatenated_df)
+                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                    filtered_df = aggregated_df[aggregated_df["Statement Intent"] != "Remove"]
+                    excel_file = io.BytesIO()
+                    filtered_df.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with tab3:
+            st.subheader("Mappings and Data Aggregation")
 
-            if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                filtered_df = concatenated_df[concatenated_df["Statement Intent"] != "Remove"]
-                excel_file = io.BytesIO()
-                filtered_df.to_excel(excel_file, index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            # Example of potential content for this tab
+            st.write("This section can be used to define and manage mappings for data aggregation.")
+            st.write("You can upload mappings, define rules, and manage aggregated data here.")
 
-    with tab3:
-        st.subheader("Mappings and Data Aggregation")
+            uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
+            if uploaded_mapping_file:
+                if uploaded_mapping_file.name.endswith('.xlsx'):
+                    mapping_df = pd.read_excel(uploaded_mapping_file)
+                else:
+                    mapping_df = pd.read_csv(uploaded_mapping_file)
 
-    with tab4:
-        st.subheader("Income Statement Data Dictionary")
+                st.write("Uploaded Mapping Data")
+                st.dataframe(mapping_df)
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
-        if uploaded_dict_file is not None:
-            new_lookup_df = pd.read_csv(uploaded_dict_file)
-            income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
-            st.success("Data Dictionary uploaded and updated successfully!")
+                # Here you can add more functionality such as editing the mapping, applying it to data, etc.
 
-        st.dataframe(income_statement_lookup_df)
+            with tab4:
+                st.subheader("Income Statement Data Dictionary")
 
-        remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
-        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
-            income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
-            st.success("Selected rows removed successfully!")
-            st.dataframe(income_statement_lookup_df)
+                uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
+                if uploaded_dict_file is not None:
+                    new_lookup_df = pd.read_csv(uploaded_dict_file)
+                    income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+                    save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+                    st.success("Data Dictionary uploaded and updated successfully!")
 
-        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.BytesIO()
-            income_statement_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.dataframe(income_statement_lookup_df)
+
+                remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
+                if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
+                    income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
+                    save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+                    st.success("Selected rows removed successfully!")
+                    st.dataframe(income_statement_lookup_df)
+
+                if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
+                    excel_file = io.BytesIO()
+                    income_statement_lookup_df.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def main():
     st.sidebar.title("Navigation")
