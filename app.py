@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -879,14 +879,22 @@ def apply_unit_conversion(df, columns, factor):
 
 def aggregate_data(files):
     dataframes = []
-    for file in files:
+    account_order = []
+    
+    for i, file in enumerate(files):
         df = pd.read_excel(file)
         dataframes.append(df)
+        if i == 0 and 'Account' in df.columns:
+            account_order = df['Account'].tolist()
+    
     concatenated_df = pd.concat(dataframes, ignore_index=True)
     
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
         aggregated_df = concatenated_df.groupby('Account').sum().reset_index()
+        if account_order:
+            aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
+            aggregated_df = aggregated_df.sort_values('Account')
     else:
         st.error("Account column is not present in one or more files.")
         return None
@@ -1151,7 +1159,6 @@ def main():
         cash_flow_statement()
     elif selection == "Income Statement":
         income_statement()
-
 
 if __name__ == '__main__':
     main()
