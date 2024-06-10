@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[30]:
+# In[31]:
 
 
 import io
@@ -1016,9 +1016,16 @@ def income_statement():
 
                 updated_table.replace('-', 0, inplace=True)
 
-                # Append Statement Date row
-                statement_date_row = pd.DataFrame({col: [statement_date_values.get(col, "")] for col in updated_table.columns})
+                # Move Statement Date row to the last row if it exists
+                statement_date_row = updated_table[updated_table['Account'].str.contains('Statement Date:', na=False)]
+                updated_table = updated_table[~updated_table['Account'].str.contains('Statement Date:', na=False)]
                 updated_table = pd.concat([updated_table, statement_date_row], ignore_index=True)
+
+                # Drop 'Increases NI' and 'Decreases NI' columns
+                if 'Increases NI' in updated_table.columns:
+                    updated_table.drop(columns=['Increases NI'], inplace=True)
+                if 'Decreases NI' in updated_table.columns:
+                    updated_table.drop(columns=['Decreases NI'], inplace=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
@@ -1064,9 +1071,16 @@ def income_statement():
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     filtered_df = edited_df[edited_df["Statement Intent"] != ""]
 
-                    # Append Statement Date row
-                    statement_date_row = pd.DataFrame({col: ["Statement Date:" if col == "Account" else ""] for col in filtered_df.columns})
+                    # Move Statement Date row to the last row if it exists
+                    statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                    filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
+
+                    # Drop 'Increases NI' and 'Decreases NI' columns
+                    if 'Increases NI' in filtered_df.columns:
+                        filtered_df.drop(columns=['Increases NI'], inplace=True)
+                    if 'Decreases NI' in filtered_df.columns:
+                        filtered_df.drop(columns=['Decreases NI'], inplace=True)
 
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
