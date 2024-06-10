@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1074,6 +1074,7 @@ def income_statement():
                     # Move Statement Date row to the last row if it exists, otherwise add it
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     if statement_date_row.empty:
+                        statement_date_values = {col: "Statement Date:" if col == "Account" else "" for col in filtered_df.columns}
                         statement_date_row = pd.DataFrame([statement_date_values], columns=filtered_df.columns)
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
