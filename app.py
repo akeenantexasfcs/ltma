@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -875,13 +875,6 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def sort_by_account(df):
-    if 'Account' in df.columns:
-        df = df.sort_values(by=['Account'])
-    else:
-        st.error("'Account' column not found in the data.")
-    return df
-
 def income_statement():
     global income_statement_lookup_df
 
@@ -943,7 +936,7 @@ def income_statement():
 
             # Column Naming setup
             st.subheader("Rename Columns")
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 4)]
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options + ['Remove']
 
@@ -1019,46 +1012,41 @@ def income_statement():
 
     with tab2:
         st.subheader("Aggregate My Data")
-        
-        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_is')
 
-        dfs = []
+        # File uploader for Excel files
+        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            dfs = [pd.read_excel(file) for file in uploaded_files if pd.read_excel(file) is not None]
+            dataframes = []
+            for uploaded_file in uploaded_files:
+                df = pd.read_excel(uploaded_file)
+                dataframes.append(df)
+            
+            # Concatenate all dataframes
+            concatenated_df = pd.concat(dataframes, ignore_index=True)
+            st.subheader("Data Preview")
+            st.dataframe(concatenated_df)
 
-        if dfs:
-            combined_df = pd.concat(dfs, ignore_index=True)
-            combined_df["Statement Intent"] = ""
+            st.subheader("Aggregated Data Preview")
+            st.dataframe(concatenated_df)
 
-            st.subheader("Data Preview with Statement Intent")
-            edited_combined_df = st.data_editor(combined_df, num_rows="dynamic", key="data_editor_combined_df_is")
+            # Adding statement intent column
+            st.subheader("Interactive Data Frame")
+            concatenated_df["Statement Intent"] = ""
+            options = ["Increase NI", "Decrease NI", "Remove"]
+            for index in concatenated_df.index:
+                concatenated_df.at[index, "Statement Intent"] = st.selectbox(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
 
-            for index, row in edited_combined_df.iterrows():
-                statement_intent = st.selectbox(f"What is the statement intent of {row['Account']}?", options=["", "Increase NI", "Decrease NI", "Remove"], key=f"statement_intent_{index}_is")
-                edited_combined_df.at[index, "Statement Intent"] = statement_intent
+            st.dataframe(concatenated_df)
 
-            # Remove rows with Statement Intent as 'Remove'
-            final_df = edited_combined_df[edited_combined_df["Statement Intent"] != "Remove"]
-
-            st.dataframe(final_df)
-
-            aggregated_table = aggregate_data(final_df)
-            aggregated_table = sort_by_account(aggregated_table)
-
-            st.subheader("Aggregated Data")
-            st.dataframe(aggregated_table)
-
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_is"):
+            if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                filtered_df = concatenated_df[concatenated_df["Statement Intent"] != "Remove"]
                 excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                filtered_df.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        else:
-            st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Placeholder for Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Aggregation")
 
     with tab4:
         st.subheader("Income Statement Data Dictionary")
