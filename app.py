@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[27]:
+# In[30]:
 
 
 import io
@@ -1063,6 +1063,11 @@ def income_statement():
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     filtered_df = edited_df[edited_df["Statement Intent"] != ""]
+
+                    # Append Statement Date row
+                    statement_date_row = pd.DataFrame({col: ["Statement Date:" if col == "Account" else ""] for col in filtered_df.columns})
+                    filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
+
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
