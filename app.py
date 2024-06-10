@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -857,6 +857,7 @@ def cash_flow_statement():
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 initial_upload_data = None  # Variable to store the initial uploaded data
+initial_aggregated_data = None  # Variable to store the initial aggregated data
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
@@ -894,7 +895,7 @@ def aggregate_data(files):
     return aggregated_df
 
 def income_statement():
-    global income_statement_lookup_df, initial_upload_data
+    global income_statement_lookup_df, initial_upload_data, initial_aggregated_data
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
@@ -1050,6 +1051,8 @@ def income_statement():
         if uploaded_files:
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
+                initial_aggregated_data = aggregated_df.copy()  # Store the initial aggregated data
+
                 st.subheader("Aggregated Data Preview")
                 st.dataframe(aggregated_df)
 
@@ -1101,7 +1104,9 @@ def income_statement():
 
                 # Button to revert to initial upload data
                 if st.button("Revert to Initial Data"):
-                    st.experimental_rerun()
+                    if initial_aggregated_data is not None:
+                        aggregated_df = initial_aggregated_data.copy()
+                        st.experimental_rerun()
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
