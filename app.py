@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[23]:
+# In[25]:
 
 
 import io
@@ -941,7 +941,7 @@ def income_statement():
             st.dataframe(all_tables.astype(str))
 
             # Create data editor for row removal
-            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+            edited_table = st.data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
 
             rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
             if rows_to_remove:
@@ -1028,44 +1028,63 @@ def income_statement():
     with tab2:
         st.subheader("Aggregate My Data")
 
-        # Initial DataFrame
-        aggregated_df = pd.DataFrame(
-            [
-                {"Account": "Gross margin", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""},
-                {"Account": "Operating income", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""},
-                {"Account": "Net income", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""}
-            ]
-        )
+        # File uploader for Excel files
+        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+        if uploaded_files:
+            aggregated_df = aggregate_data(uploaded_files)
+            if aggregated_df is not None:
+                st.subheader("Aggregated Data Preview")
+                st.dataframe(aggregated_df)
 
-        edited_df = st.experimental_data_editor(
-            aggregated_df,
-            num_rows="dynamic",
-            use_container_width=True,
-        )
+                # Adding statement intent columns
+                st.subheader("Interactive Data Frame")
+                aggregated_df["Increases NI"] = False
+                aggregated_df["Decreases NI"] = False
+                aggregated_df["Statement Intent"] = ""
 
-        # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
-        for i in edited_df.index:
-            if edited_df.at[i, "Increases NI"]:
-                edited_df.at[i, "Decreases NI"] = False
-                edited_df.at[i, "Statement Intent"] = "Increase NI"
-            elif edited_df.at(i, "Decreases NI"):
-                edited_df.at[i, "Increases NI"] = False
-                edited_df.at[i, "Statement Intent"] = "Decrease NI"
-            else:
-                edited_df.at[i, "Statement Intent"] = ""
+                edited_df = st.experimental_data_editor(
+                    aggregated_df,
+                    use_container_width=True
+                )
 
-        st.dataframe(edited_df)
+                # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
+                for i in edited_df.index:
+                    if edited_df.at[i, "Increases NI"]:
+                        edited_df.at[i, "Decreases NI"] = False
+                        edited_df.at[i, "Statement Intent"] = "Increase NI"
+                    elif edited_df.at[i, "Decreases NI"]:
+                        edited_df.at[i, "Increases NI"] = False
+                        edited_df.at[i, "Statement Intent"] = "Decrease NI"
+                    else:
+                        edited_df.at[i, "Statement Intent"] = ""
 
-        if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-            filtered_df = edited_df[edited_df["Statement Intent"] != ""]
-            excel_file = io.BytesIO()
-            filtered_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.dataframe(edited_df)
+
+                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                    filtered_df = edited_df[edited_df["Statement Intent"] != ""]
+                    excel_file = io.BytesIO()
+                    filtered_df.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
-        st.write("This section is a placeholder for future content related to mappings and data aggregation.")
+
+        # Example of potential content for this tab
+        st.write("This section can be used to define and manage mappings for data aggregation.")
+        st.write("You can upload mappings, define rules, and manage aggregated data here.")
+
+        uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
+        if uploaded_mapping_file:
+            if uploaded_mapping_file.name.endswith('.xlsx'):
+                mapping_df = pd.read_excel(uploaded_mapping_file)
+            else:
+                mapping_df = pd.read_csv(uploaded_mapping_file)
+
+            st.write("Uploaded Mapping Data")
+            st.dataframe(mapping_df)
+
+            # Here you can add more functionality such as editing the mapping, applying it to data, etc.
 
     with tab4:
         st.subheader("Income Statement Data Dictionary")
