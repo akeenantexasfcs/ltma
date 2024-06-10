@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[20]:
 
 
 import io
@@ -941,7 +941,7 @@ def income_statement():
             st.dataframe(all_tables.astype(str))
 
             # Create data editor for row removal
-            edited_table = st.data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
 
             rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
             if rows_to_remove:
@@ -1028,44 +1028,45 @@ def income_statement():
     with tab2:
         st.subheader("Aggregate My Data")
 
-        # File uploader for Excel files
-        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
-        if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
-            if aggregated_df is not None:
-                st.subheader("Aggregated Data Preview")
-                st.dataframe(aggregated_df)
+        # Initial DataFrame
+        aggregated_df = pd.DataFrame(
+            [
+                {"Account": "Gross margin", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""},
+                {"Account": "Operating income", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""},
+                {"Account": "Net income", "Increases NI": False, "Decreases NI": False, "Statement Intent": ""}
+            ]
+        )
 
-                # Adding statement intent columns
-                st.subheader("Interactive Data Frame")
-                aggregated_df["Increases NI"] = False
-                aggregated_df["Decreases NI"] = False
-                aggregated_df["Statement Intent"] = ""
+        edited_df = st.experimental_data_editor(
+            aggregated_df,
+            column_config={
+                "Increases NI": st.column_config.CheckboxColumn("Increases Net Income", help="Select if this increases net income"),
+                "Decreases NI": st.column_config.CheckboxColumn("Decreases Net Income", help="Select if this decreases net income"),
+            },
+            num_rows="dynamic",
+            hide_index=True,
+            disabled_columns=["Statement Intent"]
+        )
 
-                edited_df = st.experimental_data_editor(
-                    aggregated_df,
-                    use_container_width=True
-                )
+        # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
+        for i in edited_df.index:
+            if edited_df.at[i, "Increases NI"]:
+                edited_df.at[i, "Decreases NI"] = False
+                edited_df.at[i, "Statement Intent"] = "Increase NI"
+            elif edited_df.at[i, "Decreases NI"]:
+                edited_df.at[i, "Increases NI"] = False
+                edited_df.at[i, "Statement Intent"] = "Decrease NI"
+            else:
+                edited_df.at[i, "Statement Intent"] = ""
 
-                # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
-                for i in edited_df.index:
-                    if edited_df.at[i, "Increases NI"]:
-                        edited_df.at[i, "Decreases NI"] = False
-                        edited_df.at[i, "Statement Intent"] = "Increase NI"
-                    elif edited_df.at[i, "Decreases NI"]:
-                        edited_df.at[i, "Increases NI"] = False
-                        edited_df.at[i, "Statement Intent"] = "Decrease NI"
-                    else:
-                        edited_df.at[i, "Statement Intent"] = ""
+        st.dataframe(edited_df)
 
-                st.dataframe(edited_df)
-
-                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = edited_df[edited_df["Statement Intent"] != ""]
-                    excel_file = io.BytesIO()
-                    filtered_df.to_excel(excel_file, index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+            filtered_df = edited_df[edited_df["Statement Intent"] != ""]
+            excel_file = io.BytesIO()
+            filtered_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
