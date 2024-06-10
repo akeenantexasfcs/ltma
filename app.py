@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[17]:
 
 
 import io
@@ -1036,17 +1036,38 @@ def income_statement():
                 st.subheader("Aggregated Data Preview")
                 st.dataframe(aggregated_df)
 
-                # Adding statement intent column
+                # Adding statement intent columns
                 st.subheader("Interactive Data Frame")
+                aggregated_df["Increases NI"] = False
+                aggregated_df["Decreases NI"] = False
                 aggregated_df["Statement Intent"] = ""
-                options = ["Increase NI", "Decrease NI", "Remove"]
-                for index in aggregated_df.index:
-                    aggregated_df.at[index, "Statement Intent"] = st.radio(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
 
-                st.dataframe(aggregated_df)
+                edited_df = st.data_editor(
+                    aggregated_df,
+                    column_config={
+                        "Increases NI": st.column_config.CheckboxColumn("Increases Net Income", help="Select if this increases net income"),
+                        "Decreases NI": st.column_config.CheckboxColumn("Decreases Net Income", help="Select if this decreases net income"),
+                    },
+                    num_rows="dynamic",
+                    hide_index=True,
+                    disabled_columns=["Statement Intent"]
+                )
+
+                # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
+                for i in edited_df.index:
+                    if edited_df.at[i, "Increases NI"]:
+                        edited_df.at[i, "Decreases NI"] = False
+                        edited_df.at[i, "Statement Intent"] = "Increase NI"
+                    elif edited_df.at[i, "Decreases NI"]:
+                        edited_df.at[i, "Increases NI"] = False
+                        edited_df.at[i, "Statement Intent"] = "Decrease NI"
+                    else:
+                        edited_df.at[i, "Statement Intent"] = ""
+
+                st.dataframe(edited_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = aggregated_df[aggregated_df["Statement Intent"] != "Remove"]
+                    filtered_df = edited_df[edited_df["Statement Intent"] != ""]
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
