@@ -851,6 +851,12 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+import io
+import json
+import pandas as pd
+import re
+import streamlit as st
+
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -888,7 +894,7 @@ def aggregate_data(files):
     else:
         st.error("Account column is not present in one or more files.")
         return None
-    return concatenated_df, aggregated_df
+    return aggregated_df
 
 def income_statement():
     global income_statement_lookup_df
@@ -934,9 +940,6 @@ def income_statement():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
-            st.subheader("Data Preview")
-            st.dataframe(all_tables.astype(str))
-
             all_tables["Remove"] = False
             all_tables["Remove"] = all_tables["Remove"].astype(bool)
 
@@ -953,7 +956,6 @@ def income_statement():
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
 
             all_tables.rename(columns=new_column_names, inplace=True)
-            st.write("Updated Columns:", all_tables.columns.tolist())
 
             # Exclude columns that are renamed to 'Remove'
             columns_to_keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
@@ -1048,18 +1050,18 @@ def income_statement():
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            concatenated_df, aggregated_df = aggregate_data(uploaded_files)
+            aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
-                st.dataframe(concatenated_df)
+                st.dataframe(aggregated_df)
 
                 # Adding statement intent columns
                 st.subheader("Interactive Data Frame")
-                concatenated_df["Positive Number Increases Net Income"] = False
-                concatenated_df["Statement Intent"] = ""
+                aggregated_df["Positive Number Increases Net Income"] = False
+                aggregated_df["Statement Intent"] = ""
 
                 edited_df = st.experimental_data_editor(
-                    concatenated_df,
+                    aggregated_df,
                     use_container_width=True,
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
@@ -1073,6 +1075,10 @@ def income_statement():
 
                 for i in edited_df.index:
                     update_selection(edited_df, i)
+
+                # Reorder columns in edited_df
+                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in edited_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                edited_df = edited_df[columns_order]
 
                 st.dataframe(edited_df)
 
