@@ -1103,6 +1103,6 @@ def main():
     elif selection == "Income Statement":
         income_statement()
 
-if __name__ == '__nain__':
+if __name__ == '__main__':
     main()
 
