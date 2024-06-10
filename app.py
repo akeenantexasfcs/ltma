@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[5]:
 
 
 import io
@@ -914,7 +914,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
@@ -1013,21 +1013,21 @@ def income_statement():
     with tab2:
         st.subheader("Aggregate My Data")
         
-        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_cfs')
+        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_is')
 
         dfs = []
         if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+            dfs = [pd.read_excel(file) for file in uploaded_files if pd.read_excel(file) is not None]
 
         if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
             combined_df["Statement Intent"] = ""
 
             st.subheader("Data Preview with Statement Intent")
-            edited_combined_df = st.data_editor(combined_df, num_rows="dynamic", key="data_editor_combined_df")
+            edited_combined_df = st.data_editor(combined_df, num_rows="dynamic", key="data_editor_combined_df_is")
 
             for index, row in edited_combined_df.iterrows():
-                statement_intent = st.selectbox(f"What is the statement intent of {row['Account']}?", options=["", "Increase NI", "Decrease NI", "Remove"], key=f"statement_intent_{index}")
+                statement_intent = st.selectbox(f"What is the statement intent of {row['Account']}?", options=["", "Increase NI", "Decrease NI", "Remove"], key=f"statement_intent_{index}_is")
                 edited_combined_df.at[index, "Statement Intent"] = statement_intent
 
             # Remove rows with Statement Intent as 'Remove'
@@ -1041,7 +1041,7 @@ def income_statement():
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_is"):
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
