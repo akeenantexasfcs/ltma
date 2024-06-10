@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import io
@@ -1042,15 +1042,9 @@ def income_statement():
                 aggregated_df["Decreases NI"] = False
                 aggregated_df["Statement Intent"] = ""
 
-                edited_df = st.data_editor(
+                edited_df = st.experimental_data_editor(
                     aggregated_df,
-                    column_config={
-                        "Increases NI": st.column_config.CheckboxColumn("Increases Net Income", help="Select if this increases net income"),
-                        "Decreases NI": st.column_config.CheckboxColumn("Decreases Net Income", help="Select if this decreases net income"),
-                    },
-                    num_rows="dynamic",
-                    hide_index=True,
-                    disabled_columns=["Statement Intent"]
+                    use_container_width=True
                 )
 
                 # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
