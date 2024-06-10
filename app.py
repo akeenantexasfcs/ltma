@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[22]:
 
 
 import io
@@ -941,7 +941,7 @@ def income_statement():
             st.dataframe(all_tables.astype(str))
 
             # Create data editor for row removal
-            edited_table = st.data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
 
             rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
             if rows_to_remove:
@@ -1037,15 +1037,10 @@ def income_statement():
             ]
         )
 
-        edited_df = st.data_editor(
+        edited_df = st.experimental_data_editor(
             aggregated_df,
-            column_config={
-                "Increases NI": st.column_config.CheckboxColumn("Increases Net Income", help="Select if this increases net income"),
-                "Decreases NI": st.column_config.CheckboxColumn("Decreases Net Income", help="Select if this decreases net income"),
-            },
             num_rows="dynamic",
-            hide_index=True,
-            disabled_columns=["Statement Intent"]
+            use_container_width=True,
         )
 
         # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
