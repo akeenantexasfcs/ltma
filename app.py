@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[31]:
+# In[1]:
 
 
 import io
@@ -851,7 +851,7 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Global variables and functions assumed to be defined elsewhere
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
@@ -1071,8 +1071,10 @@ def income_statement():
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     filtered_df = edited_df[edited_df["Statement Intent"] != ""]
 
-                    # Move Statement Date row to the last row if it exists
+                    # Move Statement Date row to the last row if it exists, otherwise add it
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                    if statement_date_row.empty:
+                        statement_date_row = pd.DataFrame([statement_date_values], columns=filtered_df.columns)
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
