@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1056,26 +1056,26 @@ def income_statement():
                 )
 
                 # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
-                for i in edited_df.index:
-                    if edited_df.at[i, "Increases NI"]:
-                        edited_df.at[i, "Decreases NI"] = False
-                        edited_df.at[i, "Statement Intent"] = "Increase NI"
-                    elif edited_df.at[i, "Decreases NI"]:
-                        edited_df.at[i, "Increases NI"] = False
-                        edited_df.at[i, "Statement Intent"] = "Decrease NI"
+                def update_selection(df, index):
+                    if df.at[index, "Increases NI"]:
+                        df.at[index, "Decreases NI"] = False
+                        df.at[index, "Statement Intent"] = "Increase NI"
+                    elif df.at[index, "Decreases NI"]:
+                        df.at[index, "Increases NI"] = False
+                        df.at[index, "Statement Intent"] = "Decrease NI"
                     else:
-                        edited_df.at[i, "Statement Intent"] = ""
+                        df.at[index, "Statement Intent"] = ""
+
+                for i in edited_df.index:
+                    update_selection(edited_df, i)
 
                 st.dataframe(edited_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     filtered_df = edited_df[edited_df["Statement Intent"] != ""]
 
-                    # Move Statement Date row to the last row if it exists, otherwise add it
+                    # Move Statement Date row to the last row if it exists
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
-                    if statement_date_row.empty:
-                        statement_date_values = {col: "Statement Date:" if col == "Account" else "" for col in filtered_df.columns}
-                        statement_date_row = pd.DataFrame([statement_date_values], columns=filtered_df.columns)
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
