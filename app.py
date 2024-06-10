@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -882,15 +882,6 @@ def sort_by_account(df):
         st.error("'Account' column not found in the data.")
     return df
 
-def aggregate_by_account(df):
-    if 'Account' in df.columns:
-        aggregation_functions = {col: 'sum' for col in df.columns if col != 'Account'}
-        aggregated_df = df.groupby('Account').agg(aggregation_functions).reset_index()
-        return aggregated_df
-    else:
-        st.error("'Account' column not found in the data.")
-        return df
-
 def income_statement():
     global income_statement_lookup_df
 
@@ -967,14 +958,14 @@ def income_statement():
             st.dataframe(all_tables.astype(str))
 
             # Exclude columns that are renamed to 'Remove'
-            columns_to keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
+            columns_to_keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
 
             # Columns to keep setup
             st.subheader("Select Columns to Keep Before Export")
-            final_columns_to keep = []
-            for col in columns_to keep:
+            final_columns_to_keep = []
+            for col in columns_to_keep:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_is"):
-                    final_columns_to keep.append(col)
+                    final_columns_to_keep.append(col)
 
             # Select Numerical Columns conversion
             st.subheader("Select Numerical Columns")
@@ -986,7 +977,7 @@ def income_statement():
             # Add Statement Date
             st.subheader("Add Statement Date")
             statement_date_values = {}
-            for col in final_columns_to keep:
+            for col in final_columns_to_keep:
                 if col == "Account":
                     statement_date_values[col] = "Statement Date:"
                 else:
@@ -1006,7 +997,7 @@ def income_statement():
 
             if st.button("Apply and Generate Excel", key="apply_generate_excel_is"):
                 updated_table = all_tables.copy()
-                updated_table = updated_table[[col for col in final_columns_to keep if col in updated_table.columns]]
+                updated_table = updated_table[[col for col in final_columns_to_keep if col in updated_table.columns]]
 
                 for col in numerical_columns:
                     if col in updated_table.columns:
@@ -1050,7 +1041,8 @@ def income_statement():
             final_df = edited_combined_df[edited_combined_df["Statement Intent"] != "Remove"]
 
             st.dataframe(final_df)
-            aggregated_table = aggregate_by_account(final_df)
+
+            aggregated_table = aggregate_data(final_df)
             aggregated_table = sort_by_account(aggregated_table)
 
             st.subheader("Aggregated Data")
