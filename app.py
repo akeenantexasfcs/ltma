@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[16]:
 
 
 import io
@@ -1041,7 +1041,7 @@ def income_statement():
                 aggregated_df["Statement Intent"] = ""
                 options = ["Increase NI", "Decrease NI", "Remove"]
                 for index in aggregated_df.index:
-                    aggregated_df.at[index, "Statement Intent"] = st.selectbox(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
+                    aggregated_df.at[index, "Statement Intent"] = st.radio(f"Select intent for row {index+1}", options, key=f"statement_intent_{index}")
 
                 st.dataframe(aggregated_df)
 
@@ -1051,49 +1051,50 @@ def income_statement():
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        with tab3:
-            st.subheader("Mappings and Data Aggregation")
 
-            # Example of potential content for this tab
-            st.write("This section can be used to define and manage mappings for data aggregation.")
-            st.write("You can upload mappings, define rules, and manage aggregated data here.")
+    with tab3:
+        st.subheader("Mappings and Data Aggregation")
 
-            uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
-            if uploaded_mapping_file:
-                if uploaded_mapping_file.name.endswith('.xlsx'):
-                    mapping_df = pd.read_excel(uploaded_mapping_file)
-                else:
-                    mapping_df = pd.read_csv(uploaded_mapping_file)
+        # Example of potential content for this tab
+        st.write("This section can be used to define and manage mappings for data aggregation.")
+        st.write("You can upload mappings, define rules, and manage aggregated data here.")
 
-                st.write("Uploaded Mapping Data")
-                st.dataframe(mapping_df)
+        uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
+        if uploaded_mapping_file:
+            if uploaded_mapping_file.name.endswith('.xlsx'):
+                mapping_df = pd.read_excel(uploaded_mapping_file)
+            else:
+                mapping_df = pd.read_csv(uploaded_mapping_file)
 
-                # Here you can add more functionality such as editing the mapping, applying it to data, etc.
+            st.write("Uploaded Mapping Data")
+            st.dataframe(mapping_df)
 
-            with tab4:
-                st.subheader("Income Statement Data Dictionary")
+            # Here you can add more functionality such as editing the mapping, applying it to data, etc.
 
-                uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
-                if uploaded_dict_file is not None:
-                    new_lookup_df = pd.read_csv(uploaded_dict_file)
-                    income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-                    save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
-                    st.success("Data Dictionary uploaded and updated successfully!")
+    with tab4:
+        st.subheader("Income Statement Data Dictionary")
 
-                st.dataframe(income_statement_lookup_df)
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
 
-                remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
-                if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
-                    income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
-                    save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
-                    st.success("Selected rows removed successfully!")
-                    st.dataframe(income_statement_lookup_df)
+        st.dataframe(income_statement_lookup_df)
 
-                if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-                    excel_file = io.BytesIO()
-                    income_statement_lookup_df.to_excel(excel_file, index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
+            income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(income_statement_lookup_df)
+
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
+            excel_file = io.BytesIO()
+            income_statement_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def main():
     st.sidebar.title("Navigation")
