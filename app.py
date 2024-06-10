@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -914,7 +914,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
@@ -1022,20 +1022,20 @@ def income_statement():
         if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
             combined_df["Statement Intent"] = ""
-            combined_df["Statement Intent"] = combined_df["Statement Intent"].astype(str)
 
-            # Add Statement Intent mapping
-            st.subheader("Map Statement Intent")
-            for index, row in combined_df.iterrows():
+            st.subheader("Data Preview with Statement Intent")
+            edited_combined_df = st.data_editor(combined_df, num_rows="dynamic", key="data_editor_combined_df")
+
+            for index, row in edited_combined_df.iterrows():
                 statement_intent = st.selectbox(f"What is the statement intent of {row['Account']}?", options=["", "Increase NI", "Decrease NI", "Remove"], key=f"statement_intent_{index}")
-                combined_df.at[index, "Statement Intent"] = statement_intent
+                edited_combined_df.at[index, "Statement Intent"] = statement_intent
 
             # Remove rows with Statement Intent as 'Remove'
-            combined_df = combined_df[combined_df["Statement Intent"] != "Remove"]
+            final_df = edited_combined_df[edited_combined_df["Statement Intent"] != "Remove"]
 
-            st.dataframe(combined_df)
+            st.dataframe(final_df)
 
-            aggregated_table = aggregate_data(combined_df)
+            aggregated_table = aggregate_data(final_df)
             aggregated_table = sort_by_label_and_account(aggregated_table)
 
             st.subheader("Aggregated Data")
