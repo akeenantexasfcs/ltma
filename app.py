@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -885,7 +885,7 @@ def aggregate_data(files):
         df = pd.read_excel(file)
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
-            account_order = df['Account'].tolist()
+            account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
     
     concatenated_df = pd.concat(dataframes, ignore_index=True)
     
