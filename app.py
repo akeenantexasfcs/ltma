@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[27]:
 
 
 import io
@@ -941,7 +941,7 @@ def income_statement():
             st.dataframe(all_tables.astype(str))
 
             # Create data editor for row removal
-            edited_table = st.data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
 
             rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
             if rows_to_remove:
@@ -1044,7 +1044,8 @@ def income_statement():
 
                 edited_df = st.experimental_data_editor(
                     aggregated_df,
-                    use_container_width=True
+                    use_container_width=True,
+                    num_rows="dynamic"  # This enables dynamic row handling
                 )
 
                 # Ensure only one of "Increases NI" or "Decreases NI" can be selected at a time
