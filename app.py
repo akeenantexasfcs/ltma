@@ -1071,33 +1071,36 @@ def income_statement():
                 # Add a sortable index column
                 aggregated_df['Sort Index'] = aggregated_df.index
 
+                # Reorder the data frame based on the sort index
+                sorted_df = aggregated_df.sort_values(by='Sort Index')
+
                 st.subheader("Edit Data Frame")
 
-                # Allow user to edit the sort index
+                # Allow user to edit the data frame
                 edited_df = st.experimental_data_editor(
-                    aggregated_df,
+                    sorted_df,
                     use_container_width=True,
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
 
-                # Update 'Statement Intent' based on 'Positive Number Increases Net Income'
-                def update_statement_intent(df):
+                # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
+                def update_dataframe(df):
                     for index in df.index:
                         if df.at[index, "Positive Number Increases Net Income"]:
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
+                            for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                                if df.at[index, "Account"] != "Statement Date:":
+                                    df.at[index, col] *= -1
                         else:
                             df.at[index, "Statement Intent"] = ""
 
-                update_statement_intent(edited_df)
-
-                # Reorder the data frame based on the sort index
-                sorted_df = edited_df.sort_values(by='Sort Index')
+                update_dataframe(edited_df)
 
                 st.subheader("Exported Data Frame")
-                st.dataframe(sorted_df)
+                st.dataframe(edited_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = sorted_df
+                    filtered_df = edited_df
 
                     # Move Statement Date row to the last row if it exists
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
@@ -1110,7 +1113,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.BytesIO()
+                    excel_file = io.Bytes.IO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1154,7 +1157,7 @@ def income_statement():
             st.dataframe(income_statement_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.BytesIO()
+            excel_file = io.Bytes.IO()
             income_statement_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
