@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -905,7 +905,7 @@ def aggregate_data(files):
         aggregated_df = concatenated_df.groupby('Account').sum().reset_index()
         if account_order:
             aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
-            aggregated_df = aggregated_df.sort_values('Account')
+            aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
     else:
         st.error("Account column is not present in one or more files.")
         return None
@@ -1082,14 +1082,11 @@ def income_statement():
                 # Add a sortable index column
                 aggregated_df['Sort Index'] = aggregated_df.index
 
-                # Reorder the data frame based on the sort index
-                sorted_df = aggregated_df.sort_values(by='Sort Index')
-
                 st.subheader("Edit Data Frame")
 
                 # Allow user to edit the data frame
                 edited_df = st.experimental_data_editor(
-                    sorted_df,
+                    aggregated_df,
                     use_container_width=True,
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
