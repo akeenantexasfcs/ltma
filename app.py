@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1080,18 +1080,18 @@ def income_statement():
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
 
+                # Update 'Statement Intent' based on 'Positive Number Increases Net Income'
+                def update_statement_intent(df):
+                    for index in df.index:
+                        if df.at[index, "Positive Number Increases Net Income"]:
+                            df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
+                        else:
+                            df.at[index, "Statement Intent"] = ""
+
+                update_statement_intent(edited_df)
+
                 # Reorder the data frame based on the sort index
-                sorted_df = aggregated_df.loc[edited_df['Sort Index']]
-
-                # Ensure only one of "Positive Number Increases Net Income" is selected at a time
-                def update_selection(df, index):
-                    if df.at[index, "Positive Number Increases Net Income"]:
-                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
-                    else:
-                        df.at[index, "Statement Intent"] = ""
-
-                for i in sorted_df.index:
-                    update_selection(sorted_df, i)
+                sorted_df = edited_df.sort_values(by='Sort Index')
 
                 st.subheader("Exported Data Frame")
                 st.dataframe(sorted_df)
@@ -1110,7 +1110,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.Bytes.IO()
+                    excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1154,7 +1154,7 @@ def income_statement():
             st.dataframe(income_statement_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             income_statement_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
