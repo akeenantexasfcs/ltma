@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -851,12 +851,6 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-import streamlit as st
-import pandas as pd
-import json
-import io
-import re
-
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -1101,9 +1095,9 @@ def income_statement():
                             for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
                                 try:
                                     if df.at[index, "Account"] != "Statement Date:":
-                                        df.at[index, col] = pd.to_numeric(df.at[index, col], errors='coerce')
-                                        if not pd.isna(df.at[index, col]):
-                                            df.at[index, col] *= -1
+                                        numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
+                                        if not pd.isna(numeric_value):
+                                            df.at[index, col] = numeric_value * -1
                                 except ValueError:
                                     pass
                         else:
@@ -1128,7 +1122,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.Bytes.IO()
+                    excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
