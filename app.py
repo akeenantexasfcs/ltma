@@ -852,13 +852,6 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-
-import streamlit as st
-import pandas as pd
-import json
-import io
-import re
-
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -1100,7 +1093,7 @@ def income_statement():
                 for i in sorted_df.index:
                     update_selection(sorted_df, i)
 
-                st.subheader("Reordered Data Frame")
+                st.subheader("Exported Data Frame")
                 st.dataframe(sorted_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
@@ -1117,7 +1110,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.BytesIO()
+                    excel_file = io.Bytes.IO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1161,7 +1154,7 @@ def income_statement():
             st.dataframe(income_statement_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.BytesIO()
+            excel_file = io.Bytes.IO()
             income_statement_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
