@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -861,14 +861,14 @@ def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
 def clean_numeric_value(value):
-    value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    cleaned_value = re.sub(r'[$,]', '', value_str)
     try:
+        value_str = str(value).strip()
+        if value_str.startswith('(') and value_str.endswith(')'):
+            value_str = '-' + value_str[1:-1]
+        cleaned_value = re.sub(r'[$,]', '', value_str)
         return float(cleaned_value)
     except ValueError:
-        return 0
+        return value
 
 def apply_unit_conversion(df, columns, factor):
     for selected_column in columns:
@@ -888,6 +888,11 @@ def aggregate_data(files):
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
     
     concatenated_df = pd.concat(dataframes, ignore_index=True)
+    
+    # Clean numeric values
+    for col in concatenated_df.columns:
+        if col != 'Account':
+            concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
     
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
@@ -1089,8 +1094,11 @@ def income_statement():
                         if df.at[index, "Positive Number Increases Net Income"]:
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                if df.at[index, "Account"] != "Statement Date:":
-                                    df.at[index, col] *= -1
+                                try:
+                                    if df.at[index, "Account"] != "Statement Date:":
+                                        df.at[index, col] = float(df.at[index, col]) * -1
+                                except ValueError:
+                                    pass
                         else:
                             df.at[index, "Statement Intent"] = ""
 
@@ -1157,7 +1165,7 @@ def income_statement():
             st.dataframe(income_statement_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             income_statement_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
