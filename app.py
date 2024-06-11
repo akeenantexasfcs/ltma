@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -1093,7 +1093,7 @@ def income_statement():
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
                                     try:
                                         numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
-                                        if not pd.isna(numeric_value):
+                                        if pd.notna(numeric_value):
                                             df.at[index, col] = numeric_value * -1
                                     except ValueError:
                                         pass
@@ -1181,10 +1181,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
