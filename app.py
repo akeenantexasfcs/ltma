@@ -1068,8 +1068,6 @@ def income_statement():
                 columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
                 aggregated_df = aggregated_df[columns_order]
 
-                st.dataframe(aggregated_df)
-
                 # Add a sortable index column
                 aggregated_df['Sort Index'] = aggregated_df.index
 
@@ -1088,7 +1086,7 @@ def income_statement():
                 # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
-                        df.at[index, "Statement Intent"] = "Positive Number Increases Net Income"
+                        df.at[index, "Statement Intent"] = "+ Number (up arrow) Net Income"
                     else:
                         df.at[index, "Statement Intent"] = ""
 
