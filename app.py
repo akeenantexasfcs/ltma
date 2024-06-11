@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import io
@@ -1070,11 +1070,20 @@ def income_statement():
 
                 st.dataframe(aggregated_df)
 
+                # Add a sortable index column
+                aggregated_df['Sort Index'] = aggregated_df.index
+
+                st.subheader("Edit Data Frame")
+
+                # Allow user to edit the sort index
                 edited_df = st.experimental_data_editor(
                     aggregated_df,
                     use_container_width=True,
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
+
+                # Reorder the data frame based on the sort index
+                sorted_df = edited_df.sort_values(by='Sort Index')
 
                 # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
@@ -1083,22 +1092,25 @@ def income_statement():
                     else:
                         df.at[index, "Statement Intent"] = ""
 
-                for i in edited_df.index:
-                    update_selection(edited_df, i)
+                for i in sorted_df.index:
+                    update_selection(sorted_df, i)
 
-                st.dataframe(edited_df)
+                st.subheader("Reordered Data Frame")
+                st.dataframe(sorted_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = edited_df
+                    filtered_df = sorted_df
 
                     # Move Statement Date row to the last row if it exists
                     statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
                     filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
-                    # Drop 'Positive Number Increases Net Income' from export
+                    # Drop 'Positive Number Increases Net Income' and 'Sort Index' from export
                     if 'Positive Number Increases Net Income' in filtered_df.columns:
                         filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
+                    if 'Sort Index' in filtered_df.columns:
+                        filtered_df.drop(columns=['Sort Index'], inplace=True)
 
                     excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
