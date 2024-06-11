@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[6]:
 
 
 import io
@@ -856,6 +856,7 @@ def cash_flow_statement():
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+up_arrow = "\u2191"
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
@@ -1086,7 +1087,7 @@ def income_statement():
                 # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
-                        df.at[index, "Statement Intent"] = "+ Number (up arrow) Net Income"
+                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow +  "Net Income"
                     else:
                         df.at[index, "Statement Intent"] = ""
 
