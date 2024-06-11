@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -850,7 +850,6 @@ def cash_flow_statement():
             cash_flow_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -1092,14 +1091,14 @@ def income_statement():
                     for index in df.index:
                         if df.at[index, "Positive Number Increases Net Income"]:
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
-                            for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                try:
-                                    if df.at[index, "Account"] != "Statement Date:":
+                            if df.at[index, "Account"] != "Statement Date:":
+                                for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                                    try:
                                         numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
                                         if not pd.isna(numeric_value):
                                             df.at[index, col] = numeric_value * -1
-                                except ValueError:
-                                    pass
+                                    except ValueError:
+                                        pass
                         else:
                             df.at[index, "Statement Intent"] = ""
 
@@ -1122,7 +1121,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.BytesIO()
+                    excel_file = io.Bytes.IO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1184,4 +1183,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
