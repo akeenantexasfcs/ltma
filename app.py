@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[13]:
 
 
 import io
@@ -1091,12 +1091,9 @@ def income_statement():
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             if df.at[index, "Account"] != "Statement Date:":
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    try:
-                                        numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
-                                        if pd.notna(numeric_value):
-                                            df.at[index, col] = numeric_value * -1
-                                    except ValueError:
-                                        pass
+                                    numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
+                                    if pd.notna(numeric_value):
+                                        df.at[index, col] = numeric_value * -1
                         else:
                             df.at[index, "Statement Intent"] = ""
 
