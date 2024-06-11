@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import io
@@ -896,7 +896,7 @@ def aggregate_data(files):
     
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
-        aggregated_df = concatenated_df.groupby('Account').sum().reset_index()
+        aggregated_df = concatenated_df.groupby('Account').sum(min_count=1).reset_index()  # Use min_count=1 to retain Accounts with NaNs
         if account_order:
             aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
             aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
