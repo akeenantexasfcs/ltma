@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[24]:
+# In[25]:
 
 
 import io
@@ -885,16 +885,17 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     account_order = []
-    
+
     for i, file in enumerate(files):
         df = pd.read_excel(file)
+        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
     
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
-    
+
     # Clean numeric values
     for col in concatenated_df.columns:
         if col != 'Account':
@@ -902,7 +903,7 @@ def aggregate_data(files):
     
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
-        aggregated_df = concatenated_df.groupby('Account').sum(min_count=1).reset_index()  # Use min_count=1 to retain Accounts with NaNs
+        aggregated_df = concatenated_df.groupby('Account', as_index=False).sum(min_count=1)  # Use min_count=1 to retain Accounts with NaNs
         if account_order:
             aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
             aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
@@ -1193,10 +1194,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
