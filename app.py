@@ -877,32 +877,17 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def aggregate_data(files):
-    dataframes = []
-    account_order = []
+    dfs = [pd.read_excel(file) for file in files]
     
-    for i, file in enumerate(files):
-        df = pd.read_excel(file)
-        dataframes.append(df)
-        if i == 0 and 'Account' in df.columns:
-            account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
+    # Concatenate all dataframes to ensure all unique account names are included
+    combined_df = pd.concat(dfs, ignore_index=True)
     
-    # Concatenate dataframes while retaining Account names
-    concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
+    # Use pivot_table to aggregate the data based on Account column
+    pivot_table = combined_df.pivot_table(index='Account', aggfunc='sum', fill_value=0)
     
-    # Clean numeric values
-    for col in concatenated_df.columns:
-        if col != 'Account':
-            concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
-    
-    # Aggregation logic
-    if 'Account' in concatenated_df.columns:
-        aggregated_df = concatenated_df.groupby('Account').sum(min_count=1).reset_index()  # Use min_count=1 to retain Accounts with NaNs
-        if account_order:
-            aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
-            aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
-    else:
-        st.error("Account column is not present in one or more files.")
-        return None
+    # Reset index to turn 'Account' back into a column
+    aggregated_df = pivot_table.reset_index()
+
     return aggregated_df
 
 def income_statement():
