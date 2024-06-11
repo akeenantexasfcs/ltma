@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[16]:
 
 
 import io
@@ -1090,21 +1090,24 @@ def income_statement():
                     num_rows="dynamic"  # This enables dynamic row handling
                 )
 
+                # Convert all columns after 'Statement Intent' to numeric before multiplication
+                def convert_columns_to_numeric(df):
+                    for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+
                 # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
                 def update_dataframe(df):
+                    convert_columns_to_numeric(df)
                     for index in df.index:
                         if df.at[index, "Positive Number Increases Net Income"]:
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             if df.at[index, "Account"] != "Statement Date:":
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    try:
-                                        numeric_value = pd.to_numeric(df.at[index, col], errors='coerce')
-                                        if pd.notna(numeric_value):
-                                            df.at[index, col] = numeric_value * -1
-                                        else:
-                                            st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
-                                    except Exception as e:
-                                        st.error(f"Error converting value in row {index}, column {col}: {e}")
+                                    numeric_value = df.at[index, col]
+                                    if pd.notna(numeric_value):
+                                        df.at[index, col] = numeric_value * -1
+                                    else:
+                                        st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
                         else:
                             df.at[index, "Statement Intent"] = ""
 
@@ -1127,7 +1130,7 @@ def income_statement():
                     if 'Sort Index' in filtered_df.columns:
                         filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.Bytes.IO()
+                    excel_file = io.BytesIO()
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
