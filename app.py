@@ -1087,7 +1087,7 @@ def income_statement():
                 # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
-                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow +  "Net Income"
+                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow +  "s Net Income"
                     else:
                         df.at[index, "Statement Intent"] = ""
 
