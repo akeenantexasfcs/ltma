@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[21]:
 
 
 import io
@@ -877,32 +877,48 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def aggregate_data(files):
-    dataframes = []
-    account_order = []
+    dfs = [pd.read_excel(file) for file in files]
     
-    for i, file in enumerate(files):
-        df = pd.read_excel(file)
-        dataframes.append(df)
-        if i == 0 and 'Account' in df.columns:
-            account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
+    # Concatenate all dataframes to ensure all unique account names are included
+    combined_df = pd.concat(dfs, ignore_index=True)
     
-    # Concatenate dataframes while retaining Account names
-    concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
+    # Use pivot_table to aggregate the data based on Account column
+    pivot_table = combined_df.pivot_table(index='Account', aggfunc='sum', fill_value=0)
     
-    # Clean numeric values
-    for col in concatenated_df.columns:
-        if col != 'Account':
-            concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
-    
-    # Aggregation logic
-    if 'Account' in concatenated_df.columns:
-        aggregated_df = concatenated_df.groupby('Account').sum(min_count=1).reset_index()  # Use min_count=1 to retain Accounts with NaNs
-        if account_order:
-            aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
-            aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
-    else:
-        st.error("Account column is not present in one or more files.")
-        return None
+    # Reset index to turn 'Account' back into a column
+    aggregated_df = pivot_table.reset_index()
+
+    return aggregated_df
+
+import streamlit as st
+import pandas as pd
+import json
+import io
+
+# Function to clean numeric values
+def clean_numeric_value(value):
+    try:
+        return pd.to_numeric(value)
+    except:
+        return value
+
+# Function to apply unit conversion
+def apply_unit_conversion(df, columns, factor):
+    for col in columns:
+        df[col] = df[col] * factor
+    return df
+
+# Function to aggregate data
+def aggregate_data(uploaded_files):
+    aggregated_df = pd.DataFrame()
+
+    for uploaded_file in uploaded_files:
+        file_df = pd.read_excel(uploaded_file)
+        if aggregated_df.empty:
+            aggregated_df = file_df
+        else:
+            aggregated_df = pd.merge(aggregated_df, file_df, how='outer', on='Account')
+
     return aggregated_df
 
 def income_statement():
@@ -994,7 +1010,7 @@ def income_statement():
             st.subheader("Select Numerical Columns")
             numerical_columns = []
             for col in all_tables.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_is"):
+                if st.checkbox(f"Numerical column '{col}'", value=False, key="num_{col}_is"):
                     numerical_columns.append(col)
 
             # Add Statement Date
@@ -1185,6 +1201,5 @@ def main():
     elif selection == "Income Statement":
         income_statement()
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__': main()
 
