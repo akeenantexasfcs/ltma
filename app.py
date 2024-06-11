@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[21]:
 
 
 import io
@@ -877,20 +877,16 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def aggregate_data(files):
-    dfs = []
-    for file in files:
-        df = pd.read_excel(file)
-        dfs.append(df)
-
-    aggregated_df = dfs[0]
-    for df in dfs[1:]:
-        aggregated_df = pd.merge(aggregated_df, df, on='Account', how='outer')
-
-    aggregated_df.fillna('', inplace=True)  # Replace NaN with empty string instead of None
-
-    # Reorder columns to have 'Account' first
-    account_column = aggregated_df.pop('Account')
-    aggregated_df.insert(0, 'Account', account_column)
+    dfs = [pd.read_excel(file) for file in files]
+    
+    # Concatenate all dataframes to ensure all unique account names are included
+    combined_df = pd.concat(dfs, ignore_index=True)
+    
+    # Use pivot_table to aggregate the data based on Account column
+    pivot_table = combined_df.pivot_table(index='Account', aggfunc='sum', fill_value=0)
+    
+    # Reset index to turn 'Account' back into a column
+    aggregated_df = pivot_table.reset_index()
 
     return aggregated_df
 
@@ -1045,79 +1041,79 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
-        st.subheader("Aggregate My Data")
+            st.subheader("Aggregate My Data")
 
-        # File uploader for Excel files
-        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
-        if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
-            if aggregated_df is not None:
-                st.subheader("Aggregated Data Preview")
+            # File uploader for Excel files
+            uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+            if uploaded_files:
+                aggregated_df = aggregate_data(uploaded_files)
+                if aggregated_df is not None:
+                    st.subheader("Aggregated Data Preview")
 
-                # Adding statement intent columns
-                aggregated_df["Positive Number Increases Net Income"] = False
-                aggregated_df["Statement Intent"] = ""
+                    # Adding statement intent columns
+                    aggregated_df["Positive Number Increases Net Income"] = False
+                    aggregated_df["Statement Intent"] = ""
 
-                # Reorder columns for consistency
-                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
-                aggregated_df = aggregated_df[columns_order]
+                    # Reorder columns for consistency
+                    columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                    aggregated_df = aggregated_df[columns_order]
 
-                # Add a sortable index column
-                aggregated_df['Sort Index'] = aggregated_df.index
+                    # Add a sortable index column
+                    aggregated_df['Sort Index'] = aggregated_df.index
 
-                st.subheader("Edit Data Frame")
+                    st.subheader("Edit Data Frame")
 
-                # Allow user to edit the data frame
-                edited_df = st.experimental_data_editor(
-                    aggregated_df,
-                    use_container_width=True,
-                    num_rows="dynamic"  # This enables dynamic row handling
-                )
+                    # Allow user to edit the data frame
+                    edited_df = st.experimental_data_editor(
+                        aggregated_df,
+                        use_container_width=True,
+                        num_rows="dynamic"  # This enables dynamic row handling
+                    )
 
-                # Convert all columns after 'Statement Intent' to numeric before multiplication
-                def convert_columns_to_numeric(df):
-                    for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    # Convert all columns after 'Statement Intent' to numeric before multiplication
+                    def convert_columns_to_numeric(df):
+                        for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
 
-                # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
-                def update_dataframe(df):
-                    convert_columns_to_numeric(df)
-                    for index in df.index:
-                        if df.at[index, "Positive Number Increases Net Income"]:
-                            df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
-                            if df.at[index, "Account"] != "Statement Date:":
-                                for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    numeric_value = df.at[index, col]
-                                    if pd.notna(numeric_value):
-                                        df.at[index, col] = numeric_value * -1
-                                    else:
-                                        st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
-                        else:
-                            df.at[index, "Statement Intent"] = ""
+                    # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
+                    def update_dataframe(df):
+                        convert_columns_to_numeric(df)
+                        for index in df.index:
+                            if df.at[index, "Positive Number Increases Net Income"]:
+                                df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
+                                if df.at[index, "Account"] != "Statement Date:":
+                                    for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                                        numeric_value = df.at[index, col]
+                                        if pd.notna(numeric_value):
+                                            df.at[index, col] = numeric_value * -1
+                                        else:
+                                            st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
+                            else:
+                                df.at[index, "Statement Intent"] = ""
 
-                update_dataframe(edited_df)
+                    update_dataframe(edited_df)
 
-                st.subheader("Exported Data Frame")
-                st.dataframe(edited_df)
+                    st.subheader("Exported Data Frame")
+                    st.dataframe(edited_df)
 
-                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = edited_df
+                    if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                        filtered_df = edited_df
 
-                    # Move Statement Date row to the last row if it exists
-                    statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
-                    filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
-                    filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
+                        # Move Statement Date row to the last row if it exists
+                        statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                        filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                        filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
 
-                    # Drop 'Positive Number Increases Net Income' and 'Sort Index' from export
-                    if 'Positive Number Increases Net Income' in filtered_df.columns:
-                        filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
-                    if 'Sort Index' in filtered_df.columns:
-                        filtered_df.drop(columns=['Sort Index'], inplace=True)
+                        # Drop 'Positive Number Increases Net Income' and 'Sort Index' from export
+                        if 'Positive Number Increases Net Income' in filtered_df.columns:
+                            filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
+                        if 'Sort Index' in filtered_df.columns:
+                            filtered_df.drop(columns=['Sort Index'], inplace=True)
 
-                    excel_file = io.BytesIO()
-                    filtered_df.to_excel(excel_file, index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        excel_file = io.BytesIO()
+                        filtered_df.to_excel(excel_file, index=False)
+                        excel_file.seek(0)
+                        st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
