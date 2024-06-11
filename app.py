@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[17]:
 
 
 import io
@@ -851,12 +851,6 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-import streamlit as st
-import pandas as pd
-import json
-import io
-import re
-
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -892,7 +886,8 @@ def aggregate_data(files):
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
     
-    concatenated_df = pd.concat(dataframes, ignore_index=True)
+    # Concatenate dataframes while retaining Account names
+    concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
     
     # Clean numeric values
     for col in concatenated_df.columns:
@@ -1174,7 +1169,7 @@ def income_statement():
             st.dataframe(income_statement_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file = io.BytesIO()
+            excel_file = io.Bytes.IO()
             income_statement_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
