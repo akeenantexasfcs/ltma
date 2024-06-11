@@ -877,16 +877,20 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def aggregate_data(files):
-    dfs = [pd.read_excel(file) for file in files]
-    
-    # Concatenate all dataframes to ensure all unique account names are included
-    combined_df = pd.concat(dfs, ignore_index=True)
-    
-    # Use pivot_table to aggregate the data based on Account column
-    pivot_table = combined_df.pivot_table(index='Account', aggfunc='sum', fill_value=0)
-    
-    # Reset index to turn 'Account' back into a column
-    aggregated_df = pivot_table.reset_index()
+    dfs = []
+    for file in files:
+        df = pd.read_excel(file)
+        dfs.append(df)
+
+    aggregated_df = dfs[0]
+    for df in dfs[1:]:
+        aggregated_df = pd.merge(aggregated_df, df, on='Account', how='outer')
+
+    aggregated_df.fillna('', inplace=True)  # Replace NaN with empty string instead of None
+
+    # Reorder columns to have 'Account' first
+    account_column = aggregated_df.pop('Account')
+    aggregated_df.insert(0, 'Account', account_column)
 
     return aggregated_df
 
