@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -853,6 +853,12 @@ def cash_flow_statement():
 
 
 
+import streamlit as st
+import pandas as pd
+import json
+import io
+import re
+
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -1082,12 +1088,12 @@ def income_statement():
                 )
 
                 # Reorder the data frame based on the sort index
-                sorted_df = edited_df.sort_values(by='Sort Index')
+                sorted_df = aggregated_df.loc[edited_df['Sort Index']]
 
                 # Ensure only one of "Positive Number Increases Net Income" is selected at a time
                 def update_selection(df, index):
                     if df.at[index, "Positive Number Increases Net Income"]:
-                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow +  "s Net Income"
+                        df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                     else:
                         df.at[index, "Statement Intent"] = ""
 
