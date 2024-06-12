@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[17]:
 
 
 import io
@@ -852,13 +852,7 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
-income_statement_lookup_df = pd.DataFrame()
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-up_arrow = "\u2191"
-
-def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
-
+# Define necessary functions
 def clean_numeric_value(value):
     try:
         value_str = str(value).strip()
@@ -1105,7 +1099,7 @@ def income_statement():
                     print(f"Converting column '{col}' values to numeric:")
                     print(editable_df.loc[non_statement_date_rows, col])
                     try:
-                        editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce')
+                        editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col].values, errors='coerce')
                     except Exception as e:
                         st.error(f"Error converting column '{col}': {e}")
                     editable_df[col] = editable_df[col].fillna(0)
