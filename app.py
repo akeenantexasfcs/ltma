@@ -1098,7 +1098,8 @@ def income_statement():
                     if row['Positive decrease NI']:
                         for col in editable_df.columns:
                             if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                editable_df.at[index, col] *= -1
+                                if isinstance(editable_df.at[index, col], (int, float)):  # Ensure value is numeric
+                                    editable_df.at[index, col] *= -1
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
