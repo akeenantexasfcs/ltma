@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[5]:
 
 
 import io
@@ -1082,25 +1082,24 @@ def income_statement():
 
     with tab2:
         st.subheader("Aggregate My Data")
-
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
-
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
-
                 # Apply the multiplication based on the checkbox
                 for index, row in editable_df.iterrows():
                     if row['Positive decrease NI']:
                         for col in editable_df.columns:
                             if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                if isinstance(editable_df.at[index, col], (int, float)):  # Ensure value is numeric
+                                if pd.api.types.is_numeric_dtype(editable_df[col]):
                                     editable_df.at[index, col] *= -1
-
+                # Convert numeric columns to appropriate data types
+                numeric_columns = editable_df.columns.drop(['Account', 'Positive decrease NI', 'Sort Index'])
+                editable_df[numeric_columns] = editable_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
