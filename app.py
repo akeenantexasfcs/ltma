@@ -865,9 +865,9 @@ def clean_numeric_value(value):
         if value_str.startswith('(') and value_str.endswith(')'):
             value_str = '-' + value_str[1:-1]
         cleaned_value = re.sub(r'[$,]', '', value_str)
-        return float(cleaned_value)
-    except ValueError:
-        return value
+        return pd.to_numeric(cleaned_value, errors='coerce')
+    except (ValueError, TypeError):
+        return pd.to_numeric(value, errors='coerce')
 
 def apply_unit_conversion(df, columns, factor):
     for selected_column in columns:
