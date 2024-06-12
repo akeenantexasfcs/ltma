@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[26]:
+# In[27]:
 
 
 import io
@@ -968,35 +968,9 @@ def income_statement():
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
-            all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
             st.dataframe(all_tables)
-
-            labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
-                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
-            selections = []
-
-            for label in labels:
-                st.subheader(f"Setting bounds for {label}")
-                options = [''] + list(all_tables[column_a].dropna().unique())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
-                selections.append((label, start_label, end_label))
-
-            def update_labels():
-                all_tables['Label'] = ''
-                for label, start_label, end_label in selections:
-                    if start_label and end_label:
-                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
-                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
-                        if pd.notna(start_index) and pd.notna(end_index):
-                            all_tables.loc[start_index:end_index, 'Label'] = label
-                        else:
-                            st.error(f"Invalid label bounds for {label}. Skipping...")
-                    else:
-                        st.info(f"No selections made for {label}. Skipping...")
-                return all_tables
 
             # Adding column renaming functionality
             st.subheader("Rename Columns")
@@ -1033,14 +1007,8 @@ def income_statement():
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
-            if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
-                updated_table = update_labels()
-                st.subheader("Updated Data Preview")
-                st.dataframe(updated_table[columns_to_keep])
-
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = update_labels()
-                updated_table = updated_table[columns_to_keep]  # Apply column removal
+                updated_table = all_tables[columns_to_keep]  # Apply column removal
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
@@ -1056,7 +1024,7 @@ def income_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         st.subheader("Aggregate My Data")
