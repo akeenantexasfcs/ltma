@@ -1086,11 +1086,13 @@ def income_statement():
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
-                st.dataframe(aggregated_df)
+
+                # Make the aggregated data interactive
+                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
-                    aggregated_df.to_excel(excel_file, index=False)
+                    editable_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
