@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -907,7 +907,9 @@ def aggregate_data(files):
 
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
-        aggregated_df = concatenated_df.groupby('Account', as_index=False).sum(min_count=1)  # Use min_count=1 to retain Accounts with NaNs
+        pivot_table = concatenated_df.pivot_table(index='Account', aggfunc='sum', margins=True)
+        pivot_table.reset_index(inplace=True)
+        aggregated_df = pivot_table
         if account_order:
             aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
             aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
