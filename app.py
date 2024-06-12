@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[17]:
 
 
 import io
@@ -852,8 +852,6 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
-# Define necessary functions
-# Global variables and functions
 # Global variables and functions
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
@@ -869,9 +867,9 @@ def clean_numeric_value(value):
         if value_str.startswith('(') and value_str.endswith(')'):
             value_str = '-' + value_str[1:-1]
         cleaned_value = re.sub(r'[$,]', '', value_str)
-        return pd.to_numeric(cleaned_value, errors='coerce')
-    except (ValueError, TypeError):
-        return pd.to_numeric(value, errors='coerce')
+        return float(cleaned_value)
+    except ValueError:
+        return value
 
 def apply_unit_conversion(df, columns, factor):
     for selected_column in columns:
@@ -1055,7 +1053,7 @@ def income_statement():
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
 
-                if selected_value != "No ConVersions Necessary":
+                if selected_value != "No Conversions Necessary":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
@@ -1084,38 +1082,32 @@ def income_statement():
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
     with tab2:
         st.subheader("Aggregate My Data")
+
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
+
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
                 # Apply the multiplication based on the checkbox
                 for index, row in editable_df.iterrows():
-                    if row['Account'] != 'Statement Date:' and row['Positive decrease NI']:
+                    if row['Positive decrease NI']:
                         for col in editable_df.columns:
                             if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                if pd.api.types.is_numeric_dtype(editable_df[col]):
-                                    editable_df.at[index, col] *= -1
+                                editable_df.at[index, col] *= -1
 
-                # Ensure numeric columns are correctly converted back to numeric types
-                numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
-                non_statement_date_rows = editable_df.index[editable_df['Account'] != 'Statement Date:']
-                for col in numeric_columns:
-                    editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce').fillna(0)
-                    
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                
+
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
