@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[17]:
 
 
 import io
@@ -931,6 +931,7 @@ def aggregate_data(files):
 
     return final_df
 
+# Assuming this function is part of your Streamlit app code
 def income_statement():
     global income_statement_lookup_df
 
@@ -1157,7 +1158,7 @@ def main():
 
     if selection == "Balance Sheet":
         balance_sheet()
-    elif selection is "Cash Flow Statement":
+    elif selection == "Cash Flow Statement":
         cash_flow_statement()
     elif selection == "Income Statement":
         income_statement()
