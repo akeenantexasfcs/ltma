@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -881,13 +882,11 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     unique_accounts = set()
-    sort_index = 1
 
-    for file in files:
+    for i, file in enumerate(files):
         df = pd.read_excel(file)
         df.columns = [str(col).strip() for col in df.columns]  # Clean column names
-        df['Sort Index'] = range(sort_index, sort_index + len(df))  # Add sort index based on the upload order
-        sort_index += len(df)
+        df['Sort Index'] = range(1, len(df) + 1)  # Add sort index starting from 1 for each file
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
 
@@ -924,6 +923,10 @@ def aggregate_data(files):
     statement_date_row = final_df[final_df['Account'].str.contains('Statement Date:', na=False)]
     final_df = final_df[~final_df['Account'].str.contains('Statement Date:', na=False)]
     final_df = pd.concat([final_df, statement_date_row], ignore_index=True)
+
+    # Move Sort Index to the last column
+    sort_index_column = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index_column
 
     return final_df
 
@@ -1151,4 +1154,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
