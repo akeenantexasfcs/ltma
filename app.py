@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[26]:
 
 
 import io
@@ -935,13 +935,11 @@ def income_statement():
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
 
-    with tab1:
-        st.subheader("Table Extractor")
 
-        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_is')
+    with tab1:
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
-
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -961,7 +959,7 @@ def income_statement():
                                             for rel in cell_block['Relationships']:
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if b['Id'] == word_id), None)
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
@@ -969,110 +967,91 @@ def income_statement():
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
-            if len(all_tables.columns) == 0:
-                st.error("No columns found in the uploaded JSON file.")
-                return
+            column_a = all_tables.columns[0]
+            all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
-            all_tables["Remove"] = False
-            all_tables["Remove"] = all_tables["Remove"].astype(bool)
+            st.dataframe(all_tables)
 
-            st.dataframe(all_tables.astype(str))
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities", 
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
+            selections = []
 
-            # Create data editor for row removal
-            edited_table = st.experimental_data_editor(all_tables, num_rows="dynamic", key="data_editor_is")
+            for label in labels:
+                st.subheader(f"Setting bounds for {label}")
+                options = [''] + list(all_tables[column_a].dropna().unique())
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                selections.append((label, start_label, end_label))
 
-            rows_to_remove = edited_table[edited_table["Remove"] == True].index.tolist()
-            if rows_to_remove:
-                all_tables = all_tables.drop(rows_to_remove).reset_index(drop=True)
-                st.subheader("Updated Data Preview")
-                st.dataframe(all_tables.astype(str))
+            def update_labels():
+                all_tables['Label'] = ''
+                for label, start_label, end_label in selections:
+                    if start_label and end_label:
+                        start_index = all_tables[all_tables[column_a].eq(start_label)].index.min()
+                        end_index = all_tables[all_tables[column_a].eq(end_label)].index.max()
+                        if pd.notna(start_index) and pd.notna(end_index):
+                            all_tables.loc[start_index:end_index, 'Label'] = label
+                        else:
+                            st.error(f"Invalid label bounds for {label}. Skipping...")
+                    else:
+                        st.info(f"No selections made for {label}. Skipping...")
+                return all_tables
 
-            # Column Naming setup
+            # Adding column renaming functionality
             st.subheader("Rename Columns")
+            new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options + ['Remove']
+            dropdown_options = [''] + quarter_options + ytd_options
 
-            new_column_names = {col: col for col in all_tables.columns}
             for col in all_tables.columns:
-                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_is")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_is", index=0)
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-
+            
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
-            st.dataframe(all_tables.astype(str))
+            st.dataframe(all_tables)
 
-            # Exclude columns that are renamed to 'Remove'
-            columns_to_keep = [col for col in all_tables.columns if new_column_names.get(col) != 'Remove']
+            # Adding radio buttons for column removal
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
 
-            # Columns to keep setup
-            st.subheader("Select Columns to Keep Before Export")
-            final_columns_to_keep = []
-            for col in columns_to_keep:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_is"):
-                    final_columns_to_keep.append(col)
-
-            # Select Numerical Columns conversion
-            st.subheader("Select Numerical Columns")
+            # Adding radio buttons for numerical column selection
+            st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_is"):
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
-            # Add Statement Date
-            st.subheader("Add Statement Date")
-            statement_date_values = {}
-            for col in final_columns_to_keep:
-                if col == "Account":
-                    statement_date_values[col] = "Statement Date:"
-                else:
-                    statement_date_values[col] = st.text_input(f"Statement date for '{col}'", key=f"statement_date_{col}")
-
-            # Unit labeling
+            # Unit conversion functionality moved from Tab 4
             st.subheader("Convert Units")
-            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_is")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_is")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
 
-            conversion_factors = {
-                "No Conversions Necessary": 1,
-                "Thousands": 1000,
-                "Millions": 1000000,
-                "Billions": 1000000000
-            }
+            if st.button("Update Labels Preview", key="update_labels_preview_tab1"):
+                updated_table = update_labels()
+                st.subheader("Updated Data Preview")
+                st.dataframe(updated_table[columns_to_keep])
 
-            if st.button("Apply and Generate Excel", key="apply_generate_excel_is"):
-                updated_table = all_tables.copy()
-                updated_table = updated_table[[col for col in final_columns_to_keep if col in updated_table.columns]]
+            if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
+                updated_table = update_labels()
+                updated_table = updated_table[columns_to_keep]  # Apply column removal
 
+                # Convert selected numerical columns to numbers
                 for col in numerical_columns:
-                    if col in updated_table.columns:
-                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
-
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                
+                # Apply unit conversion if selected
                 if selected_value != "No Conversions Necessary":
-                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
 
+                # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
-
-                # Move Statement Date row to the last row if it exists
-                statement_date_row = updated_table[updated_table['Account'].str.contains('Statement Date:', na=False)]
-                updated_table = updated_table[~updated_table['Account'].str.contains('Statement Date:', na=False)]
-                updated_table = pd.concat([updated_table, statement_date_row], ignore_index=True)
-
-                # Drop 'Increases NI' and 'Decreases NI' columns
-                if 'Increases NI' in updated_table.columns:
-                    updated_table.drop(columns=['Increases NI'], inplace=True)
-                if 'Decreases NI' in updated_table.columns:
-                    updated_table.drop(columns=['Decreases NI'], inplace=True)
-
-                # Rename 'Increases NI' to 'Positive Number Increases Net Income'
-                if 'Positive Number Increases Net Income' in updated_table.columns:
-                    updated_table.rename(columns={'Positive Number Increases Net Income': 'Positive Number Increases Net Income'}, inplace=True)
-
-                # Drop 'Positive Number Increases Net Income' from export
-                if 'Positive Number Increases Net Income' in updated_table.columns:
-                    updated_table.drop(columns=['Positive Number Increases Net Income'], inplace=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
