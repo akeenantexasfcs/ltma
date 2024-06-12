@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[9]:
 
 
 import io
@@ -1078,7 +1078,6 @@ def income_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     with tab2:
             st.subheader("Aggregate My Data")
 
@@ -1094,13 +1093,11 @@ def income_statement():
 
                     # Apply the multiplication logic just before export
                     if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                        numeric_cols = editable_df.select_dtypes(include='number').columns.tolist()
                         for index, row in editable_df.iterrows():
                             if row['Positive decrease NI'] and row['Sort Index'] != 100:
-                                for col in editable_df.columns:
-                                    if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                        value = clean_numeric_value(editable_df.at[index, col])
-                                        if isinstance(value, (int, float)):
-                                            editable_df.at[index, col] = value * -1
+                                for col in numeric_cols:
+                                    editable_df.at[index, col] = row[col] * -1
 
                         # Drop 'Positive decrease NI' from export
                         if 'Positive decrease NI' in editable_df.columns:
@@ -1110,7 +1107,6 @@ def income_statement():
                         editable_df.to_excel(excel_file, index=False)
                         excel_file.seek(0)
                         st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
