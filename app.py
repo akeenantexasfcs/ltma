@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -855,7 +855,6 @@ def cash_flow_statement():
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-up_arrow = "\u2191"
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
@@ -922,13 +921,6 @@ def aggregate_data(files):
 
     # Add "Positive decrease NI" column
     final_df.insert(1, 'Positive decrease NI', False)
-
-    # Apply the multiplication based on the condition
-    for index, row in final_df.iterrows():
-        if row['Positive decrease NI'] and row['Sort Index'] != 100:
-            for col in final_df.columns:
-                if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                    final_df.at[index, col] = clean_numeric_value(final_df.at[index, col]) * -1
 
     # Move Sort Index to the last column
     sort_index_column = final_df.pop('Sort Index')
@@ -1106,7 +1098,9 @@ def income_statement():
                             if row['Positive decrease NI'] and row['Sort Index'] != 100:
                                 for col in editable_df.columns:
                                     if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                        editable_df.at[index, col] = clean_numeric_value(editable_df.at[index, col]) * -1
+                                        value = clean_numeric_value(editable_df.at[index, col])
+                                        if isinstance(value, (int, float)):
+                                            editable_df.at[index, col] = value * -1
 
                         # Drop 'Positive decrease NI' from export
                         if 'Positive decrease NI' in editable_df.columns:
@@ -1174,10 +1168,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
