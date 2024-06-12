@@ -880,16 +880,12 @@ def apply_unit_conversion(df, columns, factor):
 
 def aggregate_data(files):
     dataframes = []
-    account_order = []
     unique_accounts = set()
 
-    for i, file in enumerate(files):
+    for file in files:
         df = pd.read_excel(file)
         df.columns = [str(col).strip() for col in df.columns]  # Clean column names
-        df['Sort Order'] = range(1, len(df) + 1)  # Add sort order column based on file order
         dataframes.append(df)
-        if i == 0 and 'Account' in df.columns:
-            account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
         unique_accounts.update(df['Account'].dropna().unique())
 
     # Concatenate dataframes while retaining Account names
@@ -897,50 +893,24 @@ def aggregate_data(files):
 
     # Clean numeric values
     for col in concatenated_df.columns:
-        if col not in ['Account', 'Sort Order']:
+        if col != 'Account':
             concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
 
     # Remove rows where 'Account' is None or empty
     concatenated_df = concatenated_df[concatenated_df['Account'].notna() & (concatenated_df['Account'] != '')]
 
-    # Create a dataframe with all unique accounts
+    # Create a dataframe with all unique accounts and fill missing periods with 0
     all_accounts_df = pd.DataFrame(unique_accounts, columns=['Account'])
-
-    # Merge with concatenated dataframe
-    merged_df = pd.merge(all_accounts_df, concatenated_df, on='Account', how='left')
-
-    # Fill missing numeric values with 0
-    merged_df.fillna({col: 0 for col in merged_df.columns if col not in ['Account', 'Sort Order']}, inplace=True)
+    merged_df = all_accounts_df.merge(concatenated_df, on='Account', how='left')
+    merged_df.fillna(0, inplace=True)
 
     # Ensure all numeric columns are actually numeric
     for col in merged_df.columns:
-        if col not in ['Account', 'Sort Order']:
+        if col != 'Account':
             merged_df[col] = pd.to_numeric(merged_df[col], errors='coerce').fillna(0)
 
     # Aggregation logic
-    if 'Account' in concatenated_df.columns:
-        pivot_table = merged_df.pivot_table(index='Account', aggfunc='sum', margins=True)
-        pivot_table.reset_index(inplace=True)
-        aggregated_df = pivot_table
-        if account_order:
-            aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
-            aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
-    else:
-        st.error("Account column is not present in one or more files.")
-        return None
-
-    # Sort based on Sort Order within each Account
-    aggregated_df.sort_values(['Sort Order'], inplace=True)
-    aggregated_df.drop(columns=['Sort Order'], inplace=True)
-
-    # Handling special cases
-    statement_date_row = aggregated_df[aggregated_df['Account'].str.contains('Statement Date:', na=False)]
-    the_services_row = aggregated_df[aggregated_df['Account'].str.contains('The Services', na=False)]
-
-    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('Statement Date:', na=False)]
-    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('The Services', na=False)]
-
-    aggregated_df = pd.concat([aggregated_df, the_services_row, statement_date_row], ignore_index=True)
+    aggregated_df = merged_df.groupby('Account', as_index=False).sum(min_count=1)
 
     return aggregated_df
 
@@ -1103,71 +1073,14 @@ def income_statement():
             aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
-
-                # Adding statement intent columns
-                aggregated_df["Positive Number Increases Net Income"] = False
-                aggregated_df["Statement Intent"] = ""
-
-                # Reorder columns for consistency
-                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
-                aggregated_df = aggregated_df[columns_order]
-
-                # Add a sortable index column
-                aggregated_df['Sort Index'] = aggregated_df.index
-
-                st.subheader("Edit Data Frame")
-
-                # Allow user to edit the data frame
-                edited_df = st.experimental_data_editor(
-                    aggregated_df,
-                    use_container_width=True,
-                    num_rows="dynamic"  # This enables dynamic row handling
-                )
-
-                # Convert all columns after 'Statement Intent' to numeric before multiplication
-                def convert_columns_to_numeric(df):
-                    for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                        df[col] = pd.to_numeric(df[col], errors='coerce')
-
-                # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
-                def update_dataframe(df):
-                    convert_columns_to_numeric(df)
-                    for index in df.index:
-                        if df.at[index, "Positive Number Increases Net Income"]:
-                            df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
-                            if df.at[index, "Account"] != "Statement Date:":
-                                for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    numeric_value = df.at[index, col]
-                                    if pd.notna(numeric_value):
-                                        df.at[index, col] = numeric_value * -1
-                                    else:
-                                        st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
-                        else:
-                            df.at[index, "Statement Intent"] = ""
-
-                update_dataframe(edited_df)
-
-                st.subheader("Exported Data Frame")
-                st.dataframe(edited_df)
+                st.dataframe(aggregated_df)
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    filtered_df = edited_df
-
-                    # Move Statement Date row to the last row if it exists
-                    statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
-                    filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
-                    filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
-
-                    # Drop 'Positive Number Increases Net Income' and 'Sort Index' from export
-                    if 'Positive Number Increases Net Income' in filtered_df.columns:
-                        filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
-                    if 'Sort Index' in filtered_df.columns:
-                        filtered_df.drop(columns=['Sort Index'], inplace=True)
-
                     excel_file = io.BytesIO()
-                    filtered_df.to_excel(excel_file, index=False)
+                    aggregated_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
