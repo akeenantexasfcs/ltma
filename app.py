@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[10]:
 
 
 import io
@@ -852,6 +852,8 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
+# Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -901,10 +903,14 @@ def aggregate_data(files):
     # Remove rows where 'Account' is None or empty
     concatenated_df = concatenated_df[concatenated_df['Account'].notna() & (concatenated_df['Account'] != '')]
 
-    # Create a dataframe with all unique accounts and fill missing periods with 0
+    # Create a dataframe with all unique accounts
     all_accounts_df = pd.DataFrame(unique_accounts, columns=['Account'])
-    merged_df = all_accounts_df.merge(concatenated_df, on='Account', how='left')
-    merged_df.fillna(0, inplace=True)
+
+    # Merge with concatenated dataframe
+    merged_df = pd.merge(all_accounts_df, concatenated_df, on='Account', how='left')
+
+    # Fill missing numeric values with 0
+    merged_df.fillna({col: 0 for col in merged_df.columns if col not in ['Account', 'Sort Order']}, inplace=True)
 
     # Ensure all numeric columns are actually numeric
     for col in merged_df.columns:
@@ -937,7 +943,6 @@ def aggregate_data(files):
     aggregated_df = pd.concat([aggregated_df, the_services_row, statement_date_row], ignore_index=True)
 
     return aggregated_df
-
 
 def income_statement():
     global income_statement_lookup_df
