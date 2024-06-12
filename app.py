@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[22]:
 
 
 import io
@@ -867,7 +867,7 @@ def clean_numeric_value(value):
             value_str = '-' + value_str[1:-1]
         cleaned_value = re.sub(r'[$,]', '', value_str)
         return float(cleaned_value)
-    except ValueError:
+    except (ValueError, TypeError):
         return value
 
 def apply_unit_conversion(df, columns, factor):
