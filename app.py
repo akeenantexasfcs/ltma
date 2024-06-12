@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -895,12 +895,15 @@ def aggregate_data(files):
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
 
     # Concatenate dataframes while retaining Account names
-    concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
+    concatenated_df = pd.concat(dataframes, ignore_index=True)
 
     # Clean numeric values
     for col in concatenated_df.columns:
         if col not in ['Account', 'Sort Order']:
             concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
+
+    # Remove rows where 'Account' is None or empty
+    concatenated_df = concatenated_df[concatenated_df['Account'].notna() & (concatenated_df['Account'] != '')]
 
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
@@ -926,6 +929,7 @@ def aggregate_data(files):
     aggregated_df = pd.concat([aggregated_df, the_services_row, statement_date_row], ignore_index=True)
 
     return aggregated_df
+
 
 def income_statement():
     global income_statement_lookup_df
@@ -1151,7 +1155,6 @@ def income_statement():
                     filtered_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
