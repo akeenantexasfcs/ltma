@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[19]:
+# In[20]:
 
 
 import io
@@ -855,6 +855,7 @@ def cash_flow_statement():
 # Define necessary functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -1054,7 +1055,7 @@ def income_statement():
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
 
-                if selected_value != "No Conversions Necessary":
+                if selected_value != "No ConVersions Necessary":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
