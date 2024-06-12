@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -854,7 +854,6 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -892,33 +891,35 @@ def aggregate_data(files):
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True)
 
+    # Split the data into numeric and date rows
+    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+
     # Clean numeric values
-    for col in concatenated_df.columns:
+    for col in numeric_rows.columns:
         if col != 'Account':
-            concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
+            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value)
 
-    # Remove rows where 'Account' is None or empty
-    concatenated_df = concatenated_df[concatenated_df['Account'].notna() & (concatenated_df['Account'] != '')]
-
-    # Create a dataframe with all unique accounts and fill missing periods with 0
-    all_accounts_df = pd.DataFrame(unique_accounts, columns=['Account'])
-    merged_df = all_accounts_df.merge(concatenated_df, on='Account', how='left')
-    merged_df.fillna(0, inplace=True)
+    # Fill missing numeric values with 0
+    numeric_rows.fillna(0, inplace=True)
 
     # Ensure all numeric columns are actually numeric
-    for col in merged_df.columns:
-        if col != 'Account' and not merged_df['Account'].str.contains('Statement Date:', na=False).all():
-            merged_df[col] = pd.to_numeric(merged_df[col], errors='coerce').fillna(0)
+    for col in numeric_rows.columns:
+        if col != 'Account':
+            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     # Aggregation logic
-    aggregated_df = merged_df.groupby('Account', as_index=False).sum(min_count=1)
+    aggregated_df = numeric_rows.groupby('Account', as_index=False).sum(min_count=1)
+
+    # Combine numeric rows and statement date rows
+    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
     # Ensure "Statement Date:" is always last
-    statement_date_row = aggregated_df[aggregated_df['Account'].str.contains('Statement Date:', na=False)]
-    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('Statement Date:', na=False)]
-    aggregated_df = pd.concat([aggregated_df, statement_date_row], ignore_index=True)
+    statement_date_row = final_df[final_df['Account'].str.contains('Statement Date:', na=False)]
+    final_df = final_df[~final_df['Account'].str.contains('Statement Date:', na=False)]
+    final_df = pd.concat([final_df, statement_date_row], ignore_index=True)
 
-    return aggregated_df
+    return final_df
 
 def income_statement():
     global income_statement_lookup_df
