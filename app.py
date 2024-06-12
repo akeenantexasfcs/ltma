@@ -1100,7 +1100,8 @@ def income_statement():
                                     editable_df.at[index, col] *= -1
                 # Convert numeric columns to appropriate data types, excluding the "Statement Date:" row
                 numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
-                editable_df.loc[editable_df['Account'] != 'Statement Date:', numeric_columns] = editable_df.loc[editable_df['Account'] != 'Statement Date:', numeric_columns].apply(pd.to_numeric, errors='coerce')
+                non_statement_date_rows = editable_df['Account'] != 'Statement Date:'
+                editable_df.loc[non_statement_date_rows, numeric_columns] = editable_df.loc[non_statement_date_rows, numeric_columns].apply(pd.to_numeric, errors='coerce')
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
