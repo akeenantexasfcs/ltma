@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -915,6 +915,15 @@ def aggregate_data(files):
     # Sort based on Sort Order within each Account
     aggregated_df.sort_values(['Sort Order'], inplace=True)
     aggregated_df.drop(columns=['Sort Order'], inplace=True)
+
+    # Handling special cases
+    statement_date_row = aggregated_df[aggregated_df['Account'].str.contains('Statement Date:', na=False)]
+    the_services_row = aggregated_df[aggregated_df['Account'].str.contains('The Services', na=False)]
+
+    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('Statement Date:', na=False)]
+    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('The Services', na=False)]
+
+    aggregated_df = pd.concat([aggregated_df, the_services_row, statement_date_row], ignore_index=True)
 
     return aggregated_df
 
