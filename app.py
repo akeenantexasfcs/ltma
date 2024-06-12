@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -1101,13 +1101,15 @@ def income_statement():
                 # Convert numeric columns to appropriate data types, excluding the "Statement Date:" row
                 numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
                 non_statement_date_rows = editable_df['Account'] != 'Statement Date:'
-                editable_df.loc[non_statement_date_rows, numeric_columns] = editable_df.loc[non_statement_date_rows, numeric_columns].apply(pd.to_numeric, errors='coerce')
+                converted_values = editable_df.loc[non_statement_date_rows, numeric_columns].apply(pd.to_numeric, errors='coerce')
+                editable_df.loc[non_statement_date_rows, numeric_columns] = converted_values
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+                
+                
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
