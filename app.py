@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[22]:
+# In[25]:
 
 
 import io
@@ -861,6 +861,8 @@ def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
 def clean_numeric_value(value):
+    if isinstance(value, str) and "Statement Date:" in value:
+        return value
     try:
         value_str = str(value).strip()
         if value_str.startswith('(') and value_str.endswith(')'):
@@ -1062,19 +1064,16 @@ def income_statement():
                 updated_table = updated_table[~updated_table['Account'].str.contains('Statement Date:', na=False)]
                 updated_table = pd.concat([updated_table, statement_date_row], ignore_index=True)
 
-                # Drop 'Increases NI' and 'Decreases NI' columns
-                if 'Increases NI' in updated_table.columns:
-                    updated_table.drop(columns=['Increases NI'], inplace=True)
-                if 'Decreases NI' in updated_table.columns:
-                    updated_table.drop(columns=['Decreases NI'], inplace=True)
+                # Apply the multiplication based on "Positive decrease NI"
+                for index, row in updated_table.iterrows():
+                    if row['Positive decrease NI']:
+                        for col in updated_table.columns:
+                            if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
+                                updated_table.at[index, col] = clean_numeric_value(updated_table.at[index, col]) * -1
 
-                # Rename 'Increases NI' to 'Positive Number Increases Net Income'
-                if 'Positive Number Increases Net Income' in updated_table.columns:
-                    updated_table.rename(columns={'Positive Number Increases Net Income': 'Positive Number Increases Net Income'}, inplace=True)
-
-                # Drop 'Positive Number Increases Net Income' from export
-                if 'Positive Number Increases Net Income' in updated_table.columns:
-                    updated_table.drop(columns=['Positive Number Increases Net Income'], inplace=True)
+                # Drop 'Positive decrease NI' from export
+                if 'Positive decrease NI' in updated_table.columns:
+                    updated_table.drop(columns=['Positive decrease NI'], inplace=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
