@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[3]:
 
 
 import io
@@ -889,18 +889,19 @@ def aggregate_data(files):
     for i, file in enumerate(files):
         df = pd.read_excel(file)
         df.columns = [str(col).strip() for col in df.columns]  # Clean column names
+        df['Sort Order'] = range(1, len(df) + 1)  # Add sort order column based on file order
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
-    
+
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
 
     # Clean numeric values
     for col in concatenated_df.columns:
-        if col != 'Account':
+        if col not in ['Account', 'Sort Order']:
             concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
-    
+
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
         aggregated_df = concatenated_df.groupby('Account', as_index=False).sum(min_count=1)  # Use min_count=1 to retain Accounts with NaNs
@@ -910,6 +911,11 @@ def aggregate_data(files):
     else:
         st.error("Account column is not present in one or more files.")
         return None
+
+    # Sort based on Sort Order within each Account
+    aggregated_df.sort_values(['Sort Order'], inplace=True)
+    aggregated_df.drop(columns=['Sort Order'], inplace=True)
+
     return aggregated_df
 
 def income_statement():
@@ -944,14 +950,14 @@ def income_statement():
                                             for rel in cell_block['Relationships']:
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        word_block = next((w for w in data['Blocks'] if b['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
