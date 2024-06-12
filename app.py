@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[19]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Define necessary functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -1093,6 +1094,7 @@ def income_statement():
                 st.subheader("Aggregated Data Preview")
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+
                 # Apply the multiplication based on the checkbox
                 for index, row in editable_df.iterrows():
                     if row['Account'] != 'Statement Date:' and row['Positive decrease NI']:
@@ -1100,23 +1102,18 @@ def income_statement():
                             if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
                                 if pd.api.types.is_numeric_dtype(editable_df[col]):
                                     editable_df.at[index, col] *= -1
-                # Convert numeric columns to appropriate data types, excluding the "Statement Date:" row
+
+                # Ensure numeric columns are correctly converted back to numeric types
                 numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
                 non_statement_date_rows = editable_df.index[editable_df['Account'] != 'Statement Date:']
                 for col in numeric_columns:
-                    print(f"Converting column '{col}' values to numeric:")
-                    print(editable_df.loc[non_statement_date_rows, col])
-                    try:
-                        editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col].values, errors='coerce')
-                    except Exception as e:
-                        st.error(f"Error converting column '{col}': {e}")
-                    editable_df[col] = editable_df[col].fillna(0)
+                    editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce').fillna(0)
+                    
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                
                 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
