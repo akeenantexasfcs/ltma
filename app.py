@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[16]:
 
 
 import io
@@ -1095,11 +1095,10 @@ def income_statement():
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
-                # Ensure all numeric columns are properly converted to numeric types
+                # Ensure all numeric columns are properly converted to numeric types, excluding "Statement Date:" rows
                 for col in editable_df.columns:
                     if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-                        if not editable_df[editable_df['Account'] == 'Statement Date:'].index.any():
-                            editable_df[col] = pd.to_numeric(editable_df[col], errors='coerce').fillna(0)
+                        editable_df[col] = pd.to_numeric(editable_df[col], errors='coerce').fillna(0)
 
                 # Apply the multiplication logic just before export
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
