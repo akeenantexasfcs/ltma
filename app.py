@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -852,6 +852,12 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+import streamlit as st
+import pandas as pd
+import re
+import json
+import io
+
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -880,22 +886,22 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     account_order = []
-
+    
     for i, file in enumerate(files):
         df = pd.read_excel(file)
         df['Sort Index'] = range(len(df))  # Add a sortable index column
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
-
+    
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
-
+    
     # Clean numeric values
     for col in concatenated_df.columns:
         if col != 'Account':
             concatenated_df[col] = concatenated_df[col].apply(clean_numeric_value)
-
+    
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
         concatenated_df = concatenated_df.sort_values(by='Sort Index')
@@ -906,7 +912,7 @@ def aggregate_data(files):
     else:
         st.error("Account column is not present in one or more files.")
         return None
-
+    
     return aggregated_df
 
 def income_statement():
