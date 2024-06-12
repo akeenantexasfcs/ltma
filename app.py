@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[13]:
 
 
 import io
@@ -1076,6 +1076,8 @@ def income_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
+
+
     with tab2:
             st.subheader("Aggregate My Data")
 
@@ -1088,6 +1090,11 @@ def income_statement():
 
                     # Make the aggregated data interactive
                     editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+
+                    # Ensure all numeric columns are properly converted to numeric types
+                    for col in editable_df.columns:
+                        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                            editable_df[col] = pd.to_numeric(editable_df[col], errors='coerce').fillna(0)
 
                     # Apply the multiplication logic just before export
                     if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
