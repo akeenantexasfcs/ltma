@@ -853,6 +853,7 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -917,6 +918,9 @@ def aggregate_data(files):
 
     # Combine numeric rows and statement date rows
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
+
+    # Add "Positive decrease NI" column
+    final_df.insert(1, 'Positive decrease NI', False)
 
     # Move Sort Index to the last column
     sort_index_column = final_df.pop('Sort Index')
@@ -1090,6 +1094,13 @@ def income_statement():
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
+                # Apply the multiplication based on the checkbox
+                for index, row in editable_df.iterrows():
+                    if row['Positive decrease NI']:
+                        for col in editable_df.columns:
+                            if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
+                                editable_df.at[index, col] *= -1
+
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
@@ -1146,7 +1157,7 @@ def main():
 
     if selection == "Balance Sheet":
         balance_sheet()
-    elif selection == "Cash Flow Statement":
+    elif selection is "Cash Flow Statement":
         cash_flow_statement()
     elif selection == "Income Statement":
         income_statement()
