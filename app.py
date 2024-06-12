@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -929,8 +929,6 @@ def aggregate_data(files):
 
     return final_df
 
-
-# Assuming this function is part of your Streamlit app code
 def income_statement():
     global income_statement_lookup_df
 
@@ -1056,18 +1054,24 @@ def income_statement():
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
-
                 # Move Statement Date row to the last row if it exists
                 statement_date_row = updated_table[updated_table['Account'].str.contains('Statement Date:', na=False)]
                 updated_table = updated_table[~updated_table['Account'].str.contains('Statement Date:', na=False)]
                 updated_table = pd.concat([updated_table, statement_date_row], ignore_index=True)
 
-                # Apply the multiplication based on "Positive decrease NI"
+                # Ensure all numeric columns are properly converted to numeric types
+                for col in updated_table.columns:
+                    if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                        if not updated_table[updated_table['Account'] == 'Statement Date:'].index.any():
+                            updated_table[col] = pd.to_numeric(updated_table[col], errors='coerce').fillna(0)
+
+                # Apply the multiplication logic just before export
+                numeric_cols = updated_table.select_dtypes(include='number').columns.tolist()
                 for index, row in updated_table.iterrows():
-                    if row['Positive decrease NI']:
-                        for col in updated_table.columns:
-                            if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                updated_table.at[index, col] = clean_numeric_value(updated_table.at[index, col]) * -1
+                    if row['Positive decrease NI'] and row['Sort Index'] != 100:
+                        for col in numeric_cols:
+                            if col not in ['Sort Index']:
+                                updated_table.at[index, col] = row[col] * -1
 
                 # Drop 'Positive decrease NI' from export
                 if 'Positive decrease NI' in updated_table.columns:
@@ -1076,47 +1080,48 @@ def income_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-
+                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
-            st.subheader("Aggregate My Data")
+        st.subheader("Aggregate My Data")
 
-            # File uploader for Excel files
-            uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
-            if uploaded_files:
-                aggregated_df = aggregate_data(uploaded_files)
-                if aggregated_df is not None:
-                    st.subheader("Aggregated Data Preview")
+        # File uploader for Excel files
+        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+        if uploaded_files:
+            aggregated_df = aggregate_data(uploaded_files)
+            if aggregated_df is not None:
+                st.subheader("Aggregated Data Preview")
 
-                    # Make the aggregated data interactive
-                    editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                # Make the aggregated data interactive
+                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
-                    # Ensure all numeric columns are properly converted to numeric types
-                    for col in editable_df.columns:
-                        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                # Ensure all numeric columns are properly converted to numeric types
+                for col in editable_df.columns:
+                    if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                        if not editable_df[editable_df['Account'] == 'Statement Date:'].index.any():
                             editable_df[col] = pd.to_numeric(editable_df[col], errors='coerce').fillna(0)
 
-                    # Apply the multiplication logic just before export
-                    if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                        numeric_cols = editable_df.select_dtypes(include='number').columns.tolist()
-                        for index, row in editable_df.iterrows():
-                            if row['Positive decrease NI'] and row['Sort Index'] != 100:
-                                for col in numeric_cols:
-                                    if col not in ['Sort Index']:
-                                        editable_df.at[index, col] = row[col] * -1
+                # Apply the multiplication logic just before export
+                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                    numeric_cols = editable_df.select_dtypes(include='number').columns.tolist()
+                    for index, row in editable_df.iterrows():
+                        if row['Positive decrease NI'] and row['Sort Index'] != 100:
+                            for col in numeric_cols:
+                                if col not in ['Sort Index']:
+                                    editable_df.at[index, col] = row[col] * -1
 
-                        # Drop 'Positive decrease NI' from export
-                        if 'Positive decrease NI' in editable_df.columns:
-                            editable_df.drop(columns=['Positive decrease NI'], inplace=True)
+                    # Drop 'Positive decrease NI' from export
+                    if 'Positive decrease NI' in editable_df.columns:
+                        editable_df.drop(columns=['Positive decrease NI'], inplace=True)
 
-                        excel_file = io.BytesIO()
-                        editable_df.to_excel(excel_file, index=False)
-                        excel_file.seek(0)
-                        st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    excel_file = io.BytesIO()
+                    editable_df.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
-        # Example of potential content for this tab
         st.write("This section can be used to define and manage mappings for data aggregation.")
         st.write("You can upload mappings, define rules, and manage aggregated data here.")
 
@@ -1129,8 +1134,6 @@ def income_statement():
 
             st.write("Uploaded Mapping Data")
             st.dataframe(mapping_df)
-
-            # Here you can add more functionality such as editing the mapping, applying it to data, etc.
 
     with tab4:
         st.subheader("Income Statement Data Dictionary")
