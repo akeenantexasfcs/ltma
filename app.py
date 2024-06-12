@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -885,6 +885,7 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     account_order = []
+    unique_accounts = set()
 
     for i, file in enumerate(files):
         df = pd.read_excel(file)
@@ -893,6 +894,7 @@ def aggregate_data(files):
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
+        unique_accounts.update(df['Account'].dropna().unique())
 
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True)
@@ -905,9 +907,14 @@ def aggregate_data(files):
     # Remove rows where 'Account' is None or empty
     concatenated_df = concatenated_df[concatenated_df['Account'].notna() & (concatenated_df['Account'] != '')]
 
+    # Create a dataframe with all unique accounts and fill missing periods with 0
+    all_accounts_df = pd.DataFrame(unique_accounts, columns=['Account'])
+    merged_df = all_accounts_df.merge(concatenated_df, on='Account', how='left')
+    merged_df.fillna(0, inplace=True)
+
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
-        pivot_table = concatenated_df.pivot_table(index='Account', aggfunc='sum', margins=True)
+        pivot_table = merged_df.pivot_table(index='Account', aggfunc='sum', margins=True)
         pivot_table.reset_index(inplace=True)
         aggregated_df = pivot_table
         if account_order:
@@ -1126,7 +1133,7 @@ def income_statement():
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             if df.at[index, "Account"] != "Statement Date:":
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    numeric_value = df.at[index, col]
+                                    numeric_value = df.at(index, col)
                                     if pd.notna(numeric_value):
                                         df.at[index, col] = numeric_value * -1
                                     else:
