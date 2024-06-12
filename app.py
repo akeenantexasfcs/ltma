@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -1080,6 +1080,7 @@ def income_statement():
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
     with tab2:
         st.subheader("Aggregate My Data")
         # File uploader for Excel files
@@ -1092,20 +1093,19 @@ def income_statement():
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
                 # Apply the multiplication based on the checkbox
                 for index, row in editable_df.iterrows():
-                    if row['Positive decrease NI']:
+                    if row['Account'] != 'Statement Date:' and row['Positive decrease NI']:
                         for col in editable_df.columns:
-                            if col not in ['Account', 'Positive decrease NI', 'Sort Index'] and not col.startswith('Statement Date:'):
+                            if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
                                 if pd.api.types.is_numeric_dtype(editable_df[col]):
                                     editable_df.at[index, col] *= -1
-                # Convert numeric columns to appropriate data types
-                numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index'] and not col.startswith('Statement Date:')]
-                editable_df[numeric_columns] = editable_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+                # Convert numeric columns to appropriate data types, excluding the "Statement Date:" row
+                numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
+                editable_df.loc[editable_df['Account'] != 'Statement Date:', numeric_columns] = editable_df.loc[editable_df['Account'] != 'Statement Date:', numeric_columns].apply(pd.to_numeric, errors='coerce')
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
- 
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
