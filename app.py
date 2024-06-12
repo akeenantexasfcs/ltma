@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1087,25 +1087,35 @@ def income_statement():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab2:
-        st.subheader("Aggregate My Data")
+            st.subheader("Aggregate My Data")
 
-        # File uploader for Excel files
-        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
-        if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
-            if aggregated_df is not None:
-                st.subheader("Aggregated Data Preview")
+            # File uploader for Excel files
+            uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+            if uploaded_files:
+                aggregated_df = aggregate_data(uploaded_files)
+                if aggregated_df is not None:
+                    st.subheader("Aggregated Data Preview")
 
-                # Make the aggregated data interactive
-                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                    # Make the aggregated data interactive
+                    editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
-                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
-                    excel_file = io.BytesIO()
-                    editable_df.to_excel(excel_file, index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    # Apply the multiplication logic just before export
+                    if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                        for index, row in editable_df.iterrows():
+                            if row['Positive decrease NI'] and row['Sort Index'] != 100:
+                                for col in editable_df.columns:
+                                    if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
+                                        editable_df.at[index, col] = clean_numeric_value(editable_df.at[index, col]) * -1
+
+                        # Drop 'Positive decrease NI' from export
+                        if 'Positive decrease NI' in editable_df.columns:
+                            editable_df.drop(columns=['Positive decrease NI'], inplace=True)
+
+                        excel_file = io.BytesIO()
+                        editable_df.to_excel(excel_file, index=False)
+                        excel_file.seek(0)
+                        st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
@@ -1164,4 +1174,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
