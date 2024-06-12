@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[13]:
 
 
 import io
@@ -854,7 +854,6 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -882,10 +881,13 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     unique_accounts = set()
+    sort_index = 1
 
     for file in files:
         df = pd.read_excel(file)
         df.columns = [str(col).strip() for col in df.columns]  # Clean column names
+        df['Sort Index'] = range(sort_index, sort_index + len(df))  # Add sort index based on the upload order
+        sort_index += len(df)
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
 
@@ -898,7 +900,7 @@ def aggregate_data(files):
 
     # Clean numeric values
     for col in numeric_rows.columns:
-        if col != 'Account':
+        if col not in ['Account', 'Sort Index']:
             numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value)
 
     # Fill missing numeric values with 0
@@ -906,11 +908,11 @@ def aggregate_data(files):
 
     # Ensure all numeric columns are actually numeric
     for col in numeric_rows.columns:
-        if col != 'Account':
+        if col not in ['Account', 'Sort Index']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     # Aggregation logic
-    aggregated_df = numeric_rows.groupby('Account', as_index=False).sum(min_count=1)
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
 
     # Handle Statement Date rows separately
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
