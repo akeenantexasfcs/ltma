@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -906,11 +907,16 @@ def aggregate_data(files):
 
     # Ensure all numeric columns are actually numeric
     for col in merged_df.columns:
-        if col != 'Account':
+        if col != 'Account' and not merged_df['Account'].str.contains('Statement Date:', na=False).all():
             merged_df[col] = pd.to_numeric(merged_df[col], errors='coerce').fillna(0)
 
     # Aggregation logic
     aggregated_df = merged_df.groupby('Account', as_index=False).sum(min_count=1)
+
+    # Ensure "Statement Date:" is always last
+    statement_date_row = aggregated_df[aggregated_df['Account'].str.contains('Statement Date:', na=False)]
+    aggregated_df = aggregated_df[~aggregated_df['Account'].str.contains('Statement Date:', na=False)]
+    aggregated_df = pd.concat([aggregated_df, statement_date_row], ignore_index=True)
 
     return aggregated_df
 
