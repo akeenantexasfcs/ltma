@@ -854,6 +854,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -910,6 +911,9 @@ def aggregate_data(files):
 
     # Aggregation logic
     aggregated_df = numeric_rows.groupby('Account', as_index=False).sum(min_count=1)
+
+    # Handle Statement Date rows separately
+    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
 
     # Combine numeric rows and statement date rows
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
