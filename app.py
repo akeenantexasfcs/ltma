@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -851,12 +851,6 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-import streamlit as st
-import pandas as pd
-import json
-import io
-import re
-
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
@@ -911,6 +905,11 @@ def aggregate_data(files):
     all_accounts_df = pd.DataFrame(unique_accounts, columns=['Account'])
     merged_df = all_accounts_df.merge(concatenated_df, on='Account', how='left')
     merged_df.fillna(0, inplace=True)
+
+    # Ensure all numeric columns are actually numeric
+    for col in merged_df.columns:
+        if col not in ['Account', 'Sort Order']:
+            merged_df[col] = pd.to_numeric(merged_df[col], errors='coerce').fillna(0)
 
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
@@ -1133,7 +1132,7 @@ def income_statement():
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             if df.at[index, "Account"] != "Statement Date:":
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    numeric_value = df.at(index, col)
+                                    numeric_value = df.at[index, col]
                                     if pd.notna(numeric_value):
                                         df.at[index, col] = numeric_value * -1
                                     else:
