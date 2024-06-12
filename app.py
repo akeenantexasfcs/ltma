@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[21]:
 
 
 import io
@@ -853,7 +853,6 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -1097,10 +1096,10 @@ def income_statement():
 
                 # Apply the multiplication based on the checkbox
                 for index, row in editable_df.iterrows():
-                    if row['Positive decrease NI']:
+                    if not row['Positive decrease NI']:
                         for col in editable_df.columns:
                             if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                editable_df.at[index, col] *= -1
+                                editable_df.at[index, col] = clean_numeric_value(editable_df.at[index, col])
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
