@@ -852,8 +852,6 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
-# Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
