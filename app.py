@@ -1081,7 +1081,7 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-    with tab2:
+     with tab2:
         st.subheader("Aggregate My Data")
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
@@ -1101,8 +1101,9 @@ def income_statement():
                 # Convert numeric columns to appropriate data types, excluding the "Statement Date:" row
                 numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
                 non_statement_date_rows = editable_df.index[editable_df['Account'] != 'Statement Date:']
-                converted_values = editable_df.loc[non_statement_date_rows, numeric_columns].apply(pd.to_numeric, errors='coerce')
-                editable_df.loc[non_statement_date_rows, numeric_columns] = converted_values
+                for col in numeric_columns:
+                    editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce')
+                    editable_df[col] = editable_df[col].fillna(0)
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
                     editable_df.to_excel(excel_file, index=False)
