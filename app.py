@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[25]:
 
 
 import io
@@ -851,12 +851,11 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 import streamlit as st
 import pandas as pd
-import re
 import json
 import io
+import re
 
 # Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
@@ -886,17 +885,17 @@ def apply_unit_conversion(df, columns, factor):
 def aggregate_data(files):
     dataframes = []
     account_order = []
-    
+
     for i, file in enumerate(files):
         df = pd.read_excel(file)
-        df['Sort Index'] = range(len(df))  # Add a sortable index column
+        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
         dataframes.append(df)
         if i == 0 and 'Account' in df.columns:
             account_order = df['Account'].drop_duplicates().tolist()  # Ensure unique values
     
     # Concatenate dataframes while retaining Account names
     concatenated_df = pd.concat(dataframes, ignore_index=True).fillna(0)
-    
+
     # Clean numeric values
     for col in concatenated_df.columns:
         if col != 'Account':
@@ -904,15 +903,13 @@ def aggregate_data(files):
     
     # Aggregation logic
     if 'Account' in concatenated_df.columns:
-        concatenated_df = concatenated_df.sort_values(by='Sort Index')
-        aggregated_df = concatenated_df.groupby('Account').apply(lambda x: x.sort_values(by='Sort Index').sum(min_count=1)).reset_index(drop=True)
+        aggregated_df = concatenated_df.groupby('Account', as_index=False).sum(min_count=1)  # Use min_count=1 to retain Accounts with NaNs
         if account_order:
             aggregated_df['Account'] = pd.Categorical(aggregated_df['Account'], categories=account_order, ordered=True)
             aggregated_df = aggregated_df.sort_values('Account', key=lambda x: x.map({v: i for i, v in enumerate(account_order)}))
     else:
         st.error("Account column is not present in one or more files.")
         return None
-    
     return aggregated_df
 
 def income_statement():
@@ -954,7 +951,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
                 return
@@ -1108,7 +1105,7 @@ def income_statement():
                             df.at[index, "Statement Intent"] = "+ Number " + up_arrow + "s Net Income"
                             if df.at[index, "Account"] != "Statement Date:":
                                 for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
-                                    numeric_value = df.at(index, col)
+                                    numeric_value = df.at[index, col]
                                     if pd.notna(numeric_value):
                                         df.at[index, col] = numeric_value * -1
                                     else:
