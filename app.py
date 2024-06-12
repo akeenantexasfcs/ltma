@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[15]:
 
 
 import io
@@ -1081,7 +1081,7 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-     with tab2:
+    with tab2:
         st.subheader("Aggregate My Data")
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
