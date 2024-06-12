@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -853,8 +853,6 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
-# Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 up_arrow = "\u2191"
@@ -914,19 +912,18 @@ def aggregate_data(files):
     aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
 
     # Handle Statement Date rows separately
+    statement_date_rows['Sort Index'] = 100
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
 
     # Combine numeric rows and statement date rows
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
-    # Ensure "Statement Date:" is always last
-    statement_date_row = final_df[final_df['Account'].str.contains('Statement Date:', na=False)]
-    final_df = final_df[~final_df['Account'].str.contains('Statement Date:', na=False)]
-    final_df = pd.concat([final_df, statement_date_row], ignore_index=True)
-
     # Move Sort Index to the last column
     sort_index_column = final_df.pop('Sort Index')
     final_df['Sort Index'] = sort_index_column
+
+    # Ensure "Statement Date:" is always last
+    final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
 
@@ -1154,10 +1151,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
