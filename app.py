@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[16]:
 
 
 import io
@@ -1102,7 +1102,12 @@ def income_statement():
                 numeric_columns = [col for col in editable_df.columns if col not in ['Account', 'Positive decrease NI', 'Sort Index']]
                 non_statement_date_rows = editable_df.index[editable_df['Account'] != 'Statement Date:']
                 for col in numeric_columns:
-                    editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce')
+                    print(f"Converting column '{col}' values to numeric:")
+                    print(editable_df.loc[non_statement_date_rows, col])
+                    try:
+                        editable_df.loc[non_statement_date_rows, col] = pd.to_numeric(editable_df.loc[non_statement_date_rows, col], errors='coerce')
+                    except Exception as e:
+                        st.error(f"Error converting column '{col}': {e}")
                     editable_df[col] = editable_df[col].fillna(0)
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
