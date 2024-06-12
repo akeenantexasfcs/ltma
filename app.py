@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[12]:
 
 
 import io
@@ -860,8 +860,6 @@ def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
 def clean_numeric_value(value):
-    if isinstance(value, str) and "Statement Date:" in value:
-        return value
     try:
         value_str = str(value).strip()
         if value_str.startswith('(') and value_str.endswith(')'):
@@ -898,7 +896,7 @@ def aggregate_data(files):
 
     # Clean numeric values
     for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index']:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
             numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value)
 
     # Fill missing numeric values with 0
@@ -906,7 +904,7 @@ def aggregate_data(files):
 
     # Ensure all numeric columns are actually numeric
     for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index']:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     # Aggregation logic
@@ -1097,7 +1095,8 @@ def income_statement():
                         for index, row in editable_df.iterrows():
                             if row['Positive decrease NI'] and row['Sort Index'] != 100:
                                 for col in numeric_cols:
-                                    editable_df.at[index, col] = row[col] * -1
+                                    if col not in ['Sort Index']:
+                                        editable_df.at[index, col] = row[col] * -1
 
                         # Drop 'Positive decrease NI' from export
                         if 'Positive decrease NI' in editable_df.columns:
