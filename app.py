@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[1]:
 
 
 import io
@@ -1092,13 +1092,6 @@ def income_statement():
 
                 # Make the aggregated data interactive
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
-
-                # Apply the multiplication based on the checkbox
-                for index, row in editable_df.iterrows():
-                    if not row['Positive decrease NI']:
-                        for col in editable_df.columns:
-                            if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
-                                editable_df.at[index, col] = clean_numeric_value(editable_df.at[index, col])
 
                 if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
                     excel_file = io.BytesIO()
