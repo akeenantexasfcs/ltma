@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -923,6 +923,13 @@ def aggregate_data(files):
     # Add "Positive decrease NI" column
     final_df.insert(1, 'Positive decrease NI', False)
 
+    # Apply the multiplication based on the condition
+    for index, row in final_df.iterrows():
+        if row['Positive decrease NI'] and row['Sort Index'] != 100:
+            for col in final_df.columns:
+                if col not in ['Account', 'Positive decrease NI', 'Sort Index']:
+                    final_df.at[index, col] = clean_numeric_value(final_df.at[index, col]) * -1
+
     # Move Sort Index to the last column
     sort_index_column = final_df.pop('Sort Index')
     final_df['Sort Index'] = sort_index_column
@@ -931,6 +938,7 @@ def aggregate_data(files):
     final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
+
 
 # Assuming this function is part of your Streamlit app code
 def income_statement():
