@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import io
@@ -972,7 +972,7 @@ def income_statement():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + quarter_options + ytd_options
+            dropdown_options = ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -983,14 +983,22 @@ def income_statement():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
-            # Adding radio buttons for column removal
+            # Adding functionality to remove rows
+            st.subheader("Remove Rows")
+            rows_to_remove = st.multiselect("Select rows to remove", options=all_tables.index, key="rows_to_remove")
+            if st.button("Remove Selected Rows"):
+                all_tables.drop(index=rows_to_remove, inplace=True)
+                st.write("Updated Data:")
+                st.dataframe(all_tables)
+
+            # Adding checkboxes for column removal
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
             for col in all_tables.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
-            # Adding radio buttons for numerical column selection
+            # Adding checkboxes for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
