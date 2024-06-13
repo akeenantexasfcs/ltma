@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -851,23 +851,262 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# Global variables and functions
+# Global variables and functions
+income_statement_lookup_df = pd.DataFrame()
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
+
+def clean_numeric_value(value):
+    try:
+        value_str = str(value).strip()
+        if value_str.startswith('(') and value_str.endswith(')'):
+            value_str = '-' + value_str[1:-1]
+        cleaned_value = re.sub(r'[$,]', '', value_str)
+        return float(cleaned_value)
+    except (ValueError, TypeError):
+        return value
+
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
+
+def aggregate_data(files):
+    dataframes = []
+    unique_accounts = set()
+
+    for i, file in enumerate(files):
+        df = pd.read_excel(file)
+        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
+        df['Sort Index'] = range(1, len(df) + 1)  # Add sort index starting from 1 for each file
+        dataframes.append(df)
+        unique_accounts.update(df['Account'].dropna().unique())
+
+    # Concatenate dataframes while retaining Account names
+    concatenated_df = pd.concat(dataframes, ignore_index=True)
+
+    # Split the data into numeric and date rows
+    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+
+    # Clean numeric values
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value)
+
+    # Fill missing numeric values with 0
+    numeric_rows.fillna(0, inplace=True)
+
+    # Ensure all numeric columns are actually numeric
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
+
+    # Aggregation logic
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
+
+    # Handle Statement Date rows separately
+    statement_date_rows['Sort Index'] = 100
+    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
+
+    # Combine numeric rows and statement date rows
+    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
+
+    # Add "Positive decrease NI" column
+    final_df.insert(1, 'Positive decrease NI', False)
+
+    # Move Sort Index to the last column
+    sort_index_column = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index_column
+
+    # Ensure "Statement Date:" is always last
+    final_df.sort_values('Sort Index', inplace=True)
+
+    return final_df
+
 def income_statement():
     global income_statement_lookup_df
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
 
+
     with tab1:
-        st.subheader("Placeholder for Table Extractor")
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+        if uploaded_file is not None:
+            data = json.load(uploaded_file)
+            tables = []
+            for block in data['Blocks']:
+                if block['BlockType'] == 'TABLE':
+                    table = {}
+                    if 'Relationships' in block:
+                        for relationship in block['Relationships']:
+                            if relationship['Type'] == 'CHILD':
+                                for cell_id in relationship['Ids']:
+                                    cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                    if cell_block:
+                                        row_index = cell_block.get('RowIndex', 0)
+                                        col_index = cell_block.get('ColumnIndex', 0)
+                                        if row_index not in table:
+                                            table[row_index] = {}
+                                        cell_text = ''
+                                        if 'Relationships' in cell_block:
+                                            for rel in cell_block['Relationships']:
+                                                if rel['Type'] == 'CHILD':
+                                                    for word_id in rel['Ids']:
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        if word_block and word_block['BlockType'] == 'WORD':
+                                                            cell_text += ' ' + word_block.get('Text', '')
+                                        table[row_index][col_index] = cell_text.strip()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
+                    tables.append(table_df)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            column_a = all_tables.columns[0]
+
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
+
+            # Adding column renaming functionality
+            st.subheader("Rename Columns")
+            new_column_names = {}
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            dropdown_options = [''] + quarter_options + ytd_options
+
+            for col in all_tables.columns:
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+            
+            all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables)
+
+            # Adding radio buttons for column removal
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
+
+            # Adding radio buttons for numerical column selection
+            st.subheader("Select numerical columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                    numerical_columns.append(col)
+
+            # Unit conversion functionality moved from Tab 4
+            st.subheader("Convert Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+
+            if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
+                updated_table = all_tables[columns_to_keep]  # Apply column removal
+
+                # Convert selected numerical columns to numbers
+                for col in numerical_columns:
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                
+                # Apply unit conversion if selected
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
+
+                # Convert all instances of '-' to '0'
+                updated_table.replace('-', 0, inplace=True)
+
+                excel_file = io.BytesIO()
+                updated_table.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
-        st.subheader("Placeholder for Aggregate My Data")
+        st.subheader("Aggregate My Data")
+
+        # File uploader for Excel files
+        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+        if uploaded_files:
+            aggregated_df = aggregate_data(uploaded_files)
+            if aggregated_df is not None:
+                st.subheader("Aggregated Data Preview")
+
+                # Make the aggregated data interactive
+                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+
+                # Exclude the last row from numeric conversions and multiplication logic
+                editable_df_excluded = editable_df.iloc[:-1]
+
+                # Ensure all numeric columns are properly converted to numeric types
+                for col in editable_df_excluded.columns:
+                    if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                        editable_df_excluded[col] = pd.to_numeric(editable_df_excluded[col], errors='coerce').fillna(0)
+
+                # Apply the multiplication logic just before export
+                numeric_cols = editable_df_excluded.select_dtypes(include='number').columns.tolist()
+                for index, row in editable_df_excluded.iterrows():
+                    if row['Positive decrease NI'] and row['Sort Index'] != 100:
+                        for col in numeric_cols:
+                            if col not in ['Sort Index']:
+                                editable_df_excluded.at[index, col] = row[col] * -1
+
+                # Combine the processed rows with the excluded last row
+                final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
+
+                # Drop 'Positive decrease NI' from export
+                if 'Positive decrease NI' in final_df.columns:
+                    final_df.drop(columns=['Positive decrease NI'], inplace=True)
+
+                excel_file = io.BytesIO()
+                final_df.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
-        st.subheader("Placeholder for Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Aggregation")
+
+        st.write("This section can be used to define and manage mappings for data aggregation.")
+        st.write("You can upload mappings, define rules, and manage aggregated data here.")
+
+        uploaded_mapping_file = st.file_uploader("Upload Mapping File", type=['xlsx', 'csv'], key='mapping_uploader_mda')
+        if uploaded_mapping_file:
+            if uploaded_mapping_file.name.endswith('.xlsx'):
+                mapping_df = pd.read_excel(uploaded_mapping_file)
+            else:
+                mapping_df = pd.read_csv(uploaded_mapping_file)
+
+            st.write("Uploaded Mapping Data")
+            st.dataframe(mapping_df)
 
     with tab4:
-        st.subheader("Placeholder for Data Dictionary")
+        st.subheader("Income Statement Data Dictionary")
+
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            income_statement_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        st.dataframe(income_statement_lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
+            income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(income_statement_lookup_df)
+
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
+            excel_file = io.BytesIO()
+            income_statement_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def main():
     st.sidebar.title("Navigation")
@@ -882,4 +1121,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
