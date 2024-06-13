@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -12,9 +12,8 @@ import streamlit as st
 from Levenshtein import distance as levenshtein_distance
 import re
 
-# Define the file paths for the data dictionaries
+# Define the file path for the balance sheet data dictionary
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
 
 # Load or initialize the lookup table
 def load_lookup(file_path):
@@ -22,14 +21,13 @@ def load_lookup(file_path):
         lookup_df = pd.read_csv(file_path)
         return lookup_df
     else:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=["Label", "Account", "Mnemonic", "CIQ"])
 
 def save_lookup_table(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet and Cash Flow
+# Initialize lookup table for Balance Sheet
 balance_sheet_lookup_df = load_lookup(balance_sheet_data_dictionary_file)
-cash_flow_lookup_df = load_lookup(cash_flow_data_dictionary_file)
 
 def process_file(file):
     try:
@@ -465,9 +463,12 @@ def balance_sheet():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
-            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-            st.success("Data Dictionary uploaded and updated successfully!")
+            if set(new_lookup_df.columns) == {"Label", "Account", "Mnemonic", "CIQ"}:
+                balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                st.success("Data Dictionary uploaded and updated successfully!")
+            else:
+                st.error("Uploaded CSV does not contain the required columns: Label, Account, Mnemonic, CIQ")
 
         st.dataframe(balance_sheet_lookup_df)
 
@@ -479,11 +480,10 @@ def balance_sheet():
             st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            excel_file = io.BytesIO()
-            balance_sheet_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+            csv_file = io.BytesIO()
+            balance_sheet_lookup_df.to_csv(csv_file, index=False)
+            csv_file.seek(0)
+            st.download_button("Download CSV", csv_file, "balance_sheet_data_dictionary.csv", "text/csv")
 
 def cash_flow_statement():
     global cash_flow_lookup_df
