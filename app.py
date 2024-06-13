@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -852,79 +852,6 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
-income_statement_lookup_df = pd.DataFrame()
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-
-def clean_numeric_value_IS(value):
-    try:
-        value_str = str(value).strip()
-        if value_str.startswith('(') and value_str.endswith(')'):
-            value_str = '-' + value_str[1:-1]
-        cleaned_value = re.sub(r'[$,]', '', value_str)
-        return float(cleaned_value)
-    except (ValueError, TypeError):
-        return value
-
-def apply_unit_conversion_IS(df, columns, factor):
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
-    return df
-
-def aggregate_data_IS(files):
-    dataframes = []
-    unique_accounts = set()
-
-    for i, file in enumerate(files):
-        df = pd.read_excel(file)
-        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
-        df['Sort Index'] = range(1, len(df) + 1)  # Add sort index starting from 1 for each file
-        dataframes.append(df)
-        unique_accounts.update(df['Account'].dropna().unique())
-
-    # Concatenate dataframes while retaining Account names
-    concatenated_df = pd.concat(dataframes, ignore_index=True)
-
-    # Split the data into numeric and date rows
-    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-
-    # Clean numeric values
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
-
-    # Fill missing numeric values with 0
-    numeric_rows.fillna(0, inplace=True)
-
-    # Ensure all numeric columns are actually numeric
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
-
-    # Aggregation logic
-    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
-
-    # Handle Statement Date rows separately
-    statement_date_rows['Sort Index'] = 100
-    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
-
-    # Combine numeric rows and statement date rows
-    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
-
-    # Add "Positive decrease NI" column
-    final_df.insert(1, 'Positive decrease NI', False)
-
-    # Move Sort Index to the last column
-    sort_index_column = final_df.pop('Sort Index')
-    final_df['Sort Index'] = sort_index_column
-
-    # Ensure "Statement Date:" is always last
-    final_df.sort_values('Sort Index', inplace=True)
-
-    return final_df
-
 def income_statement():
     global income_statement_lookup_df
 
@@ -972,7 +899,7 @@ def income_statement():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = ['Account'] + quarter_options + ytd_options
+            dropdown_options = ['Account'] + quarter_options + ytd_options  # Added 'Account' to dropdown options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -983,22 +910,14 @@ def income_statement():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
-            # Adding functionality to remove rows
-            st.subheader("Remove Rows")
-            rows_to_remove = st.multiselect("Select rows to remove", options=all_tables.index, key="rows_to_remove")
-            if st.button("Remove Selected Rows"):
-                all_tables.drop(index=rows_to_remove, inplace=True)
-                st.write("Updated Data:")
-                st.dataframe(all_tables)
-
-            # Adding checkboxes for column removal
+            # Adding radio buttons for column removal
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
             for col in all_tables.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
-            # Adding checkboxes for numerical column selection
+            # Adding radio buttons for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
