@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[12]:
 
 
 import io
@@ -855,10 +855,7 @@ def cash_flow_statement():
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
-def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
-
-def clean_numeric_value(value):
+def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
         if value_str.startswith('(') and value_str.endswith(')'):
@@ -868,14 +865,14 @@ def clean_numeric_value(value):
     except (ValueError, TypeError):
         return value
 
-def apply_unit_conversion(df, columns, factor):
+def apply_unit_conversion_IS(df, columns, factor):
     for selected_column in columns:
         if selected_column in df.columns:
             df[selected_column] = df[selected_column].apply(
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def aggregate_data(files):
+def aggregate_data_IS(files):
     dataframes = []
     unique_accounts = set()
 
@@ -896,7 +893,7 @@ def aggregate_data(files):
     # Clean numeric values
     for col in numeric_rows.columns:
         if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value)
+            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
 
     # Fill missing numeric values with 0
     numeric_rows.fillna(0, inplace=True)
@@ -1010,11 +1007,11 @@ def income_statement():
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
-                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                    updated_table[col] = updated_table[col].apply(clean_numeric_value_IS)
                 
                 # Apply unit conversion if selected
                 if selected_value != "No Conversions Necessary":
-                    updated_table = apply_unit_conversion(updated_table, selected_columns, selected_value)
+                    updated_table = apply_unit_conversion_IS(updated_table, selected_columns, selected_value)
 
                 # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
@@ -1030,7 +1027,7 @@ def income_statement():
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
+            aggregated_df = aggregate_data_IS(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
