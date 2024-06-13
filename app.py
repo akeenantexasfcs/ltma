@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[27]:
+# In[1]:
 
 
 import io
@@ -12,43 +12,24 @@ import streamlit as st
 from Levenshtein import distance as levenshtein_distance
 import re
 
-# Define the initial lookup data for Balance Sheet
-initial_balance_sheet_lookup_data = {
-    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
-                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
-                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
-            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
-}
-
-# Define the initial lookup data for Cash Flow
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
-    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
-    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
-    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
-}
-
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
 
 # Load or initialize the lookup table
-def load_or_initialize_lookup(file_path, initial_data):
+def load_lookup(file_path):
     if os.path.exists(file_path):
         lookup_df = pd.read_csv(file_path)
+        return lookup_df
     else:
-        lookup_df = pd.DataFrame(initial_data)
-        lookup_df.to_csv(file_path, index=False)
-    return lookup_df
+        return pd.DataFrame()
 
 def save_lookup_table(df, file_path):
     df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
-balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
+balance_sheet_lookup_df = load_lookup(balance_sheet_data_dictionary_file)
+cash_flow_lookup_df = load_lookup(cash_flow_data_dictionary_file)
 
 def process_file(file):
     try:
@@ -502,6 +483,7 @@ def balance_sheet():
             balance_sheet_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 def cash_flow_statement():
     global cash_flow_lookup_df
