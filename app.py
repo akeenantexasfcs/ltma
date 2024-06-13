@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -852,9 +852,15 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Global variables and functions
-# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+
+conversion_factors = {
+    "Actuals": 1,
+    "Thousands": 1000,
+    "Millions": 1000000,
+    "Billions": 1000000000
+}
 
 def clean_numeric_value_IS(value):
     try:
@@ -962,7 +968,7 @@ def income_statement():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
-            all_tables = pd.concat(ttables, axis=0, ignore_index=True)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
 
             st.subheader("Data Preview")
@@ -973,7 +979,7 @@ def income_statement():
             new_column_names = {}
             quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
             ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
-            dropdown_options = [''] + quarter_options + ytd_options + ['Account']
+            dropdown_options = ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -984,24 +990,24 @@ def income_statement():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
-            # Adding checkboxes for column removal
+            # Adding radio buttons for column removal
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
             for col in all_tables.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
-            # Adding checkboxes for numerical column selection
+            # Adding radio buttons for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
-            # Unit conversion functionality moved from Tab 4
+            # Unit conversion functionality
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", 1000, 1000000, 1000000000], index=0, key="conversion_value")
+            selected_conversion_factor = st.selectbox("Select conversion factor", options=list(conversion_factors.keys()), key="conversion_factor")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = all_tables[columns_to_keep]  # Apply column removal
@@ -1011,8 +1017,9 @@ def income_statement():
                     updated_table[col] = updated_table[col].apply(clean_numeric_value_IS)
                 
                 # Apply unit conversion if selected
-                if selected_value != "No Conversions Necessary":
-                    updated_table = apply_unit_conversion_IS(updated_table, selected_columns, selected_value)
+                if selected_conversion_factor != "No Conversions Necessary":
+                    conversion_factor = conversion_factors[selected_conversion_factor]
+                    updated_table = apply_unit_conversion_IS(updated_table, selected_columns, conversion_factor)
 
                 # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
@@ -1096,10 +1103,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
