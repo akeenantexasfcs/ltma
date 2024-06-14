@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -997,6 +997,13 @@ def income_statement():
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
+            # Adding checkboxes for row removal
+            st.subheader("Select rows to keep before export")
+            rows_to_keep = all_tables.index.tolist()
+            for i in all_tables.index:
+                if not st.checkbox(f"Keep row {i}", value=True, key=f"keep_row_{i}"):
+                    rows_to_keep.remove(i)
+
             # Adding checkboxes for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
@@ -1010,7 +1017,7 @@ def income_statement():
             selected_conversion_factor = st.radio("Select conversion factor", options=list(conversion_factors.keys()), key="conversion_factor")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = all_tables[columns_to_keep]  # Apply column removal
+                updated_table = all_tables.loc[rows_to_keep, columns_to_keep]  # Apply column and row removal
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
