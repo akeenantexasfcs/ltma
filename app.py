@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -854,7 +854,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Placeholder DataFrame and file name for income statement data dictionary
 # Placeholder DataFrame and file name for income statement data dictionary
-income_statement_lookup_df = pd.DataFrame()
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -933,6 +933,48 @@ def aggregate_data_IS(files):
     final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
+
+def create_combined_df(dfs):
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+        
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
+
+        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+        
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
+def sort_by_label_and_final_mnemonic(df):
+    sort_order = {
+        "Revenue": 0,
+        "Cost of Revenue": 1,
+        "Gross Profit": 2,
+        "Operating Expenses": 3,
+        "Operating Income": 4,
+        "Net Income": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
+    
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
 
 def income_statement():
     global income_statement_lookup_df
@@ -1203,7 +1245,10 @@ def income_statement():
 
         # Load most recent CSV in memory until a new CSV is uploaded
         if 'income_statement_data' not in st.session_state:
-            st.session_state.income_statement_data = income_statement_lookup_df
+            if os.path.exists(income_statement_data_dictionary_file):
+                st.session_state.income_statement_data = pd.read_excel(income_statement_data_dictionary_file)
+            else:
+                st.session_state.income_statement_data = pd.DataFrame()
 
         uploaded_dict_file_is = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
         if uploaded_dict_file_is is not None:
