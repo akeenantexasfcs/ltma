@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -853,7 +853,6 @@ def cash_flow_statement():
 
 
 ######################################INCOME STATEMENT##################################
-
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -1031,33 +1030,70 @@ def income_statement():
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
-                # Make the aggregated data interactive
-                editable_df = st.data_editor(aggregated_df, num_rows="dynamic", use_container_width=True)
+                # Adding statement intent columns
+                aggregated_df["Positive Number Increases Net Income"] = False
+                aggregated_df["Statement Intent"] = ""
 
-                # Add "Positive Increase NI" column for user selection
-                st.subheader("Add and Select 'Positive Increase NI' Column")
-                if 'Positive Increase NI' not in editable_df.columns:
-                    editable_df['Positive Increase NI'] = False
-                
-                # Ensure Sort Index is present and assign 100 to "Statement Date:"
-                if 'Sort Index' not in editable_df.columns:
-                    editable_df['Sort Index'] = editable_df.apply(lambda row: 100 if 'Statement Date:' in row.values else row.name, axis=1)
+                # Reorder columns for consistency
+                columns_order = ['Account', 'Positive Number Increases Net Income', 'Statement Intent'] + [col for col in aggregated_df.columns if col not in ['Account', 'Positive Number Increases Net Income', 'Statement Intent']]
+                aggregated_df = aggregated_df[columns_order]
 
-                # Apply the multiplication logic
-                for index, row in editable_df.iterrows():
-                    if row['Positive Increase NI']:
-                        for col in editable_df.columns:
-                            if col not in ['Account', 'Sort Index', 'Positive Increase NI']:
-                                editable_df.at[index, col] = row[col] * -1
+                # Add a sortable index column
+                aggregated_df['Sort Index'] = aggregated_df.index
 
-                # Drop 'Positive Increase NI' from export
-                if 'Positive Increase NI' in editable_df.columns:
-                    editable_df.drop(columns=['Positive Increase NI'], inplace=True)
+                st.subheader("Edit Data Frame")
 
-                excel_file = io.BytesIO()
-                editable_df.to_excel(excel_file, index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                # Allow user to edit the data frame
+                edited_df = st.experimental_data_editor(
+                    aggregated_df,
+                    use_container_width=True,
+                    num_rows="dynamic"  # This enables dynamic row handling
+                )
+
+                # Convert all columns after 'Statement Intent' to numeric before multiplication
+                def convert_columns_to_numeric(df):
+                    for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+                # Update 'Statement Intent' and multiply columns if 'Positive Number Increases Net Income' is checked
+                def update_dataframe(df):
+                    convert_columns_to_numeric(df)
+                    for index in df.index:
+                        if df.at[index, "Positive Number Increases Net Income"]:
+                            df.at[index, "Statement Intent"] = "+ Number Increases Net Income"
+                            if df.at[index, "Account"] != "Statement Date:":
+                                for col in df.columns[df.columns.get_loc("Statement Intent") + 1:]:
+                                    numeric_value = df.at[index, col]
+                                    if pd.notna(numeric_value):
+                                        df.at[index, col] = numeric_value * -1
+                                    else:
+                                        st.warning(f"Non-numeric value in row {index}, column {col}: {df.at[index, col]}")
+                        else:
+                            df.at[index, "Statement Intent"] = ""
+
+                update_dataframe(edited_df)
+
+                st.subheader("Exported Data Frame")
+                st.dataframe(edited_df)
+
+                if st.button("Download Aggregated Data", key='download_aggregated_data_amd'):
+                    filtered_df = edited_df
+
+                    # Move Statement Date row to the last row if it exists
+                    statement_date_row = filtered_df[filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                    filtered_df = filtered_df[~filtered_df['Account'].str.contains('Statement Date:', na=False)]
+                    filtered_df = pd.concat([filtered_df, statement_date_row], ignore_index=True)
+
+                    # Drop 'Positive Number Increases Net Income' and 'Sort Index' from export
+                    if 'Positive Number Increases Net Income' in filtered_df.columns:
+                        filtered_df.drop(columns=['Positive Number Increases Net Income'], inplace=True)
+                    if 'Sort Index' in filtered_df.columns:
+                        filtered_df.drop(columns=['Sort Index'], inplace=True)
+
+                    excel_file = io.BytesIO()
+                    filtered_df.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
