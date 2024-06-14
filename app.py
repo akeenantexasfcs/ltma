@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -912,6 +913,13 @@ def sort_by_final_mnemonic(df):
 
 def income_statement():
     global income_statement_lookup_df
+
+    # Load the Income Statement Data Dictionary
+    if 'income_statement_lookup_df' not in globals():
+        if os.path.exists(income_statement_data_dictionary_file):
+            income_statement_lookup_df = pd.read_excel(income_statement_data_dictionary_file)
+        else:
+            income_statement_lookup_df = pd.DataFrame()
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
