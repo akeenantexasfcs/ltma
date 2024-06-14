@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -912,7 +913,7 @@ def sort_by_sort_index(df):
         st.error("Required column 'Sort Index' is missing.")
         return df
     
-    df = df.sort_values(by=['Sort Index']).drop(columns=['Sort Index'])
+    df = df.sort_values(by=['Sort Index'])
     return df
 
 def income_statement():
@@ -1139,7 +1140,9 @@ def income_statement():
                     combined_df_is = combined_df_is[columns_order_is]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
-                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'Sort Index'], errors='ignore')
+                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_df_is = sort_by_sort_index(as_presented_df_is)
+                    as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
                     as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
