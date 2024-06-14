@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -854,6 +854,7 @@ def cash_flow_statement():
 
 ######################################INCOME STATEMENT##################################
 # Global variables and functions
+# Global variables and functions
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
@@ -884,7 +885,7 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def aggregate_data(files):
+def aggregate_data_tab2(files):
     dataframes = []
     unique_accounts = set()
 
@@ -937,7 +938,7 @@ def aggregate_data(files):
 
     return final_df
 
-def create_combined_df(dfs):
+def create_combined_df_tab3(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
@@ -960,7 +961,7 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def sort_by_sort_index(df):
+def sort_by_sort_index_tab3(df):
     # Sort by Sort Index if it exists
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
@@ -998,7 +999,7 @@ def income_statement():
                                             for rel in cell_block['Relationships']:
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        word_block = next((w for w in data['Blocks'] if b['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
@@ -1122,7 +1123,7 @@ def income_statement():
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
+            aggregated_df = aggregate_data_tab2(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
@@ -1225,8 +1226,8 @@ def income_statement():
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
-                    combined_df_is = create_combined_df([final_output_df_is])
-                    combined_df_is = sort_by_sort_index(combined_df_is)
+                    combined_df_is = create_combined_df_tab3([final_output_df_is])
+                    combined_df_is = sort_by_sort_index_tab3(combined_df_is)
 
                     # Add CIQ column based on lookup
                     def lookup_ciq_is(mnemonic):
@@ -1244,7 +1245,7 @@ def income_statement():
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_df_is = sort_by_sort_index(as_presented_df_is)
+                    as_presented_df_is = sort_by_sort_index_tab3(as_presented_df_is)
                     as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
                     as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
