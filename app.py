@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -990,16 +990,9 @@ def income_statement():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
-            # Adding checkboxes for column removal
-            st.subheader("Select columns to keep before export")
-            columns_to_keep = []
-            for col in all_tables.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
-                    columns_to_keep.append(col)
-
-            # Adding multiselect for row removal
-            st.subheader("Select rows to remove before export")
-            rows_to_remove = st.multiselect("Select rows to remove", options=all_tables.index.tolist(), key="rows_to_remove")
+            # Adding interactive data editor for row removal
+            st.subheader("Edit and Remove Rows")
+            editable_df = st.data_editor(all_tables, num_rows="dynamic", use_container_width=True)
 
             # Adding checkboxes for numerical column selection
             st.subheader("Select numerical columns")
@@ -1014,8 +1007,7 @@ def income_statement():
             selected_conversion_factor = st.radio("Select conversion factor", options=list(conversion_factors.keys()), key="conversion_factor")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = all_tables.drop(index=rows_to_remove)  # Apply row removal
-                updated_table = updated_table[columns_to_keep]  # Apply column removal
+                updated_table = editable_df  # Use the edited dataframe
 
                 # Convert selected numerical columns to numbers
                 for col in numerical_columns:
@@ -1045,7 +1037,7 @@ def income_statement():
                 st.subheader("Aggregated Data Preview")
 
                 # Make the aggregated data interactive
-                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                editable_df = st.data_editor(aggregated_df, num_rows="dynamic", use_container_width=True)
 
                 # Exclude the last row from numeric conversions and multiplication logic
                 editable_df_excluded = editable_df.iloc[:-1]
@@ -1108,4 +1100,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
