@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -851,9 +851,8 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
 # Global variables and functions
-# Placeholder DataFrame and file name for income statement data dictionary
-# Placeholder DataFrame and file name for income statement data dictionary
 # Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
@@ -881,58 +880,8 @@ def apply_unit_conversion_IS(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def aggregate_data_IS(files):
-    dataframes = []
-    unique_accounts = set()
-
-    for i, file in enumerate(files):
-        df = pd.read_excel(file)
-        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
-        df['Sort Index'] = range(1, len(df) + 1)  # Add sort index starting from 1 for each file
-        dataframes.append(df)
-        unique_accounts.update(df['Account'].dropna().unique())
-
-    # Concatenate dataframes while retaining Account names
-    concatenated_df = pd.concat(dataframes, ignore_index=True)
-
-    # Split the data into numeric and date rows
-    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-
-    # Clean numeric values
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
-
-    # Fill missing numeric values with 0
-    numeric_rows.fillna(0, inplace=True)
-
-    # Ensure all numeric columns are actually numeric
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
-
-    # Aggregation logic
-    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
-
-    # Handle Statement Date rows separately
-    statement_date_rows['Sort Index'] = 100
-    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
-
-    # Combine numeric rows and statement date rows
-    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
-
-    # Add "Positive decrease NI" column
-    final_df.insert(1, 'Positive decrease NI', False)
-
-    # Move Sort Index to the last column
-    sort_index_column = final_df.pop('Sort Index')
-    final_df['Sort Index'] = sort_index_column
-
-    # Ensure "Statement Date:" is always last
-    final_df.sort_values('Sort Index', inplace=True)
-
-    return final_df
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
 
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
@@ -942,14 +891,14 @@ def create_combined_df(dfs):
             st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
             continue
         
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        date_cols = [col for col in df.columns if col not in ['Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection', 'Sort Index']]
         if not date_cols:
             st.error(f"No date columns found in dataframe {i+1}")
             continue
 
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+        df_grouped = df.groupby([final_mnemonic_col]).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -957,24 +906,9 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def sort_by_label_and_final_mnemonic(df):
-    sort_order = {
-        "Revenue": 0,
-        "Cost of Revenue": 1,
-        "Gross Profit": 2,
-        "Operating Expenses": 3,
-        "Operating Income": 4,
-        "Net Income": 5
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+def sort_by_final_mnemonic(df):
+    df = df.sort_values(by=['Final Mnemonic Selection', 'Sort Index']).drop(columns=['Sort Index'])
     return df
-
-def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
 
 def income_statement():
     global income_statement_lookup_df
@@ -1129,38 +1063,32 @@ def income_statement():
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                # Function to get the best match based on Label first, then Levenshtein distance on Account
-                def get_best_match_is(label, account):
+                # Function to get the best match based on Account using Levenshtein distance
+                def get_best_match_is(account):
                     best_score_is = float('inf')
                     best_match_is = None
                     for _, lookup_row in income_statement_lookup_df.iterrows():
-                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                            lookup_account = lookup_row['Account']
-                            account_str = str(account)
-                            # Levenshtein distance for Account
-                            score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score_is < best_score_is:
-                                best_score_is = score_is
-                                best_match_is = lookup_row
+                        lookup_account = lookup_row['Account']
+                        account_str = str(account)
+                        score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                        if score_is < best_score_is:
+                            best_score_is = score_is
+                            best_match_is = lookup_row
                     return best_match_is, best_score_is
 
                 df_is['Mnemonic'] = ''
                 df_is['Manual Selection'] = ''
                 for idx, row in df_is.iterrows():
                     account_value = row['Account']
-                    label_value = row.get('Label', '')
                     if pd.notna(account_value):
-                        best_match_is, score_is = get_best_match_is(label_value, account_value)
+                        best_match_is, score_is = get_best_match_is(account_value)
                         if best_match_is is not None and score_is < 0.25:
                             df_is.at[idx, 'Mnemonic'] = best_match_is['Mnemonic']
                         else:
                             df_is.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                     
                     if df_is.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        if label_value:
-                            message_is = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
-                        else:
-                            message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
+                        message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message_is)
                     
                     manual_selection_is = st.selectbox(
@@ -1171,7 +1099,7 @@ def income_statement():
                     if manual_selection_is:
                         df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
 
-                st.dataframe(df_is[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
+                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])  # Include 'Sort Index' as a helper column
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
@@ -1181,7 +1109,7 @@ def income_statement():
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
                     combined_df_is = create_combined_df([final_output_df_is])
-                    combined_df_is = sort_by_label_and_final_mnemonic(combined_df_is)
+                    combined_df_is = sort_by_final_mnemonic(combined_df_is)
 
                     # Add CIQ column based on lookup
                     def lookup_ciq_is(mnemonic):
@@ -1194,12 +1122,12 @@ def income_statement():
                     
                     combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
 
-                    columns_order_is = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_columns_order_is = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
                     excel_file_is = io.BytesIO()
@@ -1229,10 +1157,9 @@ def income_statement():
                         
                         if manual_selection_is not in ['REMOVE ROW', '']:
                             if row['Account'] not in income_statement_lookup_df['Account'].values:
-                                new_entries_is.append({'Account': row['Account'], 'Mnemonic': final_mnemonic_is, 'CIQ': ciq_value_is, 'Label': row['Label']})
+                                new_entries_is.append({'Account': row['Account'], 'Mnemonic': final_mnemonic_is, 'CIQ': ciq_value_is})
                             else:
                                 income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic_is
-                                income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
                                 income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value_is
                     if new_entries_is:
                         income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
