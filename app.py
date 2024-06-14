@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[1]:
 
 
 import io
@@ -247,8 +247,8 @@ def balance_sheet():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
-            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            quarter_options = [f"FQ{i}{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD{i}{year}" for year in range(2018, 2027)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
