@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[13]:
 
 
 import io
@@ -854,9 +854,6 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Global variables and functions
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -1070,6 +1067,7 @@ def income_statement():
 
         selected_currency_is = st.selectbox("Select Currency", currency_options_is, key='currency_selection_tab3_is')
         selected_magnitude_is = st.selectbox("Select Magnitude", magnitude_options_is, key='magnitude_selection_tab3_is')
+        company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
 
         if uploaded_excel_is is not None:
             df_is = pd.read_excel(uploaded_excel_is)
@@ -1141,7 +1139,7 @@ def income_statement():
                     combined_df_is = combined_df_is[columns_order_is]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
-                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'Sort Index'], errors='ignore')
                     as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
@@ -1150,8 +1148,8 @@ def income_statement():
                         combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df_is = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude'],
-                            'Value': [selected_currency_is, selected_magnitude_is]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
+                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is]
                         })
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
