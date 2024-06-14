@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -853,6 +853,7 @@ def cash_flow_statement():
 
 # Global variables and functions
 # Placeholder DataFrame and file name for income statement data dictionary
+# Placeholder DataFrame and file name for income statement data dictionary
 income_statement_lookup_df = pd.DataFrame()
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
@@ -1200,25 +1201,30 @@ def income_statement():
     with tab4:
         st.subheader("Income Statement Data Dictionary")
 
+        # Load most recent CSV in memory until a new CSV is uploaded
+        if 'income_statement_data' not in st.session_state:
+            st.session_state.income_statement_data = income_statement_lookup_df
+
         uploaded_dict_file_is = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
         if uploaded_dict_file_is is not None:
             new_lookup_df_is = pd.read_csv(uploaded_dict_file_is)
-            income_statement_lookup_df = new_lookup_df_is  # Overwrite the entire DataFrame
-            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.session_state.income_statement_data = new_lookup_df_is  # Update the session state with new DataFrame
+            save_lookup_table(new_lookup_df_is, income_statement_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(income_statement_lookup_df)
+        # Use the data from the session state
+        st.dataframe(st.session_state.income_statement_data)
 
-        remove_indices_is = st.multiselect("Select rows to remove", income_statement_lookup_df.index, key='remove_indices_tab4_is')
+        remove_indices_is = st.multiselect("Select rows to remove", st.session_state.income_statement_data.index, key='remove_indices_tab4_is')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
-            income_statement_lookup_df = income_statement_lookup_df.drop(remove_indices_is).reset_index(drop=True)
-            save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+            st.session_state.income_statement_data = st.session_state.income_statement_data.drop(remove_indices_is).reset_index(drop=True)
+            save_lookup_table(st.session_state.income_statement_data, income_statement_data_dictionary_file)
             st.success("Selected rows removed successfully!")
-            st.dataframe(income_statement_lookup_df)
+            st.dataframe(st.session_state.income_statement_data)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
             excel_file_is = io.BytesIO()
-            income_statement_lookup_df.to_excel(excel_file_is, index=False)
+            st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
