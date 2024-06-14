@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[10]:
 
 
 import io
@@ -855,6 +855,8 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -907,8 +909,13 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-def sort_by_final_mnemonic(df):
-    df = df.sort_values(by=['Final Mnemonic Selection', 'Sort Index']).drop(columns=['Sort Index'])
+def sort_by_sort_index(df):
+    # Check if the necessary column exists
+    if 'Sort Index' not in df.columns:
+        st.error("Required column 'Sort Index' is missing.")
+        return df
+    
+    df = df.sort_values(by=['Sort Index']).drop(columns=['Sort Index'])
     return df
 
 def income_statement():
@@ -1117,7 +1124,7 @@ def income_statement():
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
                     combined_df_is = create_combined_df([final_output_df_is])
-                    combined_df_is = sort_by_final_mnemonic(combined_df_is)
+                    combined_df_is = sort_by_sort_index(combined_df_is)
 
                     # Add CIQ column based on lookup
                     def lookup_ciq_is(mnemonic):
