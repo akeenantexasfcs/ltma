@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -247,8 +247,8 @@ def balance_sheet():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"FQ{i}{year}" for year in range(2018, 2027) for i in range(1, 5)]
-            ytd_options = [f"YTD{i}{year}" for year in range(2018, 2027)]
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
@@ -606,8 +606,8 @@ def cash_flow_statement():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
-            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
@@ -977,8 +977,8 @@ def income_statement():
             # Adding column renaming functionality
             st.subheader("Rename Columns")
             new_column_names = {}
-            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
-            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
@@ -1103,10 +1103,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
