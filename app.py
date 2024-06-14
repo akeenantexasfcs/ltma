@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[16]:
 
 
 import io
@@ -855,6 +855,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -908,12 +909,9 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def sort_by_sort_index(df):
-    # Check if the necessary column exists
-    if 'Sort Index' not in df.columns:
-        st.error("Required column 'Sort Index' is missing.")
-        return df
-    
-    df = df.sort_values(by=['Sort Index'])
+    # Sort by Sort Index if it exists
+    if 'Sort Index' in df.columns:
+        df = df.sort_values(by=['Sort Index'])
     return df
 
 def income_statement():
