@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -1077,6 +1077,10 @@ def income_statement():
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Ensure Sort Index is present
+                if 'Sort Index' not in df_is.columns:
+                    df_is['Sort Index'] = range(1, len(df_is) + 1)
+
                 # Function to get the best match based on Account using Levenshtein distance
                 def get_best_match_is(account):
                     best_score_is = float('inf')
