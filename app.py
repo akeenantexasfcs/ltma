@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[4]:
 
 
 import io
@@ -852,10 +852,8 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
+######################################INCOME STATEMENT##################################
+
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -1036,31 +1034,28 @@ def income_statement():
                 # Make the aggregated data interactive
                 editable_df = st.data_editor(aggregated_df, num_rows="dynamic", use_container_width=True)
 
-                # Exclude the last row from numeric conversions and multiplication logic
-                editable_df_excluded = editable_df.iloc[:-1]
+                # Add "Positive Increase NI" column for user selection
+                st.subheader("Add and Select 'Positive Increase NI' Column")
+                if 'Positive Increase NI' not in editable_df.columns:
+                    editable_df['Positive Increase NI'] = False
+                
+                # Ensure Sort Index is present and assign 100 to "Statement Date:"
+                if 'Sort Index' not in editable_df.columns:
+                    editable_df['Sort Index'] = editable_df.apply(lambda row: 100 if 'Statement Date:' in row.values else row.name, axis=1)
 
-                # Ensure all numeric columns are properly converted to numeric types
-                for col in editable_df_excluded.columns:
-                    if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-                        editable_df_excluded[col] = pd.to_numeric(editable_df_excluded[col], errors='coerce').fillna(0)
+                # Apply the multiplication logic
+                for index, row in editable_df.iterrows():
+                    if row['Positive Increase NI']:
+                        for col in editable_df.columns:
+                            if col not in ['Account', 'Sort Index', 'Positive Increase NI']:
+                                editable_df.at[index, col] = row[col] * -1
 
-                # Apply the multiplication logic just before export
-                numeric_cols = editable_df_excluded.select_dtypes(include='number').columns.tolist()
-                for index, row in editable_df_excluded.iterrows():
-                    if row['Positive decrease NI'] and row['Sort Index'] != 100:
-                        for col in numeric_cols:
-                            if col not in ['Sort Index']:
-                                editable_df_excluded.at[index, col] = row[col] * -1
-
-                # Combine the processed rows with the excluded last row
-                final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
-
-                # Drop 'Positive decrease NI' from export
-                if 'Positive decrease NI' in final_df.columns:
-                    final_df.drop(columns=['Positive decrease NI'], inplace=True)
+                # Drop 'Positive Increase NI' from export
+                if 'Positive Increase NI' in editable_df.columns:
+                    editable_df.drop(columns=['Positive Increase NI'], inplace=True)
 
                 excel_file = io.BytesIO()
-                final_df.to_excel(excel_file, index=False)
+                editable_df.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
