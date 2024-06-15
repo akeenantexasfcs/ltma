@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[26]:
+# In[27]:
 
 
 import io
@@ -858,6 +858,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 conversion_factors = {
@@ -915,6 +916,64 @@ def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
     return df
+
+def aggregate_data_tab2(files):
+    dataframes = []
+    unique_accounts = set()
+
+    for i, file in enumerate(files):
+        df = pd.read_excel(file)
+        df.columns = [str(col).strip() for col in df.columns]  # Clean column names
+        
+        if 'Account' not in df.columns:
+            st.error(f"Column 'Account' not found in file {file.name}")
+            return None
+
+        df['Sort Index'] = range(1, len(df) + 1)  # Add sort index starting from 1 for each file
+        dataframes.append(df)
+        unique_accounts.update(df['Account'].dropna().unique())
+
+    # Concatenate dataframes while retaining Account names
+    concatenated_df = pd.concat(dataframes, ignore_index=True)
+
+    # Split the data into numeric and date rows
+    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+
+    # Clean numeric values
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
+
+    # Fill missing numeric values with 0
+    numeric_rows.fillna(0, inplace=True)
+
+    # Ensure all numeric columns are actually numeric
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
+
+    # Aggregation logic
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
+
+    # Handle Statement Date rows separately
+    statement_date_rows['Sort Index'] = 100
+    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
+
+    # Combine numeric rows and statement date rows
+    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
+
+    # Add "Positive decrease NI" column
+    final_df.insert(1, 'Positive decrease NI', False)
+
+    # Move Sort Index to the last column
+    sort_index_column = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index_column
+
+    # Ensure "Statement Date:" is always last
+    final_df.sort_values('Sort Index', inplace=True)
+
+    return final_df
 
 def income_statement():
     global income_statement_lookup_df
@@ -1016,13 +1075,14 @@ def income_statement():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    
     with tab2:
         st.subheader("Aggregate My Data")
 
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
+            aggregated_df = aggregate_data_tab2(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
