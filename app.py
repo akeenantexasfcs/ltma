@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[22]:
 
 
 import io
@@ -856,6 +856,7 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 # Global variables and functions
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 conversion_factors = {
     "Actuals": 1,
@@ -1135,7 +1136,7 @@ def income_statement():
                     
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + income_statement_lookup_df.get('Mnemonic', []).tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
@@ -1235,7 +1236,7 @@ def income_statement():
             st.dataframe(st.session_state.income_statement_data)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file_is = io.BytesIO()
+            excel_file_is = io.Bytes.IO()
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
