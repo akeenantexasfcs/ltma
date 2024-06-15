@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import streamlit as st
@@ -369,9 +369,16 @@ def income_statement():
                         message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message_is)
                     
+                    # Safeguard: Check if 'Mnemonic' column exists in the dataframe
+                    if 'Mnemonic' in income_statement_lookup_df.columns:
+                        mnemonic_options = income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW']
+                    else:
+                        st.error("'Mnemonic' column not found in lookup dataframe.")
+                        mnemonic_options = ['REMOVE ROW']
+
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + mnemonic_options,
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
