@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[1]:
 
 
 import io
@@ -915,6 +915,14 @@ def sort_by_sort_index(df):
     return df
 
 def income_statement():
+    def aggregate_data_IS(uploaded_files):
+        dataframes = []
+        for file in uploaded_files:
+            df = pd.read_excel(file)
+            dataframes.append(df)
+        combined_df = pd.concat(dataframes, ignore_index=True)
+        return combined_df
+
     global income_statement_lookup_df
 
     # Load the Income Statement Data Dictionary
