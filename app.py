@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[26]:
 
 
 import io
@@ -1016,19 +1016,18 @@ def income_statement():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab2:
         st.subheader("Aggregate My Data")
 
         # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            aggregated_df = aggregate_data_IS(uploaded_files)
+            aggregated_df = aggregate_data(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
                 # Make the aggregated data interactive
-                editable_df = st.data_editor(aggregated_df, num_rows="dynamic", use_container_width=True)
+                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
 
                 # Exclude the last row from numeric conversions and multiplication logic
                 editable_df_excluded = editable_df.iloc[:-1]
