@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[22]:
+# In[23]:
 
 
 import io
@@ -858,16 +858,13 @@ def cash_flow_statement():
 # Global variables and functions
 # Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+
 conversion_factors = {
     "Actuals": 1,
     "Thousands": 1000,
     "Millions": 1000000,
     "Billions": 1000000000
 }
-income_statement_lookup_df = pd.DataFrame()
-
-def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
 
 def clean_numeric_value_IS(value):
     try:
@@ -885,6 +882,9 @@ def apply_unit_conversion_IS(df, columns, factor):
             df[selected_column] = df[selected_column].apply(
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
+
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
 
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
@@ -910,58 +910,23 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def sort_by_sort_index(df):
+    # Sort by Sort Index if it exists
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
     return df
 
-def aggregate_data_IS(uploaded_files):
-    dataframes = []
-    for file in uploaded_files:
-        df = pd.read_excel(file)
-        dataframes.append(df)
-    combined_df = pd.concat(dataframes, ignore_index=True)
-    return combined_df
-
-def aggregate_data(files):
-    dataframes = []
-    unique_accounts = set()
-
-    for i, file in enumerate(files):
-        df = pd.read_excel(file)
-        df.columns = [str(col).strip() for col in df.columns]
-        df['Sort Index'] = range(1, len(df) + 1)
-        dataframes.append(df)
-        unique_accounts.update(df['Account'].dropna().unique())
-
-    concatenated_df = pd.concat(dataframes, ignore_index=True)
-    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
-
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
-
-    numeric_rows.fillna(0, inplace=True)
-
-    for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
-            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
-
-    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
-    statement_date_rows['Sort Index'] = 100
-    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
-    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
-
-    final_df.insert(1, 'Positive decrease NI', False)
-    sort_index_column = final_df.pop('Sort Index')
-    final_df['Sort Index'] = sort_index_column
-    final_df.sort_values('Sort Index', inplace=True)
-
-    return final_df
-
 def income_statement():
+    def aggregate_data_IS(uploaded_files):
+        dataframes = []
+        for file in uploaded_files:
+            df = pd.read_excel(file)
+            dataframes.append(df)
+        combined_df = pd.concat(dataframes, ignore_index=True)
+        return combined_df
+
     global income_statement_lookup_df
 
+    # Load the Income Statement Data Dictionary
     if 'income_statement_lookup_df' not in globals():
         if os.path.exists(income_statement_data_dictionary_file):
             income_statement_lookup_df = pd.read_excel(income_statement_data_dictionary_file)
@@ -1007,6 +972,7 @@ def income_statement():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
+            # Adding column renaming functionality
             st.subheader("Rename Columns")
             new_column_names = {}
             quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
@@ -1022,29 +988,35 @@ def income_statement():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
+            # Adding interactive data editor for row removal
             st.subheader("Edit and Remove Rows")
             editable_df = st.data_editor(all_tables, num_rows="dynamic", use_container_width=True)
 
+            # Adding checkboxes for numerical column selection
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
+            # Unit conversion functionality
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_conversion_factor = st.radio("Select conversion factor", options=list(conversion_factors.keys()), key="conversion_factor")
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = editable_df
+                updated_table = editable_df  # Use the edited dataframe
 
+                # Convert selected numerical columns to numbers
                 for col in numerical_columns:
                     updated_table[col] = updated_table[col].apply(clean_numeric_value_IS)
                 
+                # Apply unit conversion if selected
                 if selected_conversion_factor and selected_conversion_factor in conversion_factors:
                     conversion_factor = conversion_factors[selected_conversion_factor]
                     updated_table = apply_unit_conversion_IS(updated_table, selected_columns, conversion_factor)
 
+                # Convert all instances of '-' to '0'
                 updated_table.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
@@ -1055,19 +1027,25 @@ def income_statement():
     with tab2:
         st.subheader("Aggregate My Data")
 
+        # File uploader for Excel files
         uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            aggregated_df = aggregate_data(uploaded_files)
+            aggregated_df = aggregate_data_IS(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
 
-                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                # Make the aggregated data interactive
+                editable_df = st.data_editor(aggregated_df, num_rows="dynamic", use_container_width=True)
+
+                # Exclude the last row from numeric conversions and multiplication logic
                 editable_df_excluded = editable_df.iloc[:-1]
 
+                # Ensure all numeric columns are properly converted to numeric types
                 for col in editable_df_excluded.columns:
                     if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
                         editable_df_excluded[col] = pd.to_numeric(editable_df_excluded[col], errors='coerce').fillna(0)
 
+                # Apply the multiplication logic just before export
                 numeric_cols = editable_df_excluded.select_dtypes(include='number').columns.tolist()
                 for index, row in editable_df_excluded.iterrows():
                     if row['Positive decrease NI'] and row['Sort Index'] != 100:
@@ -1075,8 +1053,10 @@ def income_statement():
                             if col not in ['Sort Index']:
                                 editable_df_excluded.at[index, col] = row[col] * -1
 
+                # Combine the processed rows with the excluded last row
                 final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
 
+                # Drop 'Positive decrease NI' from export
                 if 'Positive decrease NI' in final_df.columns:
                     final_df.drop(columns=['Positive decrease NI'], inplace=True)
 
@@ -1104,9 +1084,11 @@ def income_statement():
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Ensure Sort Index is present
                 if 'Sort Index' not in df_is.columns:
                     df_is['Sort Index'] = range(1, len(df_is) + 1)
 
+                # Function to get the best match based on Account using Levenshtein distance
                 def get_best_match_is(account):
                     best_score_is = float('inf')
                     best_match_is = None
@@ -1136,13 +1118,13 @@ def income_statement():
                     
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + income_statement_lookup_df.get('Mnemonic', []).tolist() + ['REMOVE ROW'],
+                        options=[''] + income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
                         df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
 
-                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])
+                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])  # Include 'Sort Index' as a helper column
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
@@ -1154,6 +1136,7 @@ def income_statement():
                     combined_df_is = create_combined_df([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
 
+                    # Add CIQ column based on lookup
                     def lookup_ciq_is(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ IQ Required'
@@ -1167,6 +1150,7 @@ def income_statement():
                     columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
 
+                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_df_is = sort_by_sort_index(as_presented_df_is)
                     as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
@@ -1213,6 +1197,7 @@ def income_statement():
     with tab4:
         st.subheader("Income Statement Data Dictionary")
 
+        # Load most recent CSV in memory until a new CSV is uploaded
         if 'income_statement_data' not in st.session_state:
             if os.path.exists(income_statement_data_dictionary_file):
                 st.session_state.income_statement_data = pd.read_excel(income_statement_data_dictionary_file)
@@ -1222,10 +1207,11 @@ def income_statement():
         uploaded_dict_file_is = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
         if uploaded_dict_file_is is not None:
             new_lookup_df_is = pd.read_csv(uploaded_dict_file_is)
-            st.session_state.income_statement_data = new_lookup_df_is
+            st.session_state.income_statement_data = new_lookup_df_is  # Update the session state with new DataFrame
             save_lookup_table(new_lookup_df_is, income_statement_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
+        # Use the data from the session state
         st.dataframe(st.session_state.income_statement_data)
 
         remove_indices_is = st.multiselect("Select rows to remove", st.session_state.income_statement_data.index, key='remove_indices_tab4_is')
@@ -1236,7 +1222,7 @@ def income_statement():
             st.dataframe(st.session_state.income_statement_data)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_is"):
-            excel_file_is = io.Bytes.IO()
+            excel_file_is = io.BytesIO()
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
