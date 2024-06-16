@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1280,15 +1280,14 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 ####################################### Populate CIQ Template ###################################
-
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
     tab1 = st.tabs(["Upload Template"])[0]
 
     with tab1:
-        uploaded_template = st.file_uploader("Upload Template", type=['xlsx'], key='template_uploader')
-        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx'], key='income_statement_uploader')
+        uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
+        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
             template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
@@ -1338,10 +1337,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
