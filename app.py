@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1290,20 +1290,18 @@ def populate_ciq_template():
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
-            template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
+            template_book = pd.ExcelFile(uploaded_template)
             income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
+            template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
 
             if st.button("Populate Template"):
-                # Populate the template with income statement data
-                populated_df = template_df.copy()
-
                 # Extract CIQ Mnemonics and dates from the completed income statement
                 ciq_mnemonics = income_statement_df.iloc[:, 1]
                 income_statement_dates = income_statement_df.columns[2:]
 
                 # Extract mnemonics and dates from the template
-                template_mnemonics = populated_df.iloc[:, 8]
-                template_dates = populated_df.iloc[9, 3:7]
+                template_mnemonics = template_df.iloc[:, 8]
+                template_dates = template_df.iloc[9, 3:7]
 
                 for i, mnemonic in enumerate(template_mnemonics):
                     if pd.notna(mnemonic):
@@ -1315,12 +1313,25 @@ def populate_ciq_template():
                                     # Find corresponding column in the income statement
                                     income_statement_col = income_statement_dates[income_statement_dates == date].index[0]
                                     # Populate the value in the template
-                                    populated_df.iloc[i, 3 + j] = income_statement_row.iloc[0, income_statement_col]
+                                    template_df.iloc[i, 3 + j] = income_statement_row.iloc[0, income_statement_col]
 
-                excel_file = io.BytesIO()
-                populated_df.to_excel(excel_file, index=False)
-                excel_file.seek(0)
-                st.download_button("Download Populated Template", excel_file, "populated_template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                # Save the populated data back to the original file, keeping the formatting
+                with pd.ExcelWriter(uploaded_template, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                    for sheet_name in template_book.sheet_names:
+                        if sheet_name == "Income Statement":
+                            template_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                        else:
+                            sheet_df = pd.read_excel(template_book, sheet_name=sheet_name)
+                            sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+                # Offer the populated template for download
+                with open(uploaded_template.name, "rb") as file:
+                    btn = st.download_button(
+                        label="Download Populated Template",
+                        data=file,
+                        file_name=uploaded_template.name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
 
 def main():
     st.sidebar.title("Navigation")
