@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1291,18 +1291,32 @@ def populate_ciq_template():
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
-            template_df = pd.read_excel(uploaded_template)
-            income_statement_df = pd.read_excel(uploaded_income_statement)
+            template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
+            income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
 
-            # Logic to populate the template with income statement data
-
-            if st.button("Populate"):
-                # Example logic for populating the template
-                # Replace with actual logic based on template structure and requirements
+            if st.button("Populate Template"):
+                # Populate the template with income statement data
                 populated_df = template_df.copy()
-                for col in income_statement_df.columns:
-                    if col in populated_df.columns:
-                        populated_df[col] = income_statement_df[col]
+
+                # Extract CIQ Mnemonics and dates from the completed income statement
+                ciq_mnemonics = income_statement_df.iloc[:, 1]
+                income_statement_dates = income_statement_df.columns[2:]
+
+                # Extract mnemonics and dates from the template
+                template_mnemonics = populated_df.iloc[:, 8]
+                template_dates = populated_df.iloc[9, 3:7]
+
+                for i, mnemonic in enumerate(template_mnemonics):
+                    if pd.notna(mnemonic):
+                        # Find corresponding row in the income statement
+                        income_statement_row = income_statement_df[ciq_mnemonics == mnemonic]
+                        if not income_statement_row.empty:
+                            for j, date in enumerate(template_dates):
+                                if date in income_statement_dates.values:
+                                    # Find corresponding column in the income statement
+                                    income_statement_col = income_statement_dates[income_statement_dates == date].index[0]
+                                    # Populate the value in the template
+                                    populated_df.iloc[i, 3 + j] = income_statement_row.iloc[0, income_statement_col]
 
                 excel_file = io.BytesIO()
                 populated_df.to_excel(excel_file, index=False)
@@ -1324,4 +1338,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
