@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1280,6 +1280,11 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 ####################################### Populate CIQ Template ###################################
+import io
+import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
@@ -1290,7 +1295,7 @@ def populate_ciq_template():
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
-            template_book = pd.ExcelFile(uploaded_template)
+            template_book = load_workbook(uploaded_template)
             income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
             template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
 
@@ -1316,12 +1321,12 @@ def populate_ciq_template():
                                     template_df.iloc[i, 3 + j] = income_statement_row.iloc[0, income_statement_col]
 
                 # Save the populated data back to the original file, keeping the formatting
-                with pd.ExcelWriter(uploaded_template, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                    for sheet_name in template_book.sheet_names:
+                with pd.ExcelWriter(uploaded_template.name, engine='openpyxl') as writer:
+                    for sheet_name in template_book.sheetnames:
                         if sheet_name == "Income Statement":
                             template_df.to_excel(writer, sheet_name=sheet_name, index=False)
                         else:
-                            sheet_df = pd.read_excel(template_book, sheet_name=sheet_name)
+                            sheet_df = pd.read_excel(uploaded_template, sheet_name=sheet_name)
                             sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
                 # Offer the populated template for download
