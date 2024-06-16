@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[27]:
+# In[1]:
 
 
 import io
@@ -1015,8 +1015,8 @@ def income_statement():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
@@ -1268,7 +1268,7 @@ def income_statement():
 
         remove_indices_is = st.multiselect("Select rows to remove", st.session_state.income_statement_data.index, key='remove_indices_tab4_is')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
-            st.session_state.income_statement_data = st.session_state.income_statement_data.drop(remove_indices_is).reset_index(drop=True)
+            st.session_state.income_statement_data = st.session_state.income_statement_data.drop(remove_indices_is).resetindex(drop=True)
             save_lookup_table(st.session_state.income_statement_data, income_statement_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(st.session_state.income_statement_data)
@@ -1279,9 +1279,39 @@ def income_statement():
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+####################################### Populate CIQ Template ###################################
+
+def populate_ciq_template():
+    st.title("Populate CIQ Template")
+
+    tab1 = st.tabs(["Upload Template"])[0]
+
+    with tab1:
+        uploaded_template = st.file_uploader("Upload Template", type=['xlsx'], key='template_uploader')
+        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx'], key='income_statement_uploader')
+
+        if uploaded_template and uploaded_income_statement:
+            template_df = pd.read_excel(uploaded_template)
+            income_statement_df = pd.read_excel(uploaded_income_statement)
+
+            # Logic to populate the template with income statement data
+
+            if st.button("Populate"):
+                # Example logic for populating the template
+                # Replace with actual logic based on template structure and requirements
+                populated_df = template_df.copy()
+                for col in income_statement_df.columns:
+                    if col in populated_df.columns:
+                        populated_df[col] = income_statement_df[col]
+
+                excel_file = io.BytesIO()
+                populated_df.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Populated Template", excel_file, "populated_template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 def main():
     st.sidebar.title("Navigation")
-    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement"])
+    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
 
     if selection == "Balance Sheet":
         balance_sheet()
@@ -1289,6 +1319,8 @@ def main():
         cash_flow_statement()
     elif selection == "Income Statement":
         income_statement()
+    elif selection == "Populate CIQ Template":
+        populate_ciq_template()
 
 if __name__ == '__main__':
     main()
