@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -1284,6 +1284,7 @@ import io
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1295,6 +1296,7 @@ def populate_ciq_template():
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
+            # Read the uploaded template and income statement files
             template_book = load_workbook(uploaded_template)
             income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
             template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
@@ -1320,23 +1322,24 @@ def populate_ciq_template():
                                     # Populate the value in the template
                                     template_df.iloc[i, 3 + j] = income_statement_row.iloc[0, income_statement_col]
 
-                # Save the populated data back to the original file, keeping the formatting
-                with pd.ExcelWriter(uploaded_template.name, engine='openpyxl') as writer:
-                    for sheet_name in template_book.sheetnames:
-                        if sheet_name == "Income Statement":
-                            template_df.to_excel(writer, sheet_name=sheet_name, index=False)
-                        else:
-                            sheet_df = pd.read_excel(uploaded_template, sheet_name=sheet_name)
-                            sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                # Update the 'Income Statement' sheet in the template workbook
+                template_sheet = template_book["Income Statement"]
+                for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
+                    for c_idx, value in enumerate(row, 1):
+                        template_sheet.cell(row=r_idx, column=c_idx, value=value)
+
+                # Save the populated template to an in-memory file
+                excel_file = io.BytesIO()
+                template_book.save(excel_file)
+                excel_file.seek(0)
 
                 # Offer the populated template for download
-                with open(uploaded_template.name, "rb") as file:
-                    btn = st.download_button(
-                        label="Download Populated Template",
-                        data=file,
-                        file_name=uploaded_template.name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                st.download_button(
+                    label="Download Populated Template",
+                    data=excel_file,
+                    file_name="populated_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
 def main():
     st.sidebar.title("Navigation")
