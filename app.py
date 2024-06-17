@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -1307,12 +1307,6 @@ def populate_ciq_template():
                 st.error(f"Error reading files: {e}")
                 return
 
-            st.write("Income Statement DataFrame:")
-            st.write(income_statement_df)
-
-            st.write("Template DataFrame:")
-            st.write(template_df)
-
             errors = []
 
             if st.button("Populate Template"):
@@ -1354,15 +1348,12 @@ def populate_ciq_template():
                                     if date in income_statement_dates.values:
                                         try:
                                             income_statement_col = income_statement_dates.get_loc(date)
-                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col}")
-                                            template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col + 2}")
+                                            template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
                                         except Exception as e:
                                             errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                         except Exception as e:
                             errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                st.write("Updated Template DataFrame:")
-                st.write(template_df)
 
                 try:
                     for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
