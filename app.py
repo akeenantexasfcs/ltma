@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1300,7 +1300,7 @@ def populate_ciq_template():
         if uploaded_template and uploaded_income_statement:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, keep_vba=True if file_extension == 'xlsm' else False)
+                template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
                 income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
             except Exception as e:
