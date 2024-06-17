@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1303,6 +1303,8 @@ def populate_ciq_template():
             income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
             template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
 
+            errors = []
+
             if st.button("Populate Template"):
                 # Extract CIQ Mnemonics and dates from the completed income statement
                 ciq_mnemonics = income_statement_df.iloc[:, 1]
@@ -1332,12 +1334,15 @@ def populate_ciq_template():
                         if not income_statement_row.empty:
                             for j, date in enumerate(template_dates):
                                 if date in income_statement_dates.values:
-                                    # Find corresponding column in the income statement
-                                    income_statement_col = income_statement_dates.get_loc(date)
-                                    # Debug print statements
-                                    st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
-                                    # Populate the value in the template
-                                    template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                    try:
+                                        # Find corresponding column in the income statement
+                                        income_statement_col = income_statement_dates.get_loc(date)
+                                        # Debug print statements
+                                        st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
+                                        # Populate the value in the template
+                                        template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                    except Exception as e:
+                                        errors.append(f"Error at mnemonic {mnemonic}, row {i}, column {3 + j}: {e}")
 
                 # Update the 'Income Statement' sheet in the template workbook
                 for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
@@ -1348,6 +1353,12 @@ def populate_ciq_template():
                 excel_file = io.BytesIO()
                 template_book.save(excel_file)
                 excel_file.seek(0)
+
+                # Display errors if any
+                if errors:
+                    st.error("Errors encountered during processing:")
+                    for error in errors:
+                        st.error(error)
 
                 # Offer the populated template for download
                 st.download_button(
