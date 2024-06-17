@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1300,7 +1300,8 @@ def populate_ciq_template():
         if uploaded_template and uploaded_income_statement:
             # Read the uploaded template and income statement files
             try:
-                template_book = load_workbook(uploaded_template, data_only=True)
+                file_extension = uploaded_template.name.split('.')[-1]
+                template_book = load_workbook(uploaded_template, keep_vba=True if file_extension == 'xlsm' else False)
                 income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
             except Exception as e:
@@ -1380,7 +1381,6 @@ def populate_ciq_template():
 
                 # Save the populated template to an in-memory file with the same format as the uploaded template
                 try:
-                    file_extension = uploaded_template.name.split('.')[-1]
                     output_file_name = f"populated_template.{file_extension}"
                     excel_file = io.BytesIO()
                     template_book.save(excel_file)
@@ -1396,11 +1396,12 @@ def populate_ciq_template():
                         st.error(error)
 
                 # Offer the populated template for download
+                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
                     label="Download Populated Template",
                     data=excel_file,
                     file_name=output_file_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if file_extension == 'xlsx' else "application/vnd.ms-excel"
+                    mime=mime_type
                 )
 
 def main():
