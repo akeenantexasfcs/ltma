@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1366,11 +1366,11 @@ def populate_ciq_template():
                     for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
                         for c_idx, value in enumerate(row, 1):
                             cell = template_sheet.cell(row=r_idx, column=c_idx)
-                            if cell.merged_cells:
-                                template_sheet.unmerge_cells(start_row=cell.row, start_column=cell.col_idx, end_row=cell.row, end_column=cell.col_idx)
+                            if any([cell.coordinate in merge_cell for merge_cell in template_sheet.merged_cells.ranges]):
+                                template_sheet.unmerge_cells(start_row=cell.row, start_column=cell.column, end_row=cell.row, end_column=cell.column)
                             cell.value = value
                 except Exception as e:
-                    st.error(f"Error updating template sheet: {e}")
+                    st.error(f"Error updating template sheet at cell {cell.coordinate}: {e}")
                     return
 
                 # Save the populated template to an in-memory file
