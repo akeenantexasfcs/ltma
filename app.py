@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1368,15 +1368,20 @@ def populate_ciq_template():
                             for c_idx, value in enumerate(row, 1):
                                 if c_idx >= 4 and c_idx <= 7:  # Only process columns D to G
                                     cell = template_sheet.cell(row=r_idx, column=c_idx)
-                                    if any([cell.coordinate in merge_cell for merge_cell in template_sheet.merged_cells.ranges]):
-                                        template_sheet.unmerge_cells(start_row=cell.row, start_column=cell.column, end_row=cell.row, end_column=cell.column)
+                                    # Unmerge cell if it's part of any merged cell ranges
+                                    for merge_cell in template_sheet.merged_cells.ranges:
+                                        if cell.coordinate in merge_cell:
+                                            template_sheet.unmerge_cells(str(merge_cell))
+                                            break
                                     cell.value = value
                 except Exception as e:
                     st.error(f"Error updating template sheet at cell {cell.coordinate}: {e}")
                     return
 
-                # Save the populated template to an in-memory file
+                # Save the populated template to an in-memory file with the same format as the uploaded template
                 try:
+                    file_extension = uploaded_template.name.split('.')[-1]
+                    output_file_name = f"populated_template.{file_extension}"
                     excel_file = io.BytesIO()
                     template_book.save(excel_file)
                     excel_file.seek(0)
@@ -1394,8 +1399,8 @@ def populate_ciq_template():
                 st.download_button(
                     label="Download Populated Template",
                     data=excel_file,
-                    file_name="populated_template.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    file_name=output_file_name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if file_extension == 'xlsx' else "application/vnd.ms-excel"
                 )
 
 def main():
