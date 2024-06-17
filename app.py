@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -9,6 +9,8 @@ import json
 import os
 import pandas as pd
 import streamlit as st
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 
@@ -540,7 +542,7 @@ def cash_flow_statement():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -1042,7 +1044,7 @@ def income_statement():
 
             # Adding interactive data editor for row removal
             st.subheader("Edit and Remove Rows")
-            editable_df = st.data_editor(all_tables, num_rows="dynamic", use_container_width=True)
+            editable_df = st.experimental_data_editor(all_tables, num_rows="dynamic", use_container_width=True)
 
             # Adding checkboxes for numerical column selection
             st.subheader("Select numerical columns")
@@ -1242,7 +1244,7 @@ def income_statement():
                                 income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value_is
                     if new_entries_is:
                         income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
-                    income_statement_lookup_df.reset_index(drop=True, inplace=True)
+                    income_statement_lookup_df.resetindex(drop=True, inplace=True)
                     save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
