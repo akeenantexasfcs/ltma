@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1299,60 +1299,85 @@ def populate_ciq_template():
 
         if uploaded_template and uploaded_income_statement:
             # Read the uploaded template and income statement files
-            template_book = load_workbook(uploaded_template, data_only=True)
-            income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
-            template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
+            try:
+                template_book = load_workbook(uploaded_template, data_only=True)
+                income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
+                template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
+            except Exception as e:
+                st.error(f"Error reading files: {e}")
+                return
 
             errors = []
 
             if st.button("Populate Template"):
                 # Extract CIQ Mnemonics and dates from the completed income statement
-                ciq_mnemonics = income_statement_df.iloc[:, 1]
-                income_statement_dates = income_statement_df.columns[2:]
+                try:
+                    ciq_mnemonics = income_statement_df.iloc[:, 1]
+                    income_statement_dates = income_statement_df.columns[2:]
+                except Exception as e:
+                    st.error(f"Error processing income statement data: {e}")
+                    return
 
-                # Debug print statements
                 st.write("Income Statement Dates:", list(income_statement_dates))
 
                 # Extract mnemonics from the template
-                template_mnemonics = template_df.iloc[:, 8]
+                try:
+                    template_mnemonics = template_df.iloc[:, 8]
+                except Exception as e:
+                    st.error(f"Error processing template data: {e}")
+                    return
 
                 # Extract dates from specific cells in the template
-                template_sheet = template_book["Income Statement"]
-                template_dates = [
-                    template_sheet["D10"].value,
-                    template_sheet["E10"].value,
-                    template_sheet["F10"].value,
-                    template_sheet["G10"].value
-                ]
+                try:
+                    template_sheet = template_book["Income Statement"]
+                    template_dates = [
+                        template_sheet["D10"].value,
+                        template_sheet["E10"].value,
+                        template_sheet["F10"].value,
+                        template_sheet["G10"].value
+                    ]
+                except Exception as e:
+                    st.error(f"Error reading dates from template: {e}")
+                    return
 
                 st.write("Template Dates:", template_dates)
 
                 for i, mnemonic in enumerate(template_mnemonics):
                     if pd.notna(mnemonic):
                         # Find corresponding row in the income statement
-                        income_statement_row = income_statement_df[ciq_mnemonics == mnemonic]
-                        if not income_statement_row.empty:
-                            for j, date in enumerate(template_dates):
-                                if date in income_statement_dates.values:
-                                    try:
-                                        # Find corresponding column in the income statement
-                                        income_statement_col = income_statement_dates.get_loc(date)
-                                        # Debug print statements
-                                        st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
-                                        # Populate the value in the template
-                                        template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
-                                    except Exception as e:
-                                        errors.append(f"Error at mnemonic {mnemonic}, row {i}, column {3 + j}: {e}")
+                        try:
+                            income_statement_row = income_statement_df[ciq_mnemonics == mnemonic]
+                            if not income_statement_row.empty:
+                                for j, date in enumerate(template_dates):
+                                    if date in income_statement_dates.values:
+                                        try:
+                                            # Find corresponding column in the income statement
+                                            income_statement_col = income_statement_dates.get_loc(date)
+                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
+                                            # Populate the value in the template
+                                            template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                        except Exception as e:
+                                            errors.append(f"Error at mnemonic {mnemonic}, row {i}, column {3 + j}: {e}")
+                        except Exception as e:
+                            errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
                 # Update the 'Income Statement' sheet in the template workbook
-                for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
-                    for c_idx, value in enumerate(row, 1):
-                        template_sheet.cell(row=r_idx, column=c_idx, value=value)
+                try:
+                    for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
+                        for c_idx, value in enumerate(row, 1):
+                            template_sheet.cell(row=r_idx, column=c_idx, value=value)
+                except Exception as e:
+                    st.error(f"Error updating template sheet: {e}")
+                    return
 
                 # Save the populated template to an in-memory file
-                excel_file = io.BytesIO()
-                template_book.save(excel_file)
-                excel_file.seek(0)
+                try:
+                    excel_file = io.BytesIO()
+                    template_book.save(excel_file)
+                    excel_file.seek(0)
+                except Exception as e:
+                    st.error(f"Error saving the populated template: {e}")
+                    return
 
                 # Display errors if any
                 if errors:
