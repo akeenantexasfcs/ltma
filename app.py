@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -1308,9 +1308,15 @@ def populate_ciq_template():
                 ciq_mnemonics = income_statement_df.iloc[:, 1]
                 income_statement_dates = income_statement_df.columns[2:]
 
+                # Debug print statements
+                st.write("Income Statement Dates:", income_statement_dates)
+
                 # Extract mnemonics and dates from the template
                 template_mnemonics = template_df.iloc[:, 8]
                 template_dates = template_df.columns[3:7]
+
+                # Debug print statements
+                st.write("Template Dates:", template_dates)
 
                 for i, mnemonic in enumerate(template_mnemonics):
                     if pd.notna(mnemonic):
