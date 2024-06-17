@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[1]:
 
 
 import io
@@ -1298,7 +1298,6 @@ def populate_ciq_template():
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
 
         if uploaded_template and uploaded_income_statement:
-            # Read the uploaded template and income statement files
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, keep_vba=True if file_extension == 'xlsm' else False)
@@ -1311,7 +1310,6 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
-                # Extract CIQ Mnemonics and dates from the completed income statement
                 try:
                     ciq_mnemonics = income_statement_df.iloc[:, 1]
                     income_statement_dates = income_statement_df.columns[2:]
@@ -1321,14 +1319,12 @@ def populate_ciq_template():
 
                 st.write("Income Statement Dates:", list(income_statement_dates))
 
-                # Extract mnemonics from the template
                 try:
-                    template_mnemonics = template_df.iloc[11:89, 8]  # Mnemonics from row 12 to 90, column I (index 8)
+                    template_mnemonics = template_df.iloc[11:89, 8]
                 except Exception as e:
                     st.error(f"Error processing template data: {e}")
                     return
 
-                # Extract dates from specific cells in the template
                 try:
                     template_sheet = template_book["Income Statement"]
                     template_dates = [
@@ -1345,31 +1341,26 @@ def populate_ciq_template():
 
                 for i, mnemonic in enumerate(template_mnemonics):
                     if pd.notna(mnemonic):
-                        # Find corresponding row in the income statement
                         try:
                             income_statement_row = income_statement_df[ciq_mnemonics == mnemonic]
                             if not income_statement_row.empty:
                                 for j, date in enumerate(template_dates):
                                     if date in income_statement_dates.values:
                                         try:
-                                            # Find corresponding column in the income statement
                                             income_statement_col = income_statement_dates.get_loc(date)
                                             st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col}")
-                                            # Populate the value in the template
                                             template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col]
                                         except Exception as e:
                                             errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                         except Exception as e:
                             errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
-                # Update the 'Income Statement' sheet in the template workbook
                 try:
                     for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
-                        if r_idx >= 12 and r_idx <= 90:  # Only process rows 12 to 90
+                        if r_idx >= 12 and r_idx <= 90:
                             for c_idx, value in enumerate(row, 1):
-                                if c_idx >= 4 and c_idx <= 7:  # Only process columns D to G
+                                if c_idx >= 4 and c_idx <= 7:
                                     cell = template_sheet.cell(row=r_idx, column=c_idx)
-                                    # Unmerge cell if it's part of any merged cell ranges
                                     for merge_cell in template_sheet.merged_cells.ranges:
                                         if cell.coordinate in merge_cell:
                                             template_sheet.unmerge_cells(str(merge_cell))
@@ -1379,7 +1370,6 @@ def populate_ciq_template():
                     st.error(f"Error updating template sheet at cell {cell.coordinate}: {e}")
                     return
 
-                # Save the populated template to an in-memory file with the same format as the uploaded template
                 try:
                     output_file_name = f"populated_template.{file_extension}"
                     excel_file = io.BytesIO()
@@ -1389,13 +1379,11 @@ def populate_ciq_template():
                     st.error(f"Error saving the populated template: {e}")
                     return
 
-                # Display errors if any
                 if errors:
                     st.error("Errors encountered during processing:")
                     for error in errors:
                         st.error(error)
 
-                # Offer the populated template for download
                 mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
                     label="Download Populated Template",
@@ -1419,4 +1407,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
