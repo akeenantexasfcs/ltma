@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1299,7 +1299,7 @@ def populate_ciq_template():
 
         if uploaded_template and uploaded_income_statement:
             # Read the uploaded template and income statement files
-            template_book = load_workbook(uploaded_template)
+            template_book = load_workbook(uploaded_template, data_only=True)
             income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
             template_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
 
@@ -1308,14 +1308,18 @@ def populate_ciq_template():
                 ciq_mnemonics = income_statement_df.iloc[:, 1]
                 income_statement_dates = income_statement_df.columns[2:]
 
-                # Debug print statements
-                st.write("Income Statement Dates:", income_statement_dates)
-
-                # Extract mnemonics and dates from the template
+                # Extract mnemonics from the template
                 template_mnemonics = template_df.iloc[:, 8]
-                template_dates = template_df.columns[3:7]
 
-                # Debug print statements
+                # Extract dates from specific cells in the template
+                template_sheet = template_book["Income Statement"]
+                template_dates = [
+                    template_sheet["D10"].value,
+                    template_sheet["E10"].value,
+                    template_sheet["F10"].value,
+                    template_sheet["G10"].value
+                ]
+
                 st.write("Template Dates:", template_dates)
 
                 for i, mnemonic in enumerate(template_mnemonics):
@@ -1331,7 +1335,6 @@ def populate_ciq_template():
                                     template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
 
                 # Update the 'Income Statement' sheet in the template workbook
-                template_sheet = template_book["Income Statement"]
                 for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
                     for c_idx, value in enumerate(row, 1):
                         template_sheet.cell(row=r_idx, column=c_idx, value=value)
