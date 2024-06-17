@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1322,7 +1322,7 @@ def populate_ciq_template():
 
                 # Extract mnemonics from the template
                 try:
-                    template_mnemonics = template_df.iloc[:, 8]
+                    template_mnemonics = template_df.iloc[11:89, 8]  # Mnemonics from row 12 to 90, column I (index 8)
                 except Exception as e:
                     st.error(f"Error processing template data: {e}")
                     return
@@ -1353,22 +1353,24 @@ def populate_ciq_template():
                                         try:
                                             # Find corresponding column in the income statement
                                             income_statement_col = income_statement_dates.get_loc(date)
-                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
+                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col}")
                                             # Populate the value in the template
-                                            template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                            template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col]
                                         except Exception as e:
-                                            errors.append(f"Error at mnemonic {mnemonic}, row {i}, column {3 + j}: {e}")
+                                            errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                         except Exception as e:
                             errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
                 # Update the 'Income Statement' sheet in the template workbook
                 try:
                     for r_idx, row in enumerate(dataframe_to_rows(template_df, index=False, header=True), 1):
-                        for c_idx, value in enumerate(row, 1):
-                            cell = template_sheet.cell(row=r_idx, column=c_idx)
-                            if any([cell.coordinate in merge_cell for merge_cell in template_sheet.merged_cells.ranges]):
-                                template_sheet.unmerge_cells(start_row=cell.row, start_column=cell.column, end_row=cell.row, end_column=cell.column)
-                            cell.value = value
+                        if r_idx >= 12 and r_idx <= 90:  # Only process rows 12 to 90
+                            for c_idx, value in enumerate(row, 1):
+                                if c_idx >= 4 and c_idx <= 7:  # Only process columns D to G
+                                    cell = template_sheet.cell(row=r_idx, column=c_idx)
+                                    if any([cell.coordinate in merge_cell for merge_cell in template_sheet.merged_cells.ranges]):
+                                        template_sheet.unmerge_cells(start_row=cell.row, start_column=cell.column, end_row=cell.row, end_column=cell.column)
+                                    cell.value = value
                 except Exception as e:
                     st.error(f"Error updating template sheet at cell {cell.coordinate}: {e}")
                     return
