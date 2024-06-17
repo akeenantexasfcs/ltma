@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1349,7 +1349,7 @@ def populate_ciq_template():
                                         try:
                                             income_statement_col = income_statement_dates.get_loc(date)
                                             st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col}")
-                                            template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col]
+                                            template_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
                                         except Exception as e:
                                             errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                         except Exception as e:
@@ -1407,10 +1407,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
