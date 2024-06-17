@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1308,6 +1308,9 @@ def populate_ciq_template():
                 ciq_mnemonics = income_statement_df.iloc[:, 1]
                 income_statement_dates = income_statement_df.columns[2:]
 
+                # Debug print statements
+                st.write("Income Statement Dates:", list(income_statement_dates))
+
                 # Extract mnemonics from the template
                 template_mnemonics = template_df.iloc[:, 8]
 
@@ -1331,6 +1334,8 @@ def populate_ciq_template():
                                 if date in income_statement_dates.values:
                                     # Find corresponding column in the income statement
                                     income_statement_col = income_statement_dates.get_loc(date)
+                                    # Debug print statements
+                                    st.write(f"Populating template for mnemonic {mnemonic} at row {i}, column {3 + j} with value from income statement column {income_statement_col}")
                                     # Populate the value in the template
                                     template_df.iat[i, 3 + j] = income_statement_row.iat[0, income_statement_col]
 
