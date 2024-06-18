@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import io
@@ -158,9 +158,14 @@ def create_combined_df(dfs):
         st.write(f"Grouped DataFrame for dataframe {i+1}:")
         st.write(df_grouped.head())  # Output grouped DataFrame for debugging
         
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        st.write(f"Melted DataFrame for dataframe {i+1}:")
-        st.write(df_melted.head())  # Output melted DataFrame for debugging
+        try:
+            df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+            st.write(f"Melted DataFrame for dataframe {i+1}:")
+            st.write(df_melted.head())  # Output melted DataFrame for debugging
+        except KeyError as e:
+            st.error(f"Error melting dataframe {i+1}: {e}")
+            st.write(df_grouped.columns.tolist())  # Output the columns for debugging
+            continue
         
         df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
         st.write(f"Pivoted DataFrame for dataframe {i+1}:")
@@ -171,6 +176,7 @@ def create_combined_df(dfs):
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
+
 
 def aggregate_data(df):
     if 'Label' not in df.columns or 'Account' not in df.columns:
