@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1592,6 +1592,7 @@ def populate_ciq_template():
 import json
 import pandas as pd
 import streamlit as st
+from io import BytesIO
 
 def json_conversion():
     st.title("JSON Conversion")
@@ -1643,6 +1644,22 @@ def json_conversion():
 
             st.subheader("Data Preview")
             st.dataframe(all_tables)
+
+            # Button to export data to Excel
+            def to_excel(df):
+                output = BytesIO()
+                writer = pd.ExcelWriter(output, engine='xlsxwriter')
+                df.to_excel(writer, index=False, sheet_name='Sheet1')
+                writer.save()
+                processed_data = output.getvalue()
+                return processed_data
+
+            excel_data = to_excel(all_tables)
+
+            st.download_button(label='📥 Download Excel file',
+                               data=excel_data,
+                               file_name='Converted_Data_Export' ,
+                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
         except json.JSONDecodeError:
             st.error("The uploaded file is not a valid JSON.")
