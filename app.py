@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[9]:
 
 
 import io
@@ -1287,6 +1287,7 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+import json
 
 def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     source_sheet = source_book[sheet_name]
@@ -1588,9 +1589,52 @@ def populate_ciq_template():
                     mime=mime_type
                 )
 
+def json_conversion():
+    st.title("JSON Conversion")
+
+    uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+    if uploaded_file is not None:
+        data = json.load(uploaded_file)
+
+        tables = []
+        for block in data['Blocks']:
+            if block['BlockType'] == 'TABLE':
+                table = {}
+                if 'Relationships' in block:
+                    for relationship in block['Relationships']:
+                        if relationship['Type'] == 'CHILD':
+                            for cell_id in relationship['Ids']:
+                                cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                if cell_block:
+                                    row_index = cell_block.get('RowIndex', 0)
+                                    col_index = cell_block.get('ColumnIndex', 0)
+                                    if row_index not in table:
+                                        table[row_index] = {}
+                                    cell_text = ''
+                                    if 'Relationships' in cell_block:
+                                        for rel in cell_block['Relationships']:
+                                            if rel['Type'] == 'CHILD':
+                                                for word_id in rel['Ids']:
+                                                    word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                    if word_block and word_block['BlockType'] == 'WORD':
+                                                        cell_text += ' ' + word_block.get('Text', '')
+                                    table[row_index][col_index] = cell_text.strip()
+                table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                table_df = table_df.sort_index(axis=1)
+                tables.append(table_df)
+        all_tables = pd.concat(tables, axis=0, ignore_index=True)
+        if len(all_tables.columns) == 0:
+            st.error("No columns found in the uploaded JSON file.")
+            return
+
+        all_tables.insert(0, 'Label', '')
+
+        st.subheader("Data Preview")
+        st.dataframe(all_tables)
+
 def main():
     st.sidebar.title("Navigation")
-    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
+    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
     if selection == "Balance Sheet":
         balance_sheet()
@@ -1600,6 +1644,15 @@ def main():
         income_statement()
     elif selection == "Populate CIQ Template":
         populate_ciq_template()
+    elif selection == "Extras":
+        extras_tab()
+
+def extras_tab():
+    st.sidebar.title("Extras")
+    extra_selection = st.sidebar.radio("Select Extra Function", ["JSON Conversion"])
+
+    if extra_selection == "JSON Conversion":
+        json_conversion()
 
 if __name__ == '__main__':
     main()
