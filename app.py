@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -99,9 +99,9 @@ initial_cash_flow_lookup_data = {
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.csv'
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
-
+# Initialize lookup tables for Balance Sheet and Cash Flow
 def load_or_initialize_lookup(file_path, initial_data):
     if os.path.exists(file_path):
         lookup_df = pd.read_csv(file_path)
@@ -110,24 +110,30 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table(df, file_path):
-    df.to_csv(file_path, index=False)
-
-
-
-# Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
-def process_file(file):
+# Function to save lookup tables
+def save_lookup_table(df, file_path):
+    df.to_csv(file_path, index=False)
+
+# Utility functions
+def clean_numeric_value(value):
+    value_str = str(value).strip()
+    if value_str.startswith('(') and value_str.endswith(')'):
+        value_str = '-' + value_str[1:-1]
+    cleaned_value = re.sub(r'[$,]', '', value_str)
     try:
-        df = pd.read_excel(file, sheet_name=None)
-        first_sheet_name = list(df.keys())[0]
-        df = df[first_sheet_name]
-        return df
-    except Exception as e:
-        st.error(f"Error processing file {file.name}: {e}")
-        return None
+        return float(cleaned_value)
+    except ValueError:
+        return 0
+
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
 
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
@@ -162,16 +168,6 @@ def aggregate_data(df):
                                  aggfunc='sum').reset_index()
     return pivot_table
 
-def clean_numeric_value(value):
-    value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    cleaned_value = re.sub(r'[$,]', '', value_str)
-    try:
-        return float(cleaned_value)
-    except ValueError:
-        return 0
-
 def sort_by_label_and_account(df):
     sort_order = {
         "Current Assets": 0,
@@ -202,13 +198,6 @@ def sort_by_label_and_final_mnemonic(df):
     df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
     
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def apply_unit_conversion(df, columns, factor):
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
 def balance_sheet():
@@ -397,7 +386,7 @@ def balance_sheet():
 
         dfs = []
         if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+            dfs = [pd.read_excel(file) for file in uploaded_files]
 
         if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
@@ -424,7 +413,7 @@ def balance_sheet():
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
