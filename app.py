@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[21]:
 
 
 import io
@@ -148,6 +148,7 @@ def create_combined_df(dfs):
             st.write(df.columns.tolist())  # Output the columns for debugging
             continue
         
+        # Identify date columns
         date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
         if not date_cols:
             st.error(f"No date columns found in dataframe {i+1}")
@@ -160,6 +161,13 @@ def create_combined_df(dfs):
 
         # Print the columns of df_grouped for debugging
         st.write(f"Columns before melting dataframe {i+1}: {df_grouped.columns.tolist()}")
+
+        # Verify that date columns exist in the grouped DataFrame
+        missing_date_cols = [col for col in date_cols if col not in df_grouped.columns]
+        if missing_date_cols:
+            st.error(f"Missing date columns in dataframe {i+1}: {missing_date_cols}")
+            st.write(df_grouped.columns.tolist())  # Output the columns for debugging
+            continue
 
         try:
             df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
