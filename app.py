@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1601,6 +1601,10 @@ def json_conversion():
         try:
             # Read the uploaded file as a string
             file_contents = uploaded_file.read().decode('utf-8')
+            
+            # Display file contents for debugging
+            st.text_area("File Contents", file_contents, height=300)
+
             # Load the JSON data
             data = json.loads(file_contents)
 
