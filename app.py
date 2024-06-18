@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -1297,15 +1297,18 @@ def populate_ciq_template():
         uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
         uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
+        uploaded_cash_flow_statement = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'], key='cash_flow_statement_uploader')
 
-        if uploaded_template and uploaded_income_statement and uploaded_balance_sheet:
+        if uploaded_template and uploaded_income_statement and uploaded_balance_sheet and uploaded_cash_flow_statement:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
                 income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
+                cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
                 template_income_statement_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
                 template_balance_sheet_df = pd.read_excel(uploaded_template, sheet_name="Balance Sheet")
+                template_cash_flow_statement_df = pd.read_excel(uploaded_template, sheet_name="Cash Flow")
             except Exception as e:
                 st.error(f"Error reading files: {e}")
                 return
@@ -1327,12 +1330,21 @@ def populate_ciq_template():
                     st.error(f"Error processing balance sheet data: {e}")
                     return
 
+                try:
+                    ciq_mnemonics_cash_flow = cash_flow_statement_df.iloc[:, 1]
+                    cash_flow_statement_dates = cash_flow_statement_df.columns[2:]
+                except Exception as e:
+                    st.error(f"Error processing cash flow statement data: {e}")
+                    return
+
                 st.write("Income Statement Dates:", list(income_statement_dates))
                 st.write("Balance Sheet Dates:", list(balance_sheet_dates))
+                st.write("Cash Flow Statement Dates:", list(cash_flow_statement_dates))
 
                 try:
                     template_mnemonics_income = template_income_statement_df.iloc[11:89, 8]
                     template_mnemonics_balance = template_balance_sheet_df.iloc[11:89, 8]
+                    template_mnemonics_cash_flow = template_cash_flow_statement_df.iloc[11:89, 8]
                 except Exception as e:
                     st.error(f"Error processing template data: {e}")
                     return
@@ -1361,8 +1373,21 @@ def populate_ciq_template():
                     st.error(f"Error reading dates from template balance sheet: {e}")
                     return
 
+                try:
+                    template_cash_flow_sheet = template_book["Cash Flow"]
+                    template_cash_flow_dates = [
+                        template_cash_flow_sheet["D10"].value,
+                        template_cash_flow_sheet["E10"].value,
+                        template_cash_flow_sheet["F10"].value,
+                        template_cash_flow_sheet["G10"].value
+                    ]
+                except Exception as e:
+                    st.error(f"Error reading dates from template cash flow statement: {e}")
+                    return
+
                 st.write("Template Income Statement Dates:", template_income_dates)
                 st.write("Template Balance Sheet Dates:", template_balance_dates)
+                st.write("Template Cash Flow Statement Dates:", template_cash_flow_dates)
 
                 for i, mnemonic in enumerate(template_mnemonics_income):
                     if pd.notna(mnemonic):
@@ -1396,6 +1421,22 @@ def populate_ciq_template():
                         except Exception as e:
                             errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
+                for i, mnemonic in enumerate(template_mnemonics_cash_flow):
+                    if pd.notna(mnemonic):
+                        try:
+                            cash_flow_statement_row = cash_flow_statement_df[ciq_mnemonics_cash_flow == mnemonic]
+                            if not cash_flow_statement_row.empty:
+                                for j, date in enumerate(template_cash_flow_dates):
+                                    if date in cash_flow_statement_dates.values:
+                                        try:
+                                            cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
+                                            st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 2}")
+                                            template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
+                                        except Exception as e:
+                                            errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
+                        except Exception as e:
+                            errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
+
                 try:
                     for r_idx, row in enumerate(dataframe_to_rows(template_income_statement_df, index=False, header=True), 1):
                         if r_idx >= 12 and r_idx <= 90:
@@ -1416,6 +1457,17 @@ def populate_ciq_template():
                                     for merge_cell in template_balance_sheet.merged_cells.ranges:
                                         if cell.coordinate in merge_cell:
                                             template_balance_sheet.unmerge_cells(str(merge_cell))
+                                            break
+                                    cell.value = value
+
+                    for r_idx, row in enumerate(dataframe_to_rows(template_cash_flow_statement_df, index=False, header=True), 1):
+                        if r_idx >= 12 and r_idx <= 90:
+                            for c_idx, value in enumerate(row, 1):
+                                if c_idx >= 4 and c_idx <= 7:
+                                    cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
+                                    for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
+                                        if cell.coordinate in merge_cell:
+                                            template_cash_flow_sheet.unmerge_cells(str(merge_cell))
                                             break
                                     cell.value = value
                 except Exception as e:
