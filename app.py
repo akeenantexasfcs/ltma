@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[19]:
+# In[20]:
 
 
 import io
@@ -158,8 +158,10 @@ def create_combined_df(dfs):
         st.write(f"Grouped DataFrame for dataframe {i+1}:")
         st.write(df_grouped.head())  # Output grouped DataFrame for debugging
 
+        # Print the columns of df_grouped for debugging
+        st.write(f"Columns before melting dataframe {i+1}: {df_grouped.columns.tolist()}")
+
         try:
-            st.write(f"Columns before melting dataframe {i+1}: {df_grouped.columns.tolist()}")  # Output the columns before melting
             df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
             st.write(f"Melted DataFrame for dataframe {i+1}:")
             st.write(df_melted.head())  # Output melted DataFrame for debugging
@@ -177,6 +179,7 @@ def create_combined_df(dfs):
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
+
 
 
 def aggregate_data(df):
