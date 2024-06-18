@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1650,7 +1650,7 @@ def json_conversion():
                 output = BytesIO()
                 writer = pd.ExcelWriter(output, engine='xlsxwriter')
                 df.to_excel(writer, index=False, sheet_name='Sheet1')
-                writer.save()
+                writer.close()
                 processed_data = output.getvalue()
                 return processed_data
 
@@ -1658,7 +1658,7 @@ def json_conversion():
 
             st.download_button(label='📥 Download Excel file',
                                data=excel_data,
-                               file_name='Converted_Data_Export' ,
+                               file_name='converted_data.xlsx',
                                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
         except json.JSONDecodeError:
