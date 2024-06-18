@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -111,7 +111,13 @@ def load_or_initialize_lookup(file_path, initial_data):
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    df.to_csv(file_path, index=False)
+    if file_path.endswith('.csv'):
+        df.to_csv(file_path, index=False)
+    elif file_path.endswith('.xlsx'):
+        df.to_excel(file_path, index=False)
+    else:
+        raise ValueError("Unsupported file type. Please provide a file path with '.csv' or '.xlsx' extension.")
+
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -570,6 +576,8 @@ def balance_sheet():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+            
+#######################################################Cash Flow Statement########################################################
 def cash_flow_statement():
     global cash_flow_lookup_df
 
