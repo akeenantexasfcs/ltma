@@ -1312,7 +1312,7 @@ def populate_ciq_template():
         if uploaded_template and (uploaded_income_statement or uploaded_balance_sheet or uploaded_cash_flow_statement):
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
+                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 if uploaded_income_statement:
                     income_statement_book = load_workbook(uploaded_income_statement, data_only=True)
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1372,7 +1372,8 @@ def populate_ciq_template():
                                             try:
                                                 income_statement_col = income_statement_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col + 2}")
-                                                template_income_statement_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
+                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
+                                                    template_income_statement_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
@@ -1439,7 +1440,8 @@ def populate_ciq_template():
                                             try:
                                                 balance_sheet_col = balance_sheet_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 2}")
-                                                template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 2]
+                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
+                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
@@ -1506,7 +1508,8 @@ def populate_ciq_template():
                                             try:
                                                 cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 2}")
-                                                template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
+                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
+                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
