@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -16,20 +16,84 @@ import re
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
-    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
-                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
-                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
-            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
+    "Label": ["Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Assets", 
+              "Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Liabilities", "Current Liabilities", 
+              "Current Liabilities", "Current Liabilities", "Current Liabilities", "Current Liabilities", "Current Liabilities", 
+              "Equity", "Equity", "Equity", "Equity", "Equity", "Equity", "Equity", "Non Current Assets", "Non Current Assets", 
+              "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Liabilities", 
+              "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities", 
+              "Total Equity and Liabilities"],
+    "Account": ["Cash and Equivalents", "Short Term Investments", "Trading Asset Securities", "Accounts Receivable", 
+                "Other Receivables", "Inventory", "Prepaid Exp.", "Restricted Cash", "Other Current Assets", "Total Current Assets", 
+                "Accounts Payable", "Accrued Exp.", "Short-term Borrowings", "Current Portion of Long Term Debt", 
+                "Curr. Portion of Leases", "Other Current Liabilities", "Total Current Liabilities", "Total Pref. Equity", 
+                "Common Equity", "Additional Paid In Capital", "Retained Earnings", "Treasury Stock", 
+                "Comprehensive Inc. and Other", "Minority Interest", "Net Property, Plant & Equipment", 
+                "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net", 
+                "Other Long-Term Assets", "Long-Term Debt", "Long-Term Leases", 
+                "Pension & Other Post-Retire. Benefits", "Def. Tax Liability, Non-Curr.", 
+                "Other Non-Current Liabilities", "Total Liabilities", "Total Liabilities And Equity"],
+    "Mnemonic": ["Cash and Equivalents", "Short Term Investments", "Trading Asset Securities", "Accounts Receivable", 
+                 "Other Receivables", "Inventory", "Prepaid Exp.", "Restricted Cash", "Other Current Assets", "Total Current Assets", 
+                 "Accounts Payable", "Accrued Exp.", "Short-term Borrowings", "Current Portion of Long Term Debt", 
+                 "Curr. Portion of Leases", "Other Current Liabilities", "Total Current Liabilities", "Total Pref. Equity", 
+                 "Common Equity", "Additional Paid In Capital", "Retained Earnings", "Treasury Stock", 
+                 "Comprehensive Inc. and Other", "Minority Interest", "Net Property, Plant & Equipment", 
+                 "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net", 
+                 "Other Long-Term Assets", "Long-Term Debt", "Long-Term Leases", 
+                 "Pension & Other Post-Retire. Benefits", "Def. Tax Liability, Non-Curr.", 
+                 "Other Non-Current Liabilities", "Total Liabilities", "Total Liabilities And Equity"],
+    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_TRADING_ASSETS", "IQ_AR", 
+            "IQ_OTHER_RECEIV", "IQ_INVENTORY", "IQ_PREPAID_EXP", "IQ_RESTRICTED_CASH", "IQ_OTHER_CA_SUPPL", "IQ_TOTAL_CA", 
+            "IQ_AP", "IQ_AE", "IQ_ST_DEBT", "IQ_CURRENT_PORT_DEBT", 
+            "IQ_CURRENT_PORT_LEASES", "IQ_OTHER_CL_SUPPL", "IQ_TOTAL_CL", "IQ_PREF_EQUITY", 
+            "IQ_COMMON", "IQ_APIC", "IQ_RE", "IQ_TREASURY", 
+            "IQ_OTHER_EQUITY", "IQ_MINORITY_INTEREST", "IQ_NPPE", 
+            "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET", 
+            "IQ_OTHER_LT_ASSETS", "IQ_LT_DEBT", "IQ_LONG_TERM_LEASES", 
+            "IQ_PENSION", "IQ_DEF_TAX_LIAB_LT", 
+            "IQ_OTHER_LIAB_LT", "IQ_TOTAL_LIAB", "IQ_TOTAL_LIAB_EQUITY"]
 }
 
 # Define the initial lookup data for Cash Flow
 initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
-    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
-    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
-    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
+    "Label": ["Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", 
+              "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", 
+              "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", 
+              "Operating Activities", "Operating Activities", "Investing Activities", "Investing Activities", "Investing Activities", 
+              "Investing Activities", "Investing Activities", "Financing Activities", "Financing Activities", "Financing Activities", 
+              "Financing Activities", "Financing Activities", "Financing Activities", "Financing Activities", "Financing Activities", 
+              "Financing Activities", "Financing Activities", "Financing Activities", "Cash from other", "Cash from other"],
+    "Account": ["Net Income", "Depreciation & Amort.", "Amort. of Goodwill and Intangibles", "Other Amortization", 
+                "(Gain) Loss From Sale Of Assets", "(Gain) Loss On Sale Of Invest.", "Asset Writedown & Restructuring Costs", 
+                "Stock-Based Compensation", "Net Cash From Discontinued Ops.", "Other Operating Activities", 
+                "Change in Trad. Asset Securities", "Change in Acc. Receivable", "Change In Inventories", 
+                "Change in Acc. Payable", "Change in Unearned Rev.", "Change in Inc. Taxes", "Change in Def. Taxes", 
+                "Change in Other Net Operating Assets", "Capital Expenditure", "Sale of Property, Plant, and Equipment", 
+                "Cash Acquisitions", "Divestitures", "Other Investing Activities", "Short Term Debt Issued", 
+                "Long-Term Debt Issued", "Short Term Debt Repaid", "Long-Term Debt Repaid", "Issuance of Common Stock", 
+                "Repurchase of Common Stock", "Issuance of Pref. Stock", "Repurchase of Preferred Stock", 
+                "Common and/or Pref. Dividends Paid", "Special Dividend Paid", "Other Financing Activities", 
+                "Foreign Exchange Rate Adj.", "Misc. Cash Flow Adj."],
+    "Mnemonic": ["Net Income", "Depreciation & Amort.", "Amort. of Goodwill and Intangibles", "Other Amortization", 
+                 "(Gain) Loss From Sale Of Assets", "(Gain) Loss On Sale Of Invest.", "Asset Writedown & Restructuring Costs", 
+                 "Stock-Based Compensation", "Net Cash From Discontinued Ops.", "Other Operating Activities", 
+                 "Change in Trad. Asset Securities", "Change in Acc. Receivable", "Change In Inventories", 
+                 "Change in Acc. Payable", "Change in Unearned Rev.", "Change in Inc. Taxes", "Change in Def. Taxes", 
+                 "Change in Other Net Operating Assets", "Capital Expenditure", "Sale of Property, Plant, and Equipment", 
+                 "Cash Acquisitions", "Divestitures", "Other Investing Activities", "Short Term Debt Issued", 
+                 "Long-Term Debt Issued", "Short Term Debt Repaid", "Long-Term Debt Repaid", "Issuance of Common Stock", 
+                 "Repurchase of Common Stock", "Issuance of Pref. Stock", "Repurchase of Preferred Stock", 
+                 "Common and/or Pref. Dividends Paid", "Special Dividend Paid", "Other Financing Activities", 
+                 "Foreign Exchange Rate Adj.", "Misc. Cash Flow Adj."],
+    "CIQ": ["IQ_NI_CF", "IQ_DA_SUPPL_CF", "IQ_GW_INTAN_AMORT_CF", "IQ_OTHER_AMORT", "IQ_GAIN_ASSETS_CF", 
+            "IQ_GAIN_INVEST_CF", "IQ_ASSET_WRITEDOWN_CF", "IQ_STOCK_BASED_CF", "IQ_DO_CF", "IQ_OTHER_OPER_ACT", 
+            "IQ_CHANGE_TRADING_ASSETS", "IQ_CHANGE_AR", "IQ_CHANGE_INVENTORY", "IQ_CHANGE_AP", "IQ_CHANGE_UNEARN_REV", 
+            "IQ_CHANGE_INC_TAX", "IQ_CHANGE_DEF_TAX", "IQ_CHANGE_OTHER_NET_OPER_ASSETS", "IQ_CAPEX", 
+            "IQ_SALE_PPE_CF", "IQ_CASH_ACQUIRE_CF", "IQ_DIVEST_CF", "IQ_OTHER_INVEST_ACT_SUPPL", "IQ_ST_DEBT_ISSUED", 
+            "IQ_LT_DEBT_ISSUED", "IQ_ST_DEBT_REPAID", "IQ_LT_DEBT_REPAID", "IQ_COMMON_ISSUED", "IQ_COMMON_REP", 
+            "IQ_PREF_ISSUED", "IQ_PREF_REP", "IQ_COMMON_PREF_DIV_CF", "IQ_SPECIAL_DIV_CF", "IQ_OTHER_FINANCE_ACT_SUPPL", 
+            "IQ_FX", "IQ_MISC_ADJUST_CF"]
 }
 
 # Define the file paths for the data dictionaries
@@ -149,7 +213,7 @@ def balance_sheet():
 
     st.title("BALANCE SHEET LTMA")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -352,7 +416,7 @@ def balance_sheet():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
@@ -509,7 +573,7 @@ def cash_flow_statement():
     global cash_flow_lookup_df
 
     st.title("CASH FLOW STATEMENT LTMA")
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Cash Flow Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Cash Flow Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_cfs')
@@ -700,12 +764,12 @@ def cash_flow_statement():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_cfs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
@@ -988,7 +1052,7 @@ def income_statement():
             income_statement_lookup_df = pd.DataFrame()
 
     st.title("INCOME STATEMENT LTMA")
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Income Statement Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -1120,7 +1184,7 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel_is = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_is')
 
@@ -1244,7 +1308,7 @@ def income_statement():
                                 income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value_is
                     if new_entries_is:
                         income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
-                    income_statement_lookup_df.resetindex(drop=True, inplace=True)
+                    income_statement_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
@@ -1270,7 +1334,7 @@ def income_statement():
 
         remove_indices_is = st.multiselect("Select rows to remove", st.session_state.income_statement_data.index, key='remove_indices_tab4_is')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_is"):
-            st.session_state.income_statement_data = st.session_state.income_statement_data.drop(remove_indices_is).resetindex(drop=True)
+            st.session_state.income_statement_data = st.session_state.income_statement_data.drop(remove_indices_is).reset_index(drop=True)
             save_lookup_table(st.session_state.income_statement_data, income_statement_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(st.session_state.income_statement_data)
