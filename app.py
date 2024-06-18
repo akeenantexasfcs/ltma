@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -1389,13 +1389,14 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_income_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                            continue  # Skip cells with formulas
-                                        for merge_cell in template_income_sheet.merged_cells.ranges:
-                                            if cell.coordinate in merge_cell:
-                                                template_income_sheet.unmerge_cells(str(merge_cell))
-                                                break
-                                        cell.value = value
+                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
+                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
+                                                continue  # Skip cells with formulas
+                                            for merge_cell in template_income_sheet.merged_cells.ranges:
+                                                if cell.coordinate in merge_cell:
+                                                    template_income_sheet.unmerge_cells(str(merge_cell))
+                                                    break
+                                            cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template income sheet at cell {cell.coordinate}: {e}")
                         return
@@ -1459,13 +1460,14 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_balance_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                            continue  # Skip cells with formulas
-                                        for merge_cell in template_balance_sheet.merged_cells.ranges:
-                                            if cell.coordinate in merge_cell:
-                                                template_balance_sheet.unmerge_cells(str(merge_cell))
-                                                break
-                                        cell.value = value
+                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
+                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
+                                                continue  # Skip cells with formulas
+                                            for merge_cell in template_balance_sheet.merged_cells.ranges:
+                                                if cell.coordinate in merge_cell:
+                                                    template_balance_sheet.unmerge_cells(str(merge_cell))
+                                                    break
+                                            cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template balance sheet at cell {cell.coordinate}: {e}")
                         return
@@ -1529,13 +1531,14 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                            continue  # Skip cells with formulas
-                                        for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
-                                            if cell.coordinate in merge_cell:
-                                                template_cash_flow_sheet.unmerge_cells(str(merge_cell))
-                                                break
-                                        cell.value = value
+                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
+                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
+                                                continue  # Skip cells with formulas
+                                            for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
+                                                if cell.coordinate in merge_cell:
+                                                    template_cash_flow_sheet.unmerge_cells(str(merge_cell))
+                                                    break
+                                            cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template cash flow sheet at cell {cell.coordinate}: {e}")
                         return
