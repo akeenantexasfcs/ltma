@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[1]:
 
 
 import io
@@ -1589,48 +1589,61 @@ def populate_ciq_template():
                     mime=mime_type
                 )
 
+import json
+import pandas as pd
+import streamlit as st
+
 def json_conversion():
     st.title("JSON Conversion")
 
     uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
     if uploaded_file is not None:
-        data = json.load(uploaded_file)
+        try:
+            # Read the uploaded file as a string
+            file_contents = uploaded_file.read().decode('utf-8')
+            # Load the JSON data
+            data = json.loads(file_contents)
 
-        tables = []
-        for block in data['Blocks']:
-            if block['BlockType'] == 'TABLE':
-                table = {}
-                if 'Relationships' in block:
-                    for relationship in block['Relationships']:
-                        if relationship['Type'] == 'CHILD':
-                            for cell_id in relationship['Ids']:
-                                cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
-                                if cell_block:
-                                    row_index = cell_block.get('RowIndex', 0)
-                                    col_index = cell_block.get('ColumnIndex', 0)
-                                    if row_index not in table:
-                                        table[row_index] = {}
-                                    cell_text = ''
-                                    if 'Relationships' in cell_block:
-                                        for rel in cell_block['Relationships']:
-                                            if rel['Type'] == 'CHILD':
-                                                for word_id in rel['Ids']:
-                                                    word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
-                                                    if word_block and word_block['BlockType'] == 'WORD':
-                                                        cell_text += ' ' + word_block.get('Text', '')
-                                    table[row_index][col_index] = cell_text.strip()
-                table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                table_df = table_df.sort_index(axis=1)
-                tables.append(table_df)
-        all_tables = pd.concat(tables, axis=0, ignore_index=True)
-        if len(all_tables.columns) == 0:
-            st.error("No columns found in the uploaded JSON file.")
-            return
+            tables = []
+            for block in data['Blocks']:
+                if block['BlockType'] == 'TABLE':
+                    table = {}
+                    if 'Relationships' in block:
+                        for relationship in block['Relationships']:
+                            if relationship['Type'] == 'CHILD':
+                                for cell_id in relationship['Ids']:
+                                    cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                    if cell_block:
+                                        row_index = cell_block.get('RowIndex', 0)
+                                        col_index = cell_block.get('ColumnIndex', 0)
+                                        if row_index not in table:
+                                            table[row_index] = {}
+                                        cell_text = ''
+                                        if 'Relationships' in cell_block:
+                                            for rel in cell_block['Relationships']:
+                                                if rel['Type'] == 'CHILD':
+                                                    for word_id in rel['Ids']:
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        if word_block and word_block['BlockType'] == 'WORD':
+                                                            cell_text += ' ' + word_block.get('Text', '')
+                                        table[row_index][col_index] = cell_text.strip()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
+                    tables.append(table_df)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            if len(all_tables.columns) == 0:
+                st.error("No columns found in the uploaded JSON file.")
+                return
 
-        all_tables.insert(0, 'Label', '')
+            all_tables.insert(0, 'Label', '')
 
-        st.subheader("Data Preview")
-        st.dataframe(all_tables)
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
+
+        except json.JSONDecodeError:
+            st.error("The uploaded file is not a valid JSON.")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 def main():
     st.sidebar.title("Navigation")
