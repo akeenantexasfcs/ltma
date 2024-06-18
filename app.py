@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[16]:
 
 
 import io
@@ -605,7 +605,7 @@ def cash_flow_statement():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -704,10 +704,10 @@ def cash_flow_statement():
 
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_cfs")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_cfs")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_cfs")
 
             conversion_factors = {
-                "No Conversions Necessary": 1,
+                "Actuals": 1,
                 "Thousands": 1000,
                 "Millions": 1000000,
                 "Billions": 1000000000
@@ -724,7 +724,7 @@ def cash_flow_statement():
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
-                if selected_value != "No Conversions Necessary":
+                if selected_value != "Actuals":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
@@ -741,7 +741,7 @@ def cash_flow_statement():
 
         dfs = []
         if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+            dfs = [pd.read_excel(file) for file in uploaded_files]
 
         if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
@@ -888,7 +888,7 @@ def cash_flow_statement():
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                    save_lookup_table_csv(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
@@ -898,7 +898,7 @@ def cash_flow_statement():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_csv(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(cash_flow_lookup_df)
@@ -906,23 +906,20 @@ def cash_flow_statement():
         remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
             cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_csv(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_cfs"):
-            excel_file = io.BytesIO()
-            cash_flow_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            csv_file = io.BytesIO()
+            cash_flow_lookup_df.to_csv(csv_file, index=False)
+            csv_file.seek(0)
+            st.download_button("Download CSV", csv_file, "cash_flow_data_dictionary.csv", "text/csv")
+
 
 
 ######################################INCOME STATEMENT##################################
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
-# Global variables and functions
+
 # Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
