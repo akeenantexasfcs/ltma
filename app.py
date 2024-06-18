@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -1288,25 +1288,33 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):  # Green color
+def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     source_sheet = source_book[sheet_name]
     target_sheet = target_book.create_sheet(title=sheet_name)
+
     for row in source_sheet.iter_rows():
         for cell in row:
             target_cell = target_sheet[cell.coordinate]
             target_cell.value = cell.value
+
+            # Copy styles manually
             if cell.has_style:
-                target_cell.font = cell.font
-                target_cell.border = cell.border
-                target_cell.fill = cell.fill
+                target_cell.font = cell.font.copy()
+                target_cell.border = cell.border.copy()
+                target_cell.fill = cell.fill.copy()
                 target_cell.number_format = cell.number_format
-                target_cell.protection = cell.protection
-                target_cell.alignment = cell.alignment
+                target_cell.protection = cell.protection.copy()
+                target_cell.alignment = cell.alignment.copy()
+
+            # Copy hyperlinks and comments
             if cell.hyperlink:
                 target_cell.hyperlink = cell.hyperlink
             if cell.comment:
                 target_cell.comment = cell.comment
+
     target_sheet.sheet_properties.tabColor = tab_color
+
+    # Copy merged cells
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
