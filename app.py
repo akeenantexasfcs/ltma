@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1287,7 +1287,6 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import PatternFill
 
 def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):  # Green color
     source_sheet = source_book[sheet_name]
@@ -1389,14 +1388,13 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_income_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
-                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                                continue  # Skip cells with formulas
-                                            for merge_cell in template_income_sheet.merged_cells.ranges:
-                                                if cell.coordinate in merge_cell:
-                                                    template_income_sheet.unmerge_cells(str(merge_cell))
-                                                    break
-                                            cell.value = value
+                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
+                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
+                                                for merge_cell in template_income_sheet.merged_cells.ranges:
+                                                    if cell.coordinate in merge_cell:
+                                                        template_income_sheet.unmerge_cells(str(merge_cell))
+                                                        break
+                                                cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template income sheet at cell {cell.coordinate}: {e}")
                         return
@@ -1460,14 +1458,13 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_balance_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
-                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                                continue  # Skip cells with formulas
-                                            for merge_cell in template_balance_sheet.merged_cells.ranges:
-                                                if cell.coordinate in merge_cell:
-                                                    template_balance_sheet.unmerge_cells(str(merge_cell))
-                                                    break
-                                            cell.value = value
+                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
+                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
+                                                for merge_cell in template_balance_sheet.merged_cells.ranges:
+                                                    if cell.coordinate in merge_cell:
+                                                        template_balance_sheet.unmerge_cells(str(merge_cell))
+                                                        break
+                                                cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template balance sheet at cell {cell.coordinate}: {e}")
                         return
@@ -1531,14 +1528,13 @@ def populate_ciq_template():
                                 for c_idx, value in enumerate(row, 1):
                                     if c_idx >= 4 and c_idx <= 7:
                                         cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.coordinate not in ['J', 'K', 'L', 'M']:
-                                            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                                                continue  # Skip cells with formulas
-                                            for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
-                                                if cell.coordinate in merge_cell:
-                                                    template_cash_flow_sheet.unmerge_cells(str(merge_cell))
-                                                    break
-                                            cell.value = value
+                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
+                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
+                                                for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
+                                                    if cell.coordinate in merge_cell:
+                                                        template_cash_flow_sheet.unmerge_cells(str(merge_cell))
+                                                        break
+                                                cell.value = value
                     except Exception as e:
                         st.error(f"Error updating template cash flow sheet at cell {cell.coordinate}: {e}")
                         return
@@ -1560,8 +1556,8 @@ def populate_ciq_template():
 
                 if errors:
                     st.error("Errors encountered during processing:")
-                    for error in errors:
-                        st.error(error)
+                    for error in errors, r_idx:
+                        st.error(f"{r_idx}: {error}")
 
                 mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
