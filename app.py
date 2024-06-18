@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[12]:
 
 
 import io
@@ -99,9 +99,9 @@ initial_cash_flow_lookup_data = {
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.csv'
 
-# Load or initialize the lookup table
+
 def load_or_initialize_lookup(file_path, initial_data):
     if os.path.exists(file_path):
         lookup_df = pd.read_csv(file_path)
@@ -111,12 +111,8 @@ def load_or_initialize_lookup(file_path, initial_data):
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    if file_path.endswith('.csv'):
-        df.to_csv(file_path, index=False)
-    elif file_path.endswith('.xlsx'):
-        df.to_excel(file_path, index=False)
-    else:
-        raise ValueError("Unsupported file type. Please provide a file path with '.csv' or '.xlsx' extension.")
+    df.to_csv(file_path, index=False)
+
 
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
@@ -571,10 +567,11 @@ def balance_sheet():
             st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            excel_file = io.BytesIO()
-            balance_sheet_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            csv_file = io.BytesIO()
+            balance_sheet_lookup_df.to_csv(csv_file, index=False)
+            csv_file.seek(0)
+            st.download_button("Download CSV", csv_file, "balance_sheet_data_dictionary.csv", "text/csv")
+
 
             
 #######################################################Cash Flow Statement########################################################
