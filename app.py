@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[19]:
 
 
 import io
@@ -157,8 +157,9 @@ def create_combined_df(dfs):
         df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
         st.write(f"Grouped DataFrame for dataframe {i+1}:")
         st.write(df_grouped.head())  # Output grouped DataFrame for debugging
-        
+
         try:
+            st.write(f"Columns before melting dataframe {i+1}: {df_grouped.columns.tolist()}")  # Output the columns before melting
             df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
             st.write(f"Melted DataFrame for dataframe {i+1}:")
             st.write(df_melted.head())  # Output melted DataFrame for debugging
