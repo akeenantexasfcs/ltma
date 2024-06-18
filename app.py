@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[17]:
 
 
 import io
@@ -145,16 +145,26 @@ def create_combined_df(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
         if final_mnemonic_col not in df.columns:
             st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            st.write(df.columns.tolist())  # Output the columns for debugging
             continue
         
         date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
         if not date_cols:
             st.error(f"No date columns found in dataframe {i+1}")
+            st.write(df.columns.tolist())  # Output the columns for debugging
             continue
 
         df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        st.write(f"Grouped DataFrame for dataframe {i+1}:")
+        st.write(df_grouped.head())  # Output grouped DataFrame for debugging
+        
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+        st.write(f"Melted DataFrame for dataframe {i+1}:")
+        st.write(df_melted.head())  # Output melted DataFrame for debugging
+        
         df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+        st.write(f"Pivoted DataFrame for dataframe {i+1}:")
+        st.write(df_pivot.head())  # Output pivoted DataFrame for debugging
         
         if combined_df.empty:
             combined_df = df_pivot
