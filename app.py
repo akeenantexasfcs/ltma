@@ -1298,6 +1298,10 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):  # Gre
             target_cell.value = cell.value
     target_sheet.sheet_properties.tabColor = tab_color
 
+def get_cell_value_as_string(sheet, cell_address):
+    cell_value = sheet[cell_address].value
+    return str(cell_value) if cell_value is not None else ""
+
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
@@ -1312,7 +1316,7 @@ def populate_ciq_template():
         if uploaded_template and (uploaded_income_statement or uploaded_balance_sheet or uploaded_cash_flow_statement):
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
+                template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
                 if uploaded_income_statement:
                     income_statement_book = load_workbook(uploaded_income_statement, data_only=True)
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1351,10 +1355,10 @@ def populate_ciq_template():
                     try:
                         template_income_sheet = template_book["Income Statement"]
                         template_income_dates = [
-                            template_income_sheet["D10"].value,
-                            template_income_sheet["E10"].value,
-                            template_income_sheet["F10"].value,
-                            template_income_sheet["G10"].value
+                            get_cell_value_as_string(template_income_sheet, "D10"),
+                            get_cell_value_as_string(template_income_sheet, "E10"),
+                            get_cell_value_as_string(template_income_sheet, "F10"),
+                            get_cell_value_as_string(template_income_sheet, "G10")
                         ]
                     except Exception as e:
                         st.error(f"Error reading dates from template income statement: {e}")
@@ -1421,10 +1425,10 @@ def populate_ciq_template():
                     try:
                         template_balance_sheet = template_book["Balance Sheet"]
                         template_balance_dates = [
-                            template_balance_sheet["D10"].value,
-                            template_balance_sheet["E10"].value,
-                            template_balance_sheet["F10"].value,
-                            template_balance_sheet["G10"].value
+                            get_cell_value_as_string(template_balance_sheet, "D10"),
+                            get_cell_value_as_string(template_balance_sheet, "E10"),
+                            get_cell_value_as_string(template_balance_sheet, "F10"),
+                            get_cell_value_as_string(template_balance_sheet, "G10")
                         ]
                     except Exception as e:
                         st.error(f"Error reading dates from template balance sheet: {e}")
@@ -1491,10 +1495,10 @@ def populate_ciq_template():
                     try:
                         template_cash_flow_sheet = template_book["Cash Flow"]
                         template_cash_flow_dates = [
-                            template_cash_flow_sheet["D10"].value,
-                            template_cash_flow_sheet["E10"].value,
-                            template_cash_flow_sheet["F10"].value,
-                            template_cash_flow_sheet["G10"].value
+                            get_cell_value_as_string(template_cash_flow_sheet, "D10"),
+                            get_cell_value_as_string(template_cash_flow_sheet, "E10"),
+                            get_cell_value_as_string(template_cash_flow_sheet, "F10"),
+                            get_cell_value_as_string(template_cash_flow_sheet, "G10")
                         ]
                     except Exception as e:
                         st.error(f"Error reading dates from template cash flow statement: {e}")
