@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1376,28 +1376,11 @@ def populate_ciq_template():
                                                 income_statement_col = income_statement_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col + 2}")
                                                 if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_income_statement_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
+                                                    template_income_sheet.cell(row=i + 12, column=3 + j).value = income_statement_row.iat[0, income_statement_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_income_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_income_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_income_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_income_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template income sheet at cell {cell.coordinate}: {e}")
-                        return
 
                     try:
                         copy_sheet(income_statement_book, template_book, "As Presented - Income Stmt")
@@ -1446,28 +1429,11 @@ def populate_ciq_template():
                                                 balance_sheet_col = balance_sheet_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 2}")
                                                 if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 2]
+                                                    template_balance_sheet.cell(row=i + 12, column=3 + j).value = balance_sheet_row.iat[0, balance_sheet_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_balance_sheet_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_balance_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_balance_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_balance_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template balance sheet at cell {cell.coordinate}: {e}")
-                        return
 
                     try:
                         copy_sheet(balance_sheet_book, template_book, "As Presented - Balance Sheet")
@@ -1516,28 +1482,11 @@ def populate_ciq_template():
                                                 cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
                                                 st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 2}")
                                                 if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
+                                                    template_cash_flow_sheet.cell(row=i + 12, column=3 + j).value = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_cash_flow_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_cash_flow_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template cash flow sheet at cell {cell.coordinate}: {e}")
-                        return
 
                     try:
                         copy_sheet(cash_flow_statement_book, template_book, "As Presented - Cash Flow")
