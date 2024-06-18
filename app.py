@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -1287,6 +1287,18 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import PatternFill
+
+def copy_and_color_sheet(source_book, target_book, sheet_name, fill_color="00FF00"):  # Green color
+    source_sheet = source_book[sheet_name]
+    target_sheet = target_book.create_sheet(title=sheet_name)
+    green_fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+
+    for row in source_sheet.iter_rows():
+        for cell in row:
+            target_cell = target_sheet[cell.coordinate]
+            target_cell.value = cell.value
+            target_cell.fill = green_fill
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1303,6 +1315,9 @@ def populate_ciq_template():
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
+                income_statement_book = load_workbook(uploaded_income_statement, data_only=True)
+                balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=True)
+                cash_flow_statement_book = load_workbook(uploaded_cash_flow_statement, data_only=True)
                 income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
                 cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
@@ -1472,6 +1487,15 @@ def populate_ciq_template():
                                     cell.value = value
                 except Exception as e:
                     st.error(f"Error updating template sheet at cell {cell.coordinate}: {e}")
+                    return
+
+                try:
+                    # Copy "As Presented" sheets and color them green
+                    copy_and_color_sheet(income_statement_book, template_book, "As Presented - Income Stmt")
+                    copy_and_color_sheet(balance_sheet_book, template_book, "As Presented - Balance Sheet")
+                    copy_and_color_sheet(cash_flow_statement_book, template_book, "As Presented - Cash Flow")
+                except Exception as e:
+                    st.error(f"Error copying 'As Presented' sheets: {e}")
                     return
 
                 try:
