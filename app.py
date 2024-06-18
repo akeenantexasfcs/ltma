@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1556,8 +1556,8 @@ def populate_ciq_template():
 
                 if errors:
                     st.error("Errors encountered during processing:")
-                    for error in errors, r_idx:
-                        st.error(f"{r_idx}: {error}")
+                    for error in errors:
+                        st.error(error)
 
                 mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
