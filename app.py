@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -858,6 +858,22 @@ def cash_flow_statement():
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 ############################################## Income Statement Functions########################################
+import io
+import os
+import re
+import json
+import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+
+# Ensure conversion_factors is defined
+conversion_factors = {
+    'None': 1,
+    'Thousands': 1000,
+    'Millions': 1000000
+}
+
 def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
@@ -975,7 +991,7 @@ def income_statement():
             st.dataframe(all_tables)
 
             st.subheader("Edit and Remove Rows")
-            editable_df = st.data_editor(all_tables, num_rows="dynamic", use_container_width=True)
+            editable_df = st.experimental_data_editor(all_tables, num_rows="dynamic", use_container_width=True)
 
             st.subheader("Select numerical columns")
             numerical_columns = []
@@ -1106,6 +1122,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                    
 ####################################### Populate CIQ Template ###################################
@@ -1416,7 +1433,7 @@ def populate_ciq_template():
                 )
 
                                    
-# Main Function
+########################################################################### Main Function
 def main():
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
