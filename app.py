@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -867,14 +867,11 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Global variables and functions
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-
+# Ensure conversion_factors is defined
 conversion_factors = {
-    "Actuals": 1,
-    "Thousands": 1000,
-    "Millions": 1000000,
-    "Billions": 1000000000
+    'None': 1,
+    'Thousands': 1000,
+    'Millions': 1000000
 }
 
 def clean_numeric_value_IS(value):
@@ -894,10 +891,7 @@ def apply_unit_conversion_IS(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
-
-def create_combined_df(dfs):
+def create_combined_df_IS(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
@@ -927,11 +921,53 @@ def sort_by_sort_index(df):
 
 def aggregate_data_IS(uploaded_files):
     dataframes = []
+    unique_accounts = set()
+
     for file in uploaded_files:
         df = pd.read_excel(file)
+        df.columns = [str(col).strip() for col in df.columns]
+
+        if 'Account' not in df.columns:
+            st.error(f"Column 'Account' not found in file {file.name}")
+            return None
+
+        df['Sort Index'] = range(1, len(df) + 1)
         dataframes.append(df)
-    combined_df = pd.concat(dataframes, ignore_index=True)
-    return combined_df
+        unique_accounts.update(df['Account'].dropna().unique())
+
+    concatenated_df = pd.concat(dataframes, ignore_index=True)
+
+    statement_date_rows = concatenated_df[concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+    numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
+
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
+
+    numeric_rows.fillna(0, inplace=True)
+
+    for col in numeric_rows.columns:
+        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+            numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
+
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
+
+    statement_date_rows['Sort Index'] = 100
+    statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
+
+    final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
+
+    final_df.insert(1, 'Positive decrease NI', False)
+
+    sort_index_column = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index_column
+
+    final_df.sort_values('Sort Index', inplace=True)
+
+    return final_df
+
+def save_lookup_table(df, file_path):
+    df.to_excel(file_path, index=False)
 
 def income_statement():
     global income_statement_lookup_df
@@ -1125,7 +1161,7 @@ def income_statement():
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
-                    combined_df_is = create_combined_df([final_output_df_is])
+                    combined_df_is = create_combined_df_IS([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
 
                     def lookup_ciq_is(mnemonic):
