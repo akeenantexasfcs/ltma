@@ -867,15 +867,15 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Ensure conversion_factors is defined
-conversion_factors = {
-    'None': 1,
-    'Thousands': 1000,
-    'Millions': 1000000,
-    'Billions': 1000000000
-}
-
+# Global variables and functions
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+
+conversion_factors = {
+    "Actuals": 1,
+    "Thousands": 1000,
+    "Millions": 1000000,
+    "Billions": 1000000000
+}
 
 def clean_numeric_value_IS(value):
     try:
@@ -897,7 +897,7 @@ def apply_unit_conversion_IS(df, columns, factor):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
-def create_combined_df_IS(dfs):
+def create_combined_df(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
@@ -1059,20 +1059,6 @@ def income_statement():
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
-
-                excel_file_is = io.BytesIO()
-                with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                    combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
-                    as_presented_df_is.to_excel(writer, sheet_name='As Presented', index=False)
-                    cover_df_is = pd.DataFrame({
-                        'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                        'Value': [selected_currency_is, selected_magnitude_is, company_name_is]
-                    })
-                    cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
-                excel_file_is.seek(0)
-                st.download_button("Download Excel", excel_file_is, "mnemonic_mapping_with_aggregation_is.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     with tab3:
         st.subheader("Mappings and Data Aggregation")
 
@@ -1092,11 +1078,9 @@ def income_statement():
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                # Ensure Sort Index is present
                 if 'Sort Index' not in df_is.columns:
                     df_is['Sort Index'] = range(1, len(df_is) + 1)
 
-                # Function to get the best match based on Account using Levenshtein distance
                 def get_best_match_is(account):
                     best_score_is = float('inf')
                     best_match_is = None
@@ -1132,7 +1116,7 @@ def income_statement():
                     if manual_selection_is:
                         df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
 
-                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])  # Include 'Sort Index' as a helper column
+                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
@@ -1141,10 +1125,9 @@ def income_statement():
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
                     
-                    combined_df_is = create_combined_df_IS([final_output_df_is])
+                    combined_df_is = create_combined_df([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
 
-                    # Add CIQ column based on lookup
                     def lookup_ciq_is(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ IQ Required'
@@ -1158,7 +1141,6 @@ def income_statement():
                     columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
 
-                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_df_is = sort_by_sort_index(as_presented_df_is)
                     as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
@@ -1232,7 +1214,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
                                    
