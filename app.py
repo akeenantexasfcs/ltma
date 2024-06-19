@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[36]:
+# In[1]:
 
 
 import io
@@ -857,7 +857,7 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Income Statement Functions
+############################################## Income Statement Functions########################################
 def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
@@ -1255,8 +1255,8 @@ def populate_ciq_template():
 
                 if uploaded_balance_sheet:
                     try:
-                        ciq_mnemonics_balance = balance_sheet_df.iloc[:, 1]
-                        balance_sheet_dates = balance_sheet_df.columns[2:]
+                        ciq_mnemonics_balance = balance_sheet_df.iloc[:, 2]
+                        balance_sheet_dates = balance_sheet_df.columns[3:]
                     except Exception as e:
                         st.error(f"Error processing balance sheet data: {e}")
                         return
@@ -1292,9 +1292,9 @@ def populate_ciq_template():
                                         if date in balance_sheet_dates.values:
                                             try:
                                                 balance_sheet_col = balance_sheet_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 2}")
+                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 3}")
                                                 if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 2]
+                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 3]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
@@ -1325,8 +1325,8 @@ def populate_ciq_template():
 
                 if uploaded_cash_flow_statement:
                     try:
-                        ciq_mnemonics_cash_flow = cash_flow_statement_df.iloc[:, 1]
-                        cash_flow_statement_dates = cash_flow_statement_df.columns[2:]
+                        ciq_mnemonics_cash_flow = cash_flow_statement_df.iloc[:, 2]
+                        cash_flow_statement_dates = cash_flow_statement_df.columns[3:]
                     except Exception as e:
                         st.error(f"Error processing cash flow statement data: {e}")
                         return
@@ -1362,9 +1362,9 @@ def populate_ciq_template():
                                         if date in cash_flow_statement_dates.values:
                                             try:
                                                 cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 2}")
+                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 3}")
                                                 if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 2]
+                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 3]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
                             except Exception as e:
@@ -1432,10 +1432,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
