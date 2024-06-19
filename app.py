@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -317,27 +317,24 @@ def balance_sheet():
             st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
-        st.subheader("Mappings and Data Consolidation")
+        st.subheader("Mappings and Data Aggregation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
-        company_name = st.text_input("Enter Company Name", key='company_name_input_bs')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
-            if 'Account' not in df.columns or 'Label' not in df.columns:
-                st.error("The uploaded file does not contain the required 'Account' or 'Label' columns.")
+            if 'Account' not in df.columns:
+                st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                if 'Sort Index' not in df.columns:
-                    df['Sort Index'] = range(1, len(df) + 1)
-
+                # Function to get the best match based on Label first, then Levenshtein distance on Account
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
@@ -345,6 +342,7 @@ def balance_sheet():
                         if lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
+                            # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                             if score < best_score:
                                 best_score = score
@@ -355,8 +353,8 @@ def balance_sheet():
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
-                    label_value = row['Label']
-                    if pd.notna(account_value) and pd.notna(label_value):
+                    label_value = row.get('Label', '')
+                    if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
                         if best_match is not None and score < 0.25:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
@@ -364,7 +362,10 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                     
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
+                        if label_value:
+                            message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
+                        else:
+                            message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
                     
                     manual_selection = st.selectbox(
@@ -375,7 +376,7 @@ def balance_sheet():
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])  # Include 'Sort Index' as a helper column
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -387,6 +388,7 @@ def balance_sheet():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
+                    # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ IQ Required'
@@ -400,9 +402,8 @@ def balance_sheet():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
+                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_df = as_presented_df.sort_values(by=['Sort Index'])
-                    as_presented_df = as_presented_df.drop(columns=['Sort Index'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
@@ -411,12 +412,12 @@ def balance_sheet():
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency, selected_magnitude, company_name]
+                            'Selection': ['Currency', 'Magnitude'],
+                            'Value': [selected_currency, selected_magnitude]
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_aggregation_bs.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_aggregation.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -433,15 +434,17 @@ def balance_sheet():
                         
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
-                                new_entries.append({'Label': row['Label'], 'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                balance_sheet_lookup_df.loc[(balance_sheet_lookup_df['Account'] == row['Account']) & (balance_sheet_lookup_df['Label'] == row['Label']), 'Mnemonic'] = final_mnemonic
-                                balance_sheet_lookup_df.loc[(balance_sheet_lookup_df['Account'] == row['Account']) & (balance_sheet_lookup_df['Label'] == row['Label']), 'CIQ'] = ciq_value
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
