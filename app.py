@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[7]:
 
 
 import io
@@ -9,99 +9,32 @@ import json
 import os
 import pandas as pd
 import streamlit as st
-from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
-    "Label": ["Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Assets",
-              "Current Assets", "Current Assets", "Current Assets", "Current Assets", "Current Liabilities", "Current Liabilities",
-              "Current Liabilities", "Current Liabilities", "Current Liabilities", "Current Liabilities", "Current Liabilities",
-              "Equity", "Equity", "Equity", "Equity", "Equity", "Equity", "Equity", "Non Current Assets", "Non Current Assets",
-              "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Liabilities",
-              "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities", "Non Current Liabilities",
-              "Total Equity and Liabilities"],
-    "Account": ["Cash and Equivalents", "Short Term Investments", "Trading Asset Securities", "Accounts Receivable",
-                "Other Receivables", "Inventory", "Prepaid Exp.", "Restricted Cash", "Other Current Assets", "Total Current Assets",
-                "Accounts Payable", "Accrued Exp.", "Short-term Borrowings", "Current Portion of Long Term Debt",
-                "Curr. Portion of Leases", "Other Current Liabilities", "Total Current Liabilities", "Total Pref. Equity",
-                "Common Equity", "Additional Paid In Capital", "Retained Earnings", "Treasury Stock",
-                "Comprehensive Inc. and Other", "Minority Interest", "Net Property, Plant & Equipment",
-                "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net",
-                "Other Long-Term Assets", "Long-Term Debt", "Long-Term Leases",
-                "Pension & Other Post-Retire. Benefits", "Def. Tax Liability, Non-Curr.",
-                "Other Non-Current Liabilities", "Total Liabilities", "Total Liabilities And Equity"],
-    "Mnemonic": ["Cash and Equivalents", "Short Term Investments", "Trading Asset Securities", "Accounts Receivable",
-                 "Other Receivables", "Inventory", "Prepaid Exp.", "Restricted Cash", "Other Current Assets", "Total Current Assets",
-                 "Accounts Payable", "Accrued Exp.", "Short-term Borrowings", "Current Portion of Long Term Debt",
-                 "Curr. Portion of Leases", "Other Current Liabilities", "Total Current Liabilities", "Total Pref. Equity",
-                 "Common Equity", "Additional Paid In Capital", "Retained Earnings", "Treasury Stock",
-                 "Comprehensive Inc. and Other", "Minority Interest", "Net Property, Plant & Equipment",
-                 "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net",
-                 "Other Long-Term Assets", "Long-Term Debt", "Long-Term Leases",
-                 "Pension & Other Post-Retire. Benefits", "Def. Tax Liability, Non-Curr.",
-                 "Other Non-Current Liabilities", "Total Liabilities", "Total Liabilities And Equity"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_TRADING_ASSETS", "IQ_AR",
-            "IQ_OTHER_RECEIV", "IQ_INVENTORY", "IQ_PREPAID_EXP", "IQ_RESTRICTED_CASH", "IQ_OTHER_CA_SUPPL", "IQ_TOTAL_CA",
-            "IQ_AP", "IQ_AE", "IQ_ST_DEBT", "IQ_CURRENT_PORT_DEBT",
-            "IQ_CURRENT_PORT_LEASES", "IQ_OTHER_CL_SUPPL", "IQ_TOTAL_CL", "IQ_PREF_EQUITY",
-            "IQ_COMMON", "IQ_APIC", "IQ_RE", "IQ_TREASURY",
-            "IQ_OTHER_EQUITY", "IQ_MINORITY_INTEREST", "IQ_NPPE",
-            "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET",
-            "IQ_OTHER_LT_ASSETS", "IQ_LT_DEBT", "IQ_LONG_TERM_LEASES",
-            "IQ_PENSION", "IQ_DEF_TAX_LIAB_LT",
-            "IQ_OTHER_LIAB_LT", "IQ_TOTAL_LIAB", "IQ_TOTAL_LIAB_EQUITY"]
+    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
+                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
+                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
+            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
 }
 
 # Define the initial lookup data for Cash Flow
 initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities",
-              "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities",
-              "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities", "Operating Activities",
-              "Operating Activities", "Operating Activities", "Investing Activities", "Investing Activities", "Investing Activities",
-              "Investing Activities", "Investing Activities", "Financing Activities", "Financing Activities", "Financing Activities",
-              "Financing Activities", "Financing Activities", "Financing Activities", "Financing Activities", "Financing Activities",
-              "Financing Activities", "Financing Activities", "Financing Activities", "Cash from other", "Cash from other"],
-    "Account": ["Net Income", "Depreciation & Amort.", "Amort. of Goodwill and Intangibles", "Other Amortization",
-                "(Gain) Loss From Sale Of Assets", "(Gain) Loss On Sale Of Invest.", "Asset Writedown & Restructuring Costs",
-                "Stock-Based Compensation", "Net Cash From Discontinued Ops.", "Other Operating Activities",
-                "Change in Trad. Asset Securities", "Change in Acc. Receivable", "Change In Inventories",
-                "Change in Acc. Payable", "Change in Unearned Rev.", "Change in Inc. Taxes", "Change in Def. Taxes",
-                "Change in Other Net Operating Assets", "Capital Expenditure", "Sale of Property, Plant, and Equipment",
-                "Cash Acquisitions", "Divestitures", "Other Investing Activities", "Short Term Debt Issued",
-                "Long-Term Debt Issued", "Short Term Debt Repaid", "Long-Term Debt Repaid", "Issuance of Common Stock",
-                "Repurchase of Common Stock", "Issuance of Pref. Stock", "Repurchase of Preferred Stock",
-                "Common and/or Pref. Dividends Paid", "Special Dividend Paid", "Other Financing Activities",
-                "Foreign Exchange Rate Adj.", "Misc. Cash Flow Adj."],
-    "Mnemonic": ["Net Income", "Depreciation & Amort.", "Amort. of Goodwill and Intangibles", "Other Amortization",
-                 "(Gain) Loss From Sale Of Assets", "(Gain) Loss On Sale Of Invest.", "Asset Writedown & Restructuring Costs",
-                 "Stock-Based Compensation", "Net Cash From Discontinued Ops.", "Other Operating Activities",
-                 "Change in Trad. Asset Securities", "Change in Acc. Receivable", "Change In Inventories",
-                 "Change in Acc. Payable", "Change in Unearned Rev.", "Change in Inc. Taxes", "Change in Def. Taxes",
-                 "Change in Other Net Operating Assets", "Capital Expenditure", "Sale of Property, Plant, and Equipment",
-                 "Cash Acquisitions", "Divestitures", "Other Investing Activities", "Short Term Debt Issued",
-                 "Long-Term Debt Issued", "Short Term Debt Repaid", "Long-Term Debt Repaid", "Issuance of Common Stock",
-                 "Repurchase of Common Stock", "Issuance of Pref. Stock", "Repurchase of Preferred Stock",
-                 "Common and/or Pref. Dividends Paid", "Special Dividend Paid", "Other Financing Activities",
-                 "Foreign Exchange Rate Adj.", "Misc. Cash Flow Adj."],
-    "CIQ": ["IQ_NI_CF", "IQ_DA_SUPPL_CF", "IQ_GW_INTAN_AMORT_CF", "IQ_OTHER_AMORT", "IQ_GAIN_ASSETS_CF",
-            "IQ_GAIN_INVEST_CF", "IQ_ASSET_WRITEDOWN_CF", "IQ_STOCK_BASED_CF", "IQ_DO_CF", "IQ_OTHER_OPER_ACT",
-            "IQ_CHANGE_TRADING_ASSETS", "IQ_CHANGE_AR", "IQ_CHANGE_INVENTORY", "IQ_CHANGE_AP", "IQ_CHANGE_UNEARN_REV",
-            "IQ_CHANGE_INC_TAX", "IQ_CHANGE_DEF_TAX", "IQ_CHANGE_OTHER_NET_OPER_ASSETS", "IQ_CAPEX",
-            "IQ_SALE_PPE_CF", "IQ_CASH_ACQUIRE_CF", "IQ_DIVEST_CF", "IQ_OTHER_INVEST_ACT_SUPPL", "IQ_ST_DEBT_ISSUED",
-            "IQ_LT_DEBT_ISSUED", "IQ_ST_DEBT_REPAID", "IQ_LT_DEBT_REPAID", "IQ_COMMON_ISSUED", "IQ_COMMON_REP",
-            "IQ_PREF_ISSUED", "IQ_PREF_REP", "IQ_COMMON_PREF_DIV_CF", "IQ_SPECIAL_DIV_CF", "IQ_OTHER_FINANCE_ACT_SUPPL",
-            "IQ_FX", "IQ_MISC_ADJUST_CF"]
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
+    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
+    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
+    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
 }
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
-# Initialize lookup tables for Balance Sheet and Cash Flow
+# Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
     if os.path.exists(file_path):
         lookup_df = pd.read_csv(file_path)
@@ -110,18 +43,56 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
+def save_lookup_table(df, file_path):
+    df.to_csv(file_path, index=False)
+
+# Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
-# Function to save lookup tables as CSV
-def save_lookup_table_csv(df, file_path):
-    df.to_csv(file_path, index=False)
+def process_file(file):
+    try:
+        df = pd.read_excel(file, sheet_name=None)
+        first_sheet_name = list(df.keys())[0]
+        df = df[first_sheet_name]
+        return df
+    except Exception as e:
+        st.error(f"Error processing file {file.name}: {e}")
+        return None
 
-# Function to save lookup tables as Excel
-def save_lookup_table_excel(df, file_path):
-    df.to_excel(file_path, index=False)
+def create_combined_df(dfs):
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+        
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
 
-# Utility functions
+        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+        
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
+def aggregate_data(df):
+    if 'Label' not in df.columns or 'Account' not in df.columns:
+        st.error("'Label' and/or 'Account' columns not found in the data.")
+        return df
+    
+    pivot_table = df.pivot_table(index=['Label', 'Account'], 
+                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
+                                 aggfunc='sum').reset_index()
+    return pivot_table
+
 def clean_numeric_value(value):
     value_str = str(value).strip()
     if value_str.startswith('(') and value_str.endswith(')'):
@@ -132,61 +103,21 @@ def clean_numeric_value(value):
     except ValueError:
         return 0
 
-def apply_unit_conversion(df, columns, factor):
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
+def sort_by_label_and_account(df):
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
+    
+    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
-
-def create_combined_df(dfs):
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            st.write(df.columns.tolist())  # Output the columns for debugging
-            continue
-        
-        # Identify date columns
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            st.write(df.columns.tolist())  # Output the columns for debugging
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        st.write(f"Grouped DataFrame for dataframe {i+1}:")
-        st.write(df_grouped.head())  # Output grouped DataFrame for debugging
-
-        # Print the columns of df_grouped for debugging
-        st.write(f"Columns before melting dataframe {i+1}: {df_grouped.columns.tolist()}")
-
-        # Verify that date columns exist in the grouped DataFrame
-        missing_date_cols = [col for col in date_cols if col not in df_grouped.columns]
-        if missing_date_cols:
-            st.error(f"Missing date columns in dataframe {i+1}: {missing_date_cols}")
-            st.write(df_grouped.columns.tolist())  # Output the columns for debugging
-            continue
-
-        try:
-            df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-            st.write(f"Melted DataFrame for dataframe {i+1}:")
-            st.write(df_melted.head())  # Output melted DataFrame for debugging
-        except KeyError as e:
-            st.error(f"Error melting dataframe {i+1}: {e}")
-            st.write(df_grouped.columns.tolist())  # Output the columns for debugging
-            continue
-        
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-        st.write(f"Pivoted DataFrame for dataframe {i+1}:")
-        st.write(df_pivot.head())  # Output pivoted DataFrame for debugging
-        
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
 
 def sort_by_label_and_final_mnemonic(df):
     sort_order = {
@@ -204,22 +135,27 @@ def sort_by_label_and_final_mnemonic(df):
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
+
 def balance_sheet():
     global balance_sheet_lookup_df
 
-    if 'balance_sheet_lookup_df' not in globals():
-        if os.path.exists(balance_sheet_data_dictionary_file):
-            balance_sheet_lookup_df = pd.read_csv(balance_sheet_data_dictionary_file)
-        else:
-            balance_sheet_lookup_df = pd.DataFrame()
-
     st.title("BALANCE SHEET LTMA")
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
+
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
+            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
+            st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
+
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -247,25 +183,88 @@ def balance_sheet():
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            if len(all_tables.columns) == 0:
+                st.error("No columns found in the uploaded JSON file.")
+                return
+
             column_a = all_tables.columns[0]
+            all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
+            def get_unique_options(series):
+                counts = series.value_counts()
+                unique_options = []
+                occurrence_counts = {}
+                for item in series:
+                    if counts[item] > 1:
+                        if item not in occurrence_counts:
+                            occurrence_counts[item] = 1
+                        else:
+                            occurrence_counts[item] += 1
+                        unique_options.append(f"{item} {occurrence_counts[item]}")
+                    else:
+                        unique_options.append(item)
+                return unique_options
+
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
+            selections = []
+
+            for label in labels:
+                st.subheader(f"Setting bounds for {label}")
+                options = [''] + get_unique_options(all_tables[column_a].dropna())
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                selections.append((label, start_label, end_label))
+
+            new_column_names = {col: col for col in all_tables.columns}
+
+            def update_labels(df):
+                df['Label'] = ''
+                account_column = new_column_names.get(column_a, column_a)
+                for label, start_label, end_label in selections:
+                    if start_label and end_label:
+                        try:
+                            start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
+                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
+                            end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
+                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
+                            if pd.notna(start_index) and pd.notna(end_index):
+                                df.loc[start_index:end_index, 'Label'] = label
+                            else:
+                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                        except KeyError as e:
+                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
+                    else:
+                        st.info(f"No selections made for {label}. Skipping...")
+                return df
+
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+                preview_table = update_labels(all_tables.copy())
+                st.subheader("Preview of Setting Bounds")
+                st.dataframe(preview_table)
+
             st.subheader("Rename Columns")
-            new_column_names = {}
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            quarter_options = [f"Q{i}-{year}" for year in range(2018, 2027) for i in range(1, 5)]
+            ytd_options = [f"YTD {year}" for year in range(2018, 2027)]
             dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
             
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
+
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
 
             st.subheader("Select numerical columns")
             numerical_columns = []
@@ -273,9 +272,15 @@ def balance_sheet():
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
-            st.subheader("Convert Units")
+            if 'Label' not in columns_to_keep:
+                columns_to_keep.insert(0, 'Label')
+
+            if 'Account' not in columns_to_keep:
+                columns_to_keep.insert(1, 'Account')
+
+            st.subheader("Label Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_conversion_factor = st.radio("Select conversion factor", options=["Actuals", "Thousands", "Millions", "Billions"], key="conversion_factor")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
             conversion_factors = {
                 "Actuals": 1,
@@ -285,36 +290,64 @@ def balance_sheet():
             }
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = all_tables.copy()
+                updated_table = update_labels(all_tables.copy())
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
+
+                updated_table = updated_table[updated_table['Label'].str.strip() != '']
+                updated_table = updated_table[updated_table['Account'].str.strip() != '']
 
                 for col in numerical_columns:
-                    updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                    if col in updated_table.columns:
+                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
-                if selected_conversion_factor and selected_conversion_factor in conversion_factors:
-                    conversion_factor = conversion_factors[selected_conversion_factor]
-                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factor)
+                if selected_value != "No Conversions Necessary":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            st.subheader("Check for Duplicate Accounts")
+            if 'Account' not in all_tables.columns:
+                st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
+            else:
+                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                if not duplicated_accounts.empty:
+                    st.warning("Duplicates identified:")
+                    st.dataframe(duplicated_accounts)
+                else:
+                    st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
-        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
+        
+        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
+
+        dfs = []
         if uploaded_files:
-            dfs = [pd.read_excel(file) for file in uploaded_files]
+            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+
+        if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
-            aggregated_table = combined_df.groupby(['Label', 'Account']).sum(numeric_only=True).reset_index()
-            st.subheader("Aggregated Data Preview")
+            st.dataframe(combined_df)
+
+            aggregated_table = aggregate_data(combined_df)
+            aggregated_table = sort_by_label_and_account(aggregated_table)
+
+            st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            excel_file = io.BytesIO()
-            aggregated_table.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
         st.subheader("Mappings and Data Aggregation")
@@ -445,7 +478,6 @@ def balance_sheet():
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
-
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
@@ -466,10 +498,10 @@ def balance_sheet():
             st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            csv_file = io.BytesIO()
-            balance_sheet_lookup_df.to_csv(csv_file, index=False)
-            csv_file.seek(0)
-            st.download_button("Download CSV", csv_file, "balance_sheet_data_dictionary.csv", "text/csv")
+            excel_file = io.BytesIO()
+            balance_sheet_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 
