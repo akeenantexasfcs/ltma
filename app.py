@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -313,7 +313,7 @@ def balance_sheet():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             st.subheader("Check for Duplicate Accounts")
             if 'Account' not in all_tables.columns:
@@ -350,7 +350,7 @@ def balance_sheet():
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
@@ -455,7 +455,7 @@ def balance_sheet():
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_aggregation.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -673,7 +673,7 @@ def cash_flow_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Table_Extractor_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         st.subheader("Aggregate My Data")
@@ -699,7 +699,7 @@ def cash_flow_statement():
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                     aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
@@ -804,7 +804,7 @@ def cash_flow_statement():
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "mnemonic_mapping_with_aggregation.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -1062,7 +1062,7 @@ def income_statement():
                 excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "extracted_combined_tables.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Table_Extractor_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab2:
         st.subheader("Aggregate My Data")
@@ -1095,7 +1095,7 @@ def income_statement():
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
                 excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Consolidation")
@@ -1195,7 +1195,7 @@ def income_statement():
                         })
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
-                    st.download_button("Download Excel", excel_file_is, "mnemonic_mapping_with_aggregation_is.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("Download Excel", excel_file_is, "Mappings_and_Data_Consolidation_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
@@ -1252,6 +1252,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
@@ -1580,4 +1581,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
