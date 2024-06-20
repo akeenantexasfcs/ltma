@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[4]:
 
 
 import io
@@ -508,7 +508,7 @@ def balance_sheet():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Cash Flow Statement Functions
+#######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
     global cash_flow_lookup_df
 
@@ -869,9 +869,10 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Ensure conversion_factors is defined
 conversion_factors = {
-    'None': 1,
-    'Thousands': 1000,
-    'Millions': 1000000
+    "Actuals": 1,
+    "Thousands": 1000,
+    "Millions": 1000000,
+    "Billions": 1000000000
 }
 
 def clean_numeric_value_IS(value):
@@ -1250,6 +1251,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
                                    
