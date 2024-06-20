@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[6]:
 
 
 import io
@@ -429,10 +429,10 @@ def balance_sheet():
                     # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value.empty:
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         return ciq_value.values[0]
                     
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
@@ -468,7 +468,7 @@ def balance_sheet():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
                         
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
@@ -645,10 +645,10 @@ def cash_flow_statement():
 
             st.subheader("Convert Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_cfs")
-            selected_value = st.radio("Select conversion value", ["No Conversions Necessary", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_cfs")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_cfs")
 
             conversion_factors = {
-                "No Conversions Necessary": 1,
+                "Actuals": 1,
                 "Thousands": 1000,
                 "Millions": 1000000,
                 "Billions": 1000000000
@@ -665,7 +665,7 @@ def cash_flow_statement():
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
                 
-                if selected_value != "No Conversions Necessary":
+                if selected_value != "Actuals":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
@@ -709,7 +709,7 @@ def cash_flow_statement():
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_cfs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
@@ -857,6 +857,7 @@ def cash_flow_statement():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+
 ############################################## Income Statement Functions########################################
 import io
 import os
@@ -942,13 +943,13 @@ def aggregate_data_IS(uploaded_files):
     numeric_rows = concatenated_df[~concatenated_df['Account'].str.contains('Statement Date:', na=False)]
 
     for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+        if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = numeric_rows[col].apply(clean_numeric_value_IS)
 
     numeric_rows.fillna(0, inplace=True)
 
     for col in numeric_rows.columns:
-        if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+        if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
@@ -958,7 +959,7 @@ def aggregate_data_IS(uploaded_files):
 
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
-    final_df.insert(1, 'Positive decrease NI', False)
+    final_df.insert(1, 'Positive Decreases NI', False)
 
     sort_index_column = final_df.pop('Sort Index')
     final_df['Sort Index'] = sort_index_column
@@ -1076,20 +1077,20 @@ def income_statement():
                 editable_df_excluded = editable_df.iloc[:-1]
 
                 for col in editable_df_excluded.columns:
-                    if col not in ['Account', 'Sort Index', 'Positive decrease NI']:
+                    if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
                         editable_df_excluded[col] = pd.to_numeric(editable_df_excluded[col], errors='coerce').fillna(0)
 
                 numeric_cols = editable_df_excluded.select_dtypes(include='number').columns.tolist()
                 for index, row in editable_df_excluded.iterrows():
-                    if row['Positive decrease NI'] and row['Sort Index'] != 100:
+                    if row['Positive Decreases NI'] and row['Sort Index'] != 100:
                         for col in numeric_cols:
                             if col not in ['Sort Index']:
                                 editable_df_excluded.at[index, col] = row[col] * -1
 
                 final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
 
-                if 'Positive decrease NI' in final_df.columns:
-                    final_df.drop(columns=['Positive decrease NI'], inplace=True)
+                if 'Positive Decreases NI' in final_df.columns:
+                    final_df.drop(columns=['Positive Decreases NI'], inplace=True)
 
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
@@ -1167,10 +1168,10 @@ def income_statement():
 
                     def lookup_ciq_is(mnemonic):
                         if mnemonic == 'Human Intervention Required':
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value_is.empty:
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         return ciq_value_is.values[0]
                     
                     combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
@@ -1207,7 +1208,7 @@ def income_statement():
                         final_mnemonic_is = row['Final Mnemonic Selection']
                         if manual_selection_is == 'REMOVE ROW':
                             continue
-                        ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].values[0] if not income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].empty else 'CIQ IQ Required'
+                        ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].values[0] if not income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].empty else 'CIQ ID Required'
                         
                         if manual_selection_is not in ['REMOVE ROW', '']:
                             if row['Account'] not in income_statement_lookup_df['Account'].values:
