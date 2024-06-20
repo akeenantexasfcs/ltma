@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -47,7 +47,12 @@ def load_or_initialize_lookup(file_path, initial_data):
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    df.to_csv(file_path, index=False)
+    if file_path.endswith('.csv'):
+        df.to_csv(file_path, index=False)
+    elif file_path.endswith('.xlsx'):
+        df.to_excel(file_path, index=False)
+    else:
+        raise ValueError(f"Unsupported file extension for {file_path}")
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -505,10 +510,10 @@ def balance_sheet():
             st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            excel_file = io.BytesIO()
-            balance_sheet_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            csv_file = io.BytesIO()
+            balance_sheet_lookup_df.to_csv(csv_file, index=False)
+            csv_file.seek(0)
+            st.download_button("Download CSV", csv_file, "balance_sheet_data_dictionary.csv", "text/csv")
 
 #######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
@@ -856,10 +861,10 @@ def cash_flow_statement():
             st.dataframe(cash_flow_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_cfs"):
-            excel_file = io.BytesIO()
-            cash_flow_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            csv_file = io.BytesIO()
+            cash_flow_lookup_df.to_csv(csv_file, index=False)
+            csv_file.seek(0)
+            st.download_button("Download CSV", csv_file, "cash_flow_data_dictionary.csv", "text/csv")
 
 
 ############################################## Income Statement Functions########################################
