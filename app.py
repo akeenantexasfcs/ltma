@@ -152,7 +152,7 @@ def balance_sheet():
 
     st.title("BALANCE SHEET LTMA")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Balance Sheet Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -355,7 +355,7 @@ def balance_sheet():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
@@ -513,7 +513,7 @@ def cash_flow_statement():
     global cash_flow_lookup_df
 
     st.title("CASH FLOW STATEMENT LTMA")
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Cash Flow Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Cash Flow Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_cfs')
@@ -704,7 +704,7 @@ def cash_flow_statement():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_cfs')
 
@@ -979,7 +979,7 @@ def income_statement():
             income_statement_lookup_df = pd.DataFrame()
 
     st.title("INCOME STATEMENT LTMA")
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Aggregation", "Income Statement Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Income Statement Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -1096,7 +1096,7 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "aggregated_data.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
-        st.subheader("Mappings and Data Aggregation")
+        st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel_is = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_is')
 
