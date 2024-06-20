@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -47,12 +47,7 @@ def load_or_initialize_lookup(file_path, initial_data):
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    if file_path.endswith('.csv'):
-        df.to_csv(file_path, index=False)
-    elif file_path.endswith('.xlsx'):
-        df.to_excel(file_path, index=False)
-    else:
-        raise ValueError(f"Unsupported file extension for {file_path}")
+    df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -489,6 +484,7 @@ def balance_sheet():
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
+
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
@@ -509,10 +505,10 @@ def balance_sheet():
             st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            csv_file = io.BytesIO()
-            balance_sheet_lookup_df.to_csv(csv_file, index=False)
-            csv_file.seek(0)
-            st.download_button("Download CSV", csv_file, "balance_sheet_data_dictionary.csv", "text/csv")
+            excel_file = io.BytesIO()
+            balance_sheet_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 #######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
@@ -599,9 +595,16 @@ def cash_flow_statement():
                     if start_label and end_label:
                         try:
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
+                            
+                            start_index = df[df[account_column] == start_label_base].index.min()
+                            end_index = df[df[account_column] == end_label_base].index.max()
+                            
+                            if pd.isna(start_index):
+                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
+                            if pd.isna(end_index):
+                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
+
                             if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
@@ -860,12 +863,10 @@ def cash_flow_statement():
             st.dataframe(cash_flow_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_cfs"):
-            csv_file = io.BytesIO()
-            cash_flow_lookup_df.to_csv(csv_file, index=False)
-            csv_file.seek(0)
-            st.download_button("Download CSV", csv_file, "cash_flow_data_dictionary.csv", "text/csv")
-
-
+            excel_file = io.BytesIO()
+            cash_flow_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 ############################################## Income Statement Functions########################################
