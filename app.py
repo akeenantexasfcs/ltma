@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[14]:
 
 
 import io
@@ -489,7 +489,6 @@ def balance_sheet():
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
-
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
@@ -865,6 +864,8 @@ def cash_flow_statement():
             cash_flow_lookup_df.to_csv(csv_file, index=False)
             csv_file.seek(0)
             st.download_button("Download CSV", csv_file, "cash_flow_data_dictionary.csv", "text/csv")
+
+
 
 
 ############################################## Income Statement Functions########################################
