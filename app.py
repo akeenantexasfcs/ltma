@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[9]:
 
 
 import io
@@ -360,10 +360,11 @@ def balance_sheet():
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "MI standard", "Thousands", "Millions", "Billions", "Trillions"]
+        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
+        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
@@ -398,14 +399,14 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                    
+
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
                         if label_value:
                             message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
                         else:
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
-                    
+
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
@@ -422,7 +423,7 @@ def balance_sheet():
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
-                    
+
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
@@ -434,7 +435,7 @@ def balance_sheet():
                         if ciq_value.empty:
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
-                    
+
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
@@ -450,8 +451,8 @@ def balance_sheet():
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude'],
-                            'Value': [selected_currency, selected_magnitude]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
+                            'Value': [selected_currency, selected_magnitude, company_name_bs]
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
@@ -469,7 +470,7 @@ def balance_sheet():
                         if manual_selection == 'REMOVE ROW':
                             continue
                         ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
-                        
+
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
@@ -482,6 +483,7 @@ def balance_sheet():
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
@@ -713,6 +715,7 @@ def cash_flow_statement():
 
         selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
+        company_name_cfs = st.text_input("Enter Company Name", key='company_name_input_cfs')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
@@ -747,14 +750,14 @@ def cash_flow_statement():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                    
+
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
                         if label_value:
                             message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
                         else:
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
-                    
+
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
@@ -771,7 +774,7 @@ def cash_flow_statement():
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
-                    
+
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
@@ -783,7 +786,7 @@ def cash_flow_statement():
                         if ciq_value.empty:
                             return 'CIQ IQ Required'
                         return ciq_value.values[0]
-                    
+
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
@@ -799,8 +802,8 @@ def cash_flow_statement():
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude'],
-                            'Value': [selected_currency, selected_magnitude]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
+                            'Value': [selected_currency, selected_magnitude, company_name_cfs]
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
@@ -818,7 +821,7 @@ def cash_flow_statement():
                         if manual_selection == 'REMOVE ROW':
                             continue
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
-                        
+
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
@@ -831,6 +834,7 @@ def cash_flow_statement():
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
 
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
@@ -1581,10 +1585,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
