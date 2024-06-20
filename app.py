@@ -447,7 +447,7 @@ def balance_sheet():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
@@ -796,7 +796,7 @@ def cash_flow_statement():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized - Cash Flow', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude'],
@@ -1187,7 +1187,7 @@ def income_statement():
 
                     excel_file_is = io.BytesIO()
                     with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                        combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented', index=False)
                         cover_df_is = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'],
@@ -1315,15 +1315,15 @@ def populate_ciq_template():
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 if uploaded_income_statement:
                     income_statement_book = load_workbook(uploaded_income_statement, data_only=False)
-                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
+                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized - Income Stmt")
                     template_income_statement_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
                 if uploaded_balance_sheet:
                     balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=False)
-                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
+                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized - Balance Sheet")
                     template_balance_sheet_df = pd.read_excel(uploaded_template, sheet_name="Balance Sheet")
                 if uploaded_cash_flow_statement:
                     cash_flow_statement_book = load_workbook(uploaded_cash_flow_statement, data_only=False)
-                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
+                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized - Cash Flow")
                     template_cash_flow_statement_df = pd.read_excel(uploaded_template, sheet_name="Cash Flow")
             except Exception as e:
                 st.error(f"Error reading files: {e}")
@@ -1430,7 +1430,7 @@ def populate_ciq_template():
                         st.error(f"Error reading dates from template balance sheet: {e}")
                         return
 
-                    st.write("Template Balance Sheet Dates:", template_balance_dates)
+                    st.write("Template Balance Sheet Datesst:", template_balance_dates)
 
                     for i, mnemonic in enumerate(template_mnemonics_balance):
                         if pd.notna(mnemonic):
