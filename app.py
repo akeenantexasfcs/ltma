@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import io
@@ -1050,17 +1050,18 @@ def income_statement():
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             column_a = all_tables.columns[0]
 
+            st.subheader("Enter Company Name")
+            company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
+
+            st.subheader("Enter Statement Dates")
             statement_dates = {}
-            for col in all_tables.columns:
+            for col in all_tables.columns[1:]:
                 if col != 'Sort Index':
                     statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
                     statement_dates[col] = statement_date
 
-            st.subheader("Columns in the uploaded file:")
-            st.json(all_tables.columns.tolist())
-
-            st.subheader("Data Preview")
-            st.dataframe(all_tables)
+            st.subheader("Columns in the Uploaded File")
+            st.write(all_tables.columns.tolist())
 
             st.subheader("Rename Columns")
             new_column_names = {}
@@ -1150,17 +1151,20 @@ def income_statement():
 
         selected_currency_is = st.selectbox("Select Currency", currency_options_is, key='currency_selection_tab3_is')
         selected_magnitude_is = st.selectbox("Select Magnitude", magnitude_options_is, key='magnitude_selection_tab3_is')
-        company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
 
         if uploaded_excel_is is not None:
             df_is = pd.read_excel(uploaded_excel_is)
             st.write("Columns in the uploaded file:", df_is.columns.tolist())
 
-            statement_dates = {}
+            st.subheader("Enter Company Name")
+            company_name_is = st.text_input("Enter Company Name", key='company_name_input_is_tab3')
+
+            st.subheader("Enter Statement Dates")
+            statement_dates_is = {}
             for col in df_is.columns[1:]:
                 if col != 'Sort Index':
-                    statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
-                    statement_dates[col] = statement_date
+                    statement_date_is = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_tab3")
+                    statement_dates_is[col] = statement_date_is
 
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
@@ -1239,8 +1243,8 @@ def income_statement():
                         combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
                         cover_df_is = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
-                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates.values())
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates_is.keys()),
+                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates_is.values())
                         })
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
@@ -1301,6 +1305,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
