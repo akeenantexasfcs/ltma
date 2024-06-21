@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[16]:
 
 
 import io
@@ -742,6 +742,12 @@ def cash_flow_statement():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
+            
+            statement_dates = {}
+            for col in df.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_cfs")
+                statement_dates[col] = statement_date
+
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
             if 'Account' not in df.columns:
@@ -825,8 +831,8 @@ def cash_flow_statement():
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency, selected_magnitude, company_name_cfs]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_cfs] + list(statement_dates.values())
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
@@ -883,6 +889,7 @@ def cash_flow_statement():
             cash_flow_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 ############################################## Income Statement Functions########################################
@@ -1140,6 +1147,11 @@ def income_statement():
             df_is = pd.read_excel(uploaded_excel_is)
             st.write("Columns in the uploaded file:", df_is.columns.tolist())
 
+            statement_dates = {}
+            for col in df_is.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_is")
+                statement_dates[col] = statement_date
+
             if 'Account' not in df_is.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
@@ -1217,8 +1229,8 @@ def income_statement():
                         combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
                         cover_df_is = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates.values())
                         })
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
@@ -1279,7 +1291,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 
