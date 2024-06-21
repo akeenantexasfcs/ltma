@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -46,7 +46,7 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table_bs(df, file_path):
+def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
@@ -490,7 +490,7 @@ def balance_sheet():
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                    save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
 
@@ -501,7 +501,7 @@ def balance_sheet():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(balance_sheet_lookup_df)
@@ -509,7 +509,7 @@ def balance_sheet():
         remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
             balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
 
@@ -1602,10 +1602,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
