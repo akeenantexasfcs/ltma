@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[1]:
 
 
 import io
@@ -232,14 +232,23 @@ def balance_sheet():
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
+                            # Extract base labels without indices
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
-                            if pd.notna(start_index) and pd.notna(end_index):
-                                df.loc[start_index:end_index, 'Label'] = label
+
+                            # Find the indices for start and end labels
+                            start_indices = df[df[account_column].str.contains(re.escape(start_label_base), case=False, na=False)].index
+                            end_indices = df[df[account_column].str.contains(re.escape(end_label_base), case=False, na=False)].index
+
+                            if not start_indices.empty and not end_indices.empty:
+                                start_index = start_indices.min()
+                                end_index = end_indices.max()
+                                if start_index <= end_index:
+                                    df.loc[start_index:end_index, 'Label'] = label
+                                else:
+                                    st.error(f"Start index {start_index} is greater than end index {end_index} for label {label}. Skipping...")
                             else:
-                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                                st.error(f"Start or end label not found for {label}. Skipping...")
                         except KeyError as e:
                             st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
                     else:
@@ -509,6 +518,7 @@ def balance_sheet():
             balance_sheet_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 #######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
