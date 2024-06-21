@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -33,7 +33,7 @@ initial_cash_flow_lookup_data = {
 }
 
 # Define the file paths for the data dictionaries
-balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
+balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
 income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
