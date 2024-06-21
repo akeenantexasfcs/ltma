@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -40,20 +40,14 @@ income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
     if os.path.exists(file_path):
-        if file_path.endswith('.csv'):
-            lookup_df = pd.read_csv(file_path)
-        else:
-            lookup_df = pd.read_excel(file_path)
+        lookup_df = pd.read_csv(file_path)
     else:
         lookup_df = pd.DataFrame(initial_data)
-        save_lookup_table(lookup_df, file_path)
+        lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table(df, file_path):
-    if file_path.endswith('.csv'):
-        df.to_csv(file_path, index=False)
-    else:
-        df.to_excel(file_path, index=False)
+def save_lookup_table_bs(df, file_path):
+    df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -496,8 +490,35 @@ def balance_sheet():
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                    save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
+
+    with tab4:
+        st.subheader("Balance Sheet Data Dictionary")
+
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_bs')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        st.dataframe(balance_sheet_lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table_bs(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.success("Selected rows removed successfully!")
+            st.dataframe(balance_sheet_lookup_df)
+
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
+            excel_file = io.BytesIO()
+            balance_sheet_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 #######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
@@ -1581,4 +1602,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
