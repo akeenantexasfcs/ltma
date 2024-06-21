@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[21]:
 
 
 import io
@@ -1186,9 +1186,10 @@ def income_statement():
                         message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message_is)
                     
+                    unique_mappings = income_statement_lookup_df['Mnemonic'].drop_duplicates().tolist()
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + unique_mappings + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
@@ -1292,9 +1293,8 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                                   
-####################################### Populate CIQ Template ###################################
+                               
+###################################### Populate CIQ Template ###################################
 import io
 import os
 import re
