@@ -1293,8 +1293,6 @@ def income_statement():
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-income_statement()
-
                                    
 ####################################### Populate CIQ Template ###################################
 import io
