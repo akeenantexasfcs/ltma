@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[13]:
 
 
 import io
@@ -377,12 +377,13 @@ def balance_sheet():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
-            st.write("Columns in the uploaded file:", df.columns.tolist())
-
+            
             statement_dates = {}
             for col in df.columns[2:]:
                 statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
                 statement_dates[col] = statement_date
+
+            st.write("Columns in the uploaded file:", df.columns.tolist())
 
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
