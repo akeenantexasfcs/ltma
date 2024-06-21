@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -379,6 +379,11 @@ def balance_sheet():
             df = pd.read_excel(uploaded_excel)
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
+            statement_dates = {}
+            for col in df.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+                statement_dates[col] = statement_date
+
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
@@ -460,8 +465,8 @@ def balance_sheet():
                         combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency, selected_magnitude, company_name_bs]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
