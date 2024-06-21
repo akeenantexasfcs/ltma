@@ -1146,6 +1146,11 @@ def income_statement():
         statement_dates = {}
         if uploaded_excel_is is not None:
             df_is = pd.read_excel(uploaded_excel_is)
+            
+            for col in df_is.columns:
+                if col not in ['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']:
+                    statement_dates[col] = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+
             st.write("Columns in the uploaded file:", df_is.columns.tolist())
 
             if 'Account' not in df_is.columns:
@@ -1153,10 +1158,6 @@ def income_statement():
             else:
                 if 'Sort Index' not in df_is.columns:
                     df_is['Sort Index'] = range(1, len(df_is) + 1)
-
-                for col in df_is.columns:
-                    if col not in ['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']:
-                        statement_dates[col] = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
 
                 def get_best_match_is(account):
                     best_score_is = float('inf')
@@ -1291,6 +1292,8 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+income_statement()
 
                                    
 ####################################### Populate CIQ Template ###################################
