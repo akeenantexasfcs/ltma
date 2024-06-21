@@ -13,7 +13,7 @@ from Levenshtein import distance as levenshtein_distance
 import re
 
 # Define the initial lookup data for Balance Sheet
-initial_lookup_data = {
+initial_balance_sheet_lookup_data = {
     "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
     "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
@@ -24,22 +24,15 @@ initial_lookup_data = {
 
 # Define the initial lookup data for Cash Flow
 initial_cash_flow_lookup_data = {
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
     "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
     "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
     "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
 }
 
-# Define the initial lookup data for Income Statement
-initial_income_statement_lookup_data = {
-    "Account": ["Revenue", "Cost of Goods Sold", "Gross Profit", "Operating Expenses", "Operating Income", "Net Income"],
-    "Mnemonic": ["Revenue", "COGS", "Gross Profit", "OpEx", "OpInc", "NetInc"],
-    "CIQ": ["IQ_REVENUE", "IQ_COGS", "IQ_GROSS_PROFIT", "IQ_OPEX", "IQ_OPINC", "IQ_NETINC"]
-}
-
 # Define the file paths for the data dictionaries
-data_dictionary_file = 'data_dictionary.csv'
+balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.csv'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
@@ -53,10 +46,9 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet, Cash Flow, and Income Statement
-lookup_df = load_or_initialize_lookup(data_dictionary_file, initial_lookup_data)
+# Initialize lookup tables for Balance Sheet and Cash Flow
+balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
-income_statement_lookup_df = load_or_initialize_lookup(income_statement_data_dictionary_file, initial_income_statement_lookup_data)
 
 def process_file(file):
     try:
@@ -151,7 +143,7 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def balance_sheet():
-    global lookup_df
+    global balance_sheet_lookup_df
 
     st.title("BALANCE SHEET LTMA")
 
@@ -319,13 +311,15 @@ def balance_sheet():
                 st.download_button("Download Excel", excel_file, "extracted_combined_tables_with_labels.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             st.subheader("Check for Duplicate Accounts")
-            duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
-            if not duplicated_accounts.empty:
-                st.warning("Duplicates identified:")
-                st.dataframe(duplicated_accounts)
-                st.error("Error: Please ensure your account is mapped first!")
+            if 'Account' not in all_tables.columns:
+                st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
             else:
-                st.success("No duplicates identified")
+                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                if not duplicated_accounts.empty:
+                    st.warning("Duplicates identified:")
+                    st.dataframe(duplicated_accounts)
+                else:
+                    st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
@@ -373,15 +367,19 @@ def balance_sheet():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                def get_best_match(account):
+                # Function to get the best match based on Label first, then Levenshtein distance on Account
+                def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
-                    for lookup_account in lookup_df['Account']:
-                        account_str = str(account)
-                        score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                        if score < best_score:
-                            best_score = score
-                            best_match = lookup_account
+                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            # Levenshtein distance for Account
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < best_score:
+                                best_score = score
+                                best_match = lookup_row
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -390,9 +388,9 @@ def balance_sheet():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
-                        best_match, score = get_best_match(account_value)
-                        if score < 0.25:
-                            df.at[idx, 'Mnemonic'] = lookup_df.loc[lookup_df['Account'] == best_match, 'Mnemonic'].values[0]
+                        best_match, score = get_best_match(label_value, account_value)
+                        if best_match is not None and score < 0.25:
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                     
@@ -405,13 +403,13 @@ def balance_sheet():
                     
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
+                        options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -427,19 +425,19 @@ def balance_sheet():
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ IQ Required'
-                        ciq_value = lookup_df.loc[lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value.empty:
                             return 'CIQ IQ Required'
                         return ciq_value.values[0]
                     
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
-                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                                  [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
                     excel_file = io.BytesIO()
@@ -456,23 +454,28 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
-                            if row['Account'] not in lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        
+                        if manual_selection not in ['REMOVE ROW', '']:
+                            if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
-                        lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(lookup_df, data_dictionary_file)
+                        balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
@@ -481,22 +484,22 @@ def balance_sheet():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
-            lookup_df = new_lookup_df
-            save_lookup_table(lookup_df, data_dictionary_file)
+            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(lookup_df)
+        st.dataframe(balance_sheet_lookup_df)
 
-        remove_indices = st.multiselect("Select rows to remove", lookup_df.index, key='remove_indices_tab4_bs')
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            lookup_df = lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(lookup_df, data_dictionary_file)
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Selected rows removed successfully!")
-            st.dataframe(lookup_df)
+            st.dataframe(balance_sheet_lookup_df)
 
         if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
             excel_file = io.BytesIO()
-            lookup_df.to_excel(excel_file, index=False)
+            balance_sheet_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -712,19 +715,19 @@ def cash_flow_statement():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Function to get the best match based on Label first, then Levenshtein distance on Account
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
                     for _, lookup_row in cash_flow_lookup_df.iterrows():
-                        lookup_label = lookup_row['Label']
-                        lookup_account = lookup_row['Account']
-                        label_str = str(label)
-                        account_str = str(account)
-                        score = (levenshtein_distance(label_str.lower(), lookup_label.lower()) +
-                                 levenshtein_distance(account_str.lower(), lookup_account.lower())) / (max(len(label_str), len(lookup_label)) + max(len(account_str), len(lookup_account)))
-                        if score < best_score:
-                            best_score = score
-                            best_match = lookup_row
+                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            # Levenshtein distance for Account
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < best_score:
+                                best_score = score
+                                best_match = lookup_row
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -734,7 +737,7 @@ def cash_flow_statement():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if score < 0.25:
+                        if best_match is not None and score < 0.25:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
@@ -748,13 +751,13 @@ def cash_flow_statement():
                     
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['Other Category', 'REMOVE ROW'],
+                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Account', 'Mnemonic', 'Manual Selection']])
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -777,12 +780,12 @@ def cash_flow_statement():
                     
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
-                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] +                                     [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] +                                                  [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
                     excel_file = io.BytesIO()
@@ -799,19 +802,24 @@ def cash_flow_statement():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['Other Category', 'REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection not in ['Other Category', 'REMOVE ROW', '']:
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        
+                        if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': '', 'Label': row['Label']})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
@@ -824,7 +832,7 @@ def cash_flow_statement():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
-            cash_flow_lookup_df = new_lookup_df
+            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
