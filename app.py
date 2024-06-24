@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[26]:
+# In[1]:
 
 
 import io
@@ -353,6 +353,13 @@ def balance_sheet():
 
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
+
+            st.subheader("Preview Data and Remove Rows")
+            rows_to_remove = st.multiselect("Select rows to remove", aggregated_table.index, key="rows_to_remove_tab2")
+            if st.button("Remove Selected Rows", key="remove_selected_rows_tab2"):
+                aggregated_table = aggregated_table.drop(rows_to_remove).reset_index(drop=True)
+                st.success("Selected rows removed successfully!")
+                st.dataframe(aggregated_table)
 
             if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
                 excel_file = io.BytesIO()
