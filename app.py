@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[13]:
 
 
 import io
@@ -1422,13 +1422,7 @@ def populate_ciq_template():
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
-
-                sheet_names = template_book.sheetnames
-                st.write("Available sheets in the template:", sheet_names)
-                
-                # Select the sheet dynamically
-                sheet_name = st.selectbox("Select the sheet to populate", sheet_names)
-                template_sheet = template_book[sheet_name]
+                template_sheet = template_book["Upload"]
                 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1443,9 +1437,9 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
-                def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col):
+                def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
                     try:
-                        ciq_mnemonics = financial_df.iloc[:, 1]
+                        ciq_mnemonics = financial_df.iloc[:, mnemonic_col]
                         financial_dates = financial_df.columns[start_col-1:]  # Adjust index to start from the correct column
                     except Exception as e:
                         st.error(f"Error processing financial data: {e}")
@@ -1481,7 +1475,7 @@ def populate_ciq_template():
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
                 if uploaded_income_statement:
-                    populate_template(income_statement_df, 10, 10, 90, 3)
+                    populate_template(income_statement_df, 10, 11, 90, 3, 1)
                     try:
                         copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
                     except Exception as e:
@@ -1489,7 +1483,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_balance_sheet:
-                    populate_template(balance_sheet_df, 92, 94, 166, 4)
+                    populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
                     except Exception as e:
@@ -1497,7 +1491,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_cash_flow_statement:
-                    populate_template(cash_flow_statement_df, 167, 169, 232, 4)
+                    populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
                     except Exception as e:
@@ -1525,7 +1519,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
 
 
