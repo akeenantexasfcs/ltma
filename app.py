@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -750,12 +750,26 @@ def cash_flow_statement():
             st.dataframe(aggregated_table)
 
             st.subheader("Preview Data and Edit Rows")
+            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
+            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
+            
             edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+            
+            # Highlight rows with all zeros for potential removal
+            st.write("Highlighted rows with all zero values for potential removal:")
+            for index in zero_rows_indices:
+                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
+            
+            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                st.success("Highlighted rows removed successfully")
+                st.dataframe(aggregated_table)
 
             if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    edited_data.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
@@ -846,7 +860,7 @@ def cash_flow_statement():
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value.empty:
+                        if ciq_value.empty():
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
 
@@ -923,7 +937,6 @@ def cash_flow_statement():
             cash_flow_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 ############################################## Income Statement Functions########################################
