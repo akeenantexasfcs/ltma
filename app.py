@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -261,9 +261,10 @@ def balance_sheet():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            new_column_names = {}
+            fiscal_year_options = [f"F{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 3)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -640,9 +641,10 @@ def cash_flow_statement():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            new_column_names = {}
+            fiscal_year_options = [f"F{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 3)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
@@ -1062,9 +1064,9 @@ def income_statement():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            fiscal_year_options = [f"F{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 3)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
