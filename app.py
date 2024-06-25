@@ -1404,7 +1404,7 @@ def get_cell_value_as_string(sheet, cell_address):
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
-    tab1 = st.tabs(["Final Output"])[0]
+    tab1 = st.tabs(["YTD Upload Template"])[0]
 
     with tab1:
         uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
