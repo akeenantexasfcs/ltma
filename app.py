@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -1446,7 +1446,7 @@ def populate_ciq_template():
                 def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col):
                     try:
                         ciq_mnemonics = financial_df.iloc[:, 1]
-                        financial_dates = financial_df.columns[2:]
+                        financial_dates = financial_df.columns[start_col-1:]  # Adjust index to start from the correct column
                     except Exception as e:
                         st.error(f"Error processing financial data: {e}")
                         return
@@ -1455,10 +1455,9 @@ def populate_ciq_template():
 
                     try:
                         template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(start_col, start_col + 6)]
                         # Convert formulas to values for template dates
-                        convert_formulas_to_values(template_sheet, date_row, start_col, start_col + 5)
-                        template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(start_col, start_col + 6)]
+                        convert_formulas_to_values(template_sheet, date_row, 4, 9)
+                        template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
                     except Exception as e:
                         st.error(f"Error processing template data: {e}")
                         return
@@ -1474,10 +1473,10 @@ def populate_ciq_template():
                                         if date in financial_dates.values:
                                             try:
                                                 financial_col = financial_dates.get_loc(date)
-                                                if not isinstance(template_sheet.cell(row=mnemonic_start_row + i, column=start_col + j).value, str) or not template_sheet.cell(row=mnemonic_start_row + i, column=start_col + j).value.startswith('='):
-                                                    template_sheet.cell(row=mnemonic_start_row + i, column=start_col + j).value = financial_row.iloc[0, financial_col + 2]
+                                                if not isinstance(template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value, str) or not template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value.startswith('='):
+                                                    template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value = financial_row.iloc[0, financial_col + start_col-1]
                                             except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {start_col + j}: {e}")
+                                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
@@ -1526,6 +1525,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
 
 
