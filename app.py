@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[14]:
 
 
 import io
@@ -670,7 +670,6 @@ def cash_flow_statement():
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
-
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_cfs", index=0)
@@ -768,20 +767,16 @@ def cash_flow_statement():
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
 
+            st.subheader("Download Aggregated Data")
             if rows_removed:
-                if st.button("Download Updated Aggregated Excel", key="download_updated_aggregated_excel_tab2_cfs"):
-                    excel_file = io.BytesIO()
-                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "Updated_Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                download_label = "Download Updated Aggregated Excel"
             else:
-                if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
-                    excel_file = io.BytesIO()
-                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                download_label = "Download Aggregated Excel"
+            excel_file = io.BytesIO()
+            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+            excel_file.seek(0)
+            st.download_button(download_label, excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
@@ -870,7 +865,7 @@ def cash_flow_statement():
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value.empty():
+                        if ciq_value.empty:
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
 
