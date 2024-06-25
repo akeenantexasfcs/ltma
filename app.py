@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -1418,12 +1418,17 @@ def populate_ciq_template():
         uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
         uploaded_cash_flow_statement = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'], key='cash_flow_statement_uploader')
 
-        if uploaded_template and (uploaded_income_statement or uploaded_balance_sheet or uploaded_cash_flow_statement):
+        if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
+                # Convert date formulas to values as the first step
+                convert_formulas_to_values(template_sheet, 10, 4, 9)  # Income Statement dates (D10 to I10)
+                convert_formulas_to_values(template_sheet, 92, 4, 9)  # Balance Sheet dates (D92 to I92)
+                convert_formulas_to_values(template_sheet, 167, 4, 9) # Cash Flow Statement dates (D167 to I167)
+
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 if uploaded_balance_sheet:
@@ -1449,8 +1454,6 @@ def populate_ciq_template():
 
                     try:
                         template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        # Convert formulas to values for template dates
-                        convert_formulas_to_values(template_sheet, date_row, 4, 9)
                         template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
                     except Exception as e:
                         st.error(f"Error processing template data: {e}")
@@ -1467,15 +1470,14 @@ def populate_ciq_template():
                                         if date in financial_dates.values:
                                             try:
                                                 financial_col = financial_dates.get_loc(date)
-                                                if not isinstance(template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value, str) or not template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value.startswith('='):
-                                                    template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value = financial_row.iloc[0, financial_col + start_col-1]
+                                                template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
+                                                template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
                 if uploaded_income_statement:
-                    convert_formulas_to_values(template_sheet, 10, 4, 9)  # Convert date formulas to values
                     populate_template(income_statement_df, 10, 11, 90, 3, 1)
                     try:
                         copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
@@ -1484,7 +1486,6 @@ def populate_ciq_template():
                         return
 
                 if uploaded_balance_sheet:
-                    convert_formulas_to_values(template_sheet, 92, 4, 9)  # Convert date formulas to values
                     populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
@@ -1493,7 +1494,6 @@ def populate_ciq_template():
                         return
 
                 if uploaded_cash_flow_statement:
-                    convert_formulas_to_values(template_sheet, 167, 4, 9)  # Convert date formulas to values
                     populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
@@ -1522,6 +1522,8 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
+
 
                                    
 ########################################################################### Main Function
