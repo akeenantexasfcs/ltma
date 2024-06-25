@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[5]:
 
 
 import io
@@ -1404,7 +1404,7 @@ def get_cell_value_as_string(sheet, cell_address):
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
-    tab1 = st.tabs(["YTD Upload Template"])[0]
+    tab1 = st.tabs(["FY Upload Template"])[0]
 
     with tab1:
         uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
@@ -1416,7 +1416,13 @@ def populate_ciq_template():
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
-                template_sheet = template_book["YTD Upload Template"]
+
+                sheet_names = template_book.sheetnames
+                st.write("Available sheets in the template:", sheet_names)
+                
+                # Select the sheet dynamically
+                sheet_name = st.selectbox("Select the sheet to populate", sheet_names)
+                template_sheet = template_book[sheet_name]
                 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
