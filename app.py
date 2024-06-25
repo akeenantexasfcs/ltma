@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -145,6 +145,11 @@ def apply_unit_conversion(df, columns, factor):
             df[selected_column] = df[selected_column].apply(
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
+
+# Function to check if all values in columns past the first 2 columns are 0
+def check_all_zeroes(df):
+    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
+    return zeroes
 
 # Balance Sheet Functions
 def balance_sheet():
@@ -531,6 +536,11 @@ def balance_sheet():
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+        st.subheader("Check for Rows with All Zero Values")
+        zero_rows = check_all_zeroes(balance_sheet_lookup_df)
+        st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
+        
+        
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
