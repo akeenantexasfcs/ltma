@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -1449,7 +1449,6 @@ def populate_ciq_template():
 
                     try:
                         template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
                         template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
                         # Ensure template_dates are interpreted as values
                         template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
