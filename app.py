@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -761,17 +761,27 @@ def cash_flow_statement():
             for index in zero_rows_indices:
                 st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
             
+            rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
                 aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
 
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            if rows_removed:
+                if st.button("Download Updated Aggregated Excel", key="download_updated_aggregated_excel_tab2_cfs"):
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "Updated_Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else:
+                if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
