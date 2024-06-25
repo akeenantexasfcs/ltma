@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1416,7 +1416,7 @@ def populate_ciq_template():
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
-                template_sheet = template_book["Upload"]
+                template_sheet = template_book["YTD Upload Template"]
                 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
