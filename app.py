@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -1449,10 +1449,7 @@ def populate_ciq_template():
 
                     try:
                         template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
-                        template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
-                        # Ensure template_dates are interpreted as values
-                        template_dates = [template_sheet.cell(row=date_row, column=4 + j).value for j in range(6)]
+                        template_dates = [template_sheet.cell(row=date_row, column=4 + col_idx).value for col_idx in range(6)]
                     except Exception as e:
                         st.error(f"Error processing template data: {e}")
                         return
@@ -1520,6 +1517,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
                                    
 ########################################################################### Main Function
 def main():
