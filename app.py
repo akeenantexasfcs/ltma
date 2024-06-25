@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1416,18 +1416,14 @@ def populate_ciq_template():
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
+                template_sheet = template_book["Upload"]
+                
                 if uploaded_income_statement:
-                    income_statement_book = load_workbook(uploaded_income_statement, data_only=False)
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
-                    template_income_statement_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
                 if uploaded_balance_sheet:
-                    balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=False)
                     balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
-                    template_balance_sheet_df = pd.read_excel(uploaded_template, sheet_name="Balance Sheet")
                 if uploaded_cash_flow_statement:
-                    cash_flow_statement_book = load_workbook(uploaded_cash_flow_statement, data_only=False)
                     cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
-                    template_cash_flow_statement_df = pd.read_excel(uploaded_template, sheet_name="Cash Flow")
             except Exception as e:
                 st.error(f"Error reading files: {e}")
                 return
@@ -1435,212 +1431,61 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
-                if uploaded_income_statement:
+                def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row):
                     try:
-                        ciq_mnemonics_income = income_statement_df.iloc[:, 1]
-                        income_statement_dates = income_statement_df.columns[2:]
+                        ciq_mnemonics = financial_df.iloc[:, 1]
+                        financial_dates = financial_df.columns[2:]
                     except Exception as e:
-                        st.error(f"Error processing income statement data: {e}")
+                        st.error(f"Error processing financial data: {e}")
                         return
 
-                    st.write("Income Statement Dates:", list(income_statement_dates))
+                    st.write("Financial Dates:", list(financial_dates))
 
                     try:
-                        template_mnemonics_income = template_income_statement_df.iloc[11:89, 8]
+                        template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
+                        template_dates = [template_sheet[f"{col}{date_row}"].value for col in ["D", "E", "F", "G", "H", "I"]]
                     except Exception as e:
                         st.error(f"Error processing template data: {e}")
                         return
 
-                    try:
-                        template_income_sheet = template_book["Income Statement"]
-                        template_income_dates = [
-                            get_cell_value_as_string(template_income_sheet, "D10"),
-                            get_cell_value_as_string(template_income_sheet, "E10"),
-                            get_cell_value_as_string(template_income_sheet, "F10"),
-                            get_cell_value_as_string(template_income_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template income statement: {e}")
-                        return
+                    st.write("Template Dates:", template_dates)
 
-                    st.write("Template Income Statement Dates:", template_income_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_income):
-                        if pd.notna(mnemonic):
+                    for i, mnemonic in enumerate(template_mnemonics):
+                        if mnemonic:
                             try:
-                                income_statement_row = income_statement_df[ciq_mnemonics_income == mnemonic]
-                                if not income_statement_row.empty:
-                                    for j, date in enumerate(template_income_dates):
-                                        if date in income_statement_dates.values:
+                                financial_row = financial_df[ciq_mnemonics == mnemonic]
+                                if not financial_row.empty:
+                                    for j, date in enumerate(template_dates):
+                                        if date in financial_dates.values:
                                             try:
-                                                income_statement_col = income_statement_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col + 2}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_income_statement_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
+                                                financial_col = financial_dates.get_loc(date)
+                                                if not isinstance(template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value, str) or not template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value.startswith('='):
+                                                    template_sheet.cell(row=mnemonic_start_row + i, column=4 + j).value = financial_row.iloc[0, financial_col + 2]
                                             except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
+                                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
+                if uploaded_income_statement:
+                    populate_template(income_statement_df, 10, 10, 90)
                     try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_income_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_income_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_income_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_income_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template income sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(income_statement_book, template_book, "As Presented - Income Stmt")
+                        copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
                     except Exception as e:
                         st.error(f"Error copying 'As Presented - Income Stmt' sheet: {e}")
                         return
 
                 if uploaded_balance_sheet:
+                    populate_template(balance_sheet_df, 92, 94, 166)
                     try:
-                        ciq_mnemonics_balance = balance_sheet_df.iloc[:, 2]
-                        balance_sheet_dates = balance_sheet_df.columns[3:]
-                    except Exception as e:
-                        st.error(f"Error processing balance sheet data: {e}")
-                        return
-
-                    st.write("Balance Sheet Dates:", list(balance_sheet_dates))
-
-                    try:
-                        template_mnemonics_balance = template_balance_sheet_df.iloc[11:89, 8]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    try:
-                        template_balance_sheet = template_book["Balance Sheet"]
-                        template_balance_dates = [
-                            get_cell_value_as_string(template_balance_sheet, "D10"),
-                            get_cell_value_as_string(template_balance_sheet, "E10"),
-                            get_cell_value_as_string(template_balance_sheet, "F10"),
-                            get_cell_value_as_string(template_balance_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template balance sheet: {e}")
-                        return
-
-                    st.write("Template Balance Sheet Datesst:", template_balance_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_balance):
-                        if pd.notna(mnemonic):
-                            try:
-                                balance_sheet_row = balance_sheet_df[ciq_mnemonics_balance == mnemonic]
-                                if not balance_sheet_row.empty:
-                                    for j, date in enumerate(template_balance_dates):
-                                        if date in balance_sheet_dates.values:
-                                            try:
-                                                balance_sheet_col = balance_sheet_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 3}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 3]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_balance_sheet_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_balance_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_balance_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_balance_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template balance sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(balance_sheet_book, template_book, "As Presented - Balance Sheet")
+                        copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
                     except Exception as e:
                         st.error(f"Error copying 'As Presented - Balance Sheet' sheet: {e}")
                         return
 
                 if uploaded_cash_flow_statement:
+                    populate_template(cash_flow_statement_df, 167, 169, 232)
                     try:
-                        ciq_mnemonics_cash_flow = cash_flow_statement_df.iloc[:, 2]
-                        cash_flow_statement_dates = cash_flow_statement_df.columns[3:]
-                    except Exception as e:
-                        st.error(f"Error processing cash flow statement data: {e}")
-                        return
-
-                    st.write("Cash Flow Statement Dates:", list(cash_flow_statement_dates))
-
-                    try:
-                        template_mnemonics_cash_flow = template_cash_flow_statement_df.iloc[11:89, 8]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    try:
-                        template_cash_flow_sheet = template_book["Cash Flow"]
-                        template_cash_flow_dates = [
-                            get_cell_value_as_string(template_cash_flow_sheet, "D10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "E10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "F10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template cash flow statement: {e}")
-                        return
-
-                    st.write("Template Cash Flow Statement Dates:", template_cash_flow_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_cash_flow):
-                        if pd.notna(mnemonic):
-                            try:
-                                cash_flow_statement_row = cash_flow_statement_df[ciq_mnemonics_cash_flow == mnemonic]
-                                if not cash_flow_statement_row.empty:
-                                    for j, date in enumerate(template_cash_flow_dates):
-                                        if date in cash_flow_statement_dates.values:
-                                            try:
-                                                cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 3}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 3]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_cash_flow_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_cash_flow_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template cash flow sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(cash_flow_statement_book, template_book, "As Presented - Cash Flow")
+                        copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
                     except Exception as e:
                         st.error(f"Error copying 'As Presented - Cash Flow' sheet: {e}")
                         return
