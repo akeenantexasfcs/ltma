@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -1475,6 +1475,7 @@ def populate_ciq_template():
                                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
 
                 if uploaded_income_statement:
+                    convert_formulas_to_values(template_sheet, 10, 4, 9)  # Convert date formulas to values
                     populate_template(income_statement_df, 10, 11, 90, 3, 1)
                     try:
                         copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
@@ -1483,6 +1484,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_balance_sheet:
+                    convert_formulas_to_values(template_sheet, 92, 4, 9)  # Convert date formulas to values
                     populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
@@ -1491,6 +1493,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_cash_flow_statement:
+                    convert_formulas_to_values(template_sheet, 167, 4, 9)  # Convert date formulas to values
                     populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
                     try:
                         copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
@@ -1519,8 +1522,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
-
 
                                    
 ########################################################################### Main Function
