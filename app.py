@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -189,8 +189,8 @@ def balance_sheet():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -363,14 +363,25 @@ def balance_sheet():
 
             st.subheader("Preview Data and Edit Rows")
             zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
-            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table[zero_rows])
+            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
+            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
             
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic", disabled_rows=zero_rows)
-        
+            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+            
+            # Highlight rows with all zeros for potential removal
+            st.write("Highlighted rows with all zero values for potential removal:")
+            for index in zero_rows_indices:
+                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
+            
+            if st.button("Remove Highlighted Rows"):
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                st.success("Highlighted rows removed successfully")
+                st.dataframe(aggregated_table)
+
             if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    edited_data.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
@@ -542,7 +553,7 @@ def balance_sheet():
         st.subheader("Check for Rows with All Zero Values")
         zero_rows = check_all_zeroes(balance_sheet_lookup_df)
         st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
-     
+ 
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
