@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[8]:
 
 
 import io
@@ -362,12 +362,11 @@ def balance_sheet():
             st.dataframe(aggregated_table)
 
             st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
-
-            # Automatically select rows with all zeros
-            edited_data = edited_data[zero_rows]
+            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table[zero_rows])
             
+            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic", disabled_rows=zero_rows)
+        
             if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
                 excel_file = io.BytesIO()
                 with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
@@ -543,8 +542,7 @@ def balance_sheet():
         st.subheader("Check for Rows with All Zero Values")
         zero_rows = check_all_zeroes(balance_sheet_lookup_df)
         st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
-
-        
+     
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
