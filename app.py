@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1365,7 +1365,6 @@ import io
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
 
 def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     source_sheet = source_book[sheet_name]
@@ -1397,11 +1396,11 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
-def convert_formulas_to_values(sheet, row, start_col, end_col):
-    for col in range(start_col, end_col + 1):
-        cell = sheet.cell(row=row, column=col)
-        if cell.data_type == 'f':  # If cell contains a formula
-            sheet.cell(row=row, column=col, value=cell.value)  # Convert formula to its evaluated value
+def convert_formulas_to_values(sheet, cell_range):
+    for row in sheet[cell_range]:
+        for cell in row:
+            if cell.data_type == 'f':  # If cell contains a formula
+                cell.value = cell.value  # Convert formula to its evaluated value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1421,9 +1420,9 @@ def populate_ciq_template():
                 template_sheet = template_book["Upload"]
                 
                 # Convert formulas to values as the first step
-                convert_formulas_to_values(template_sheet, 92, 4, 9)  # Balance Sheet dates (D92 to I92)
-                convert_formulas_to_values(template_sheet, 10, 4, 9)  # Income Statement dates (D10 to I10)
-                convert_formulas_to_values(template_sheet, 167, 4, 9) # Cash Flow Statement dates (D167 to I167)
+                convert_formulas_to_values(template_sheet, 'D92:I92')  # Balance Sheet dates (D92 to I92)
+                convert_formulas_to_values(template_sheet, 'D10:I10')  # Income Statement dates (D10 to I10)
+                convert_formulas_to_values(template_sheet, 'D167:I167') # Cash Flow Statement dates (D167 to I167)
 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1518,6 +1517,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
 
                                    
