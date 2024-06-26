@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -1400,12 +1400,21 @@ def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
     cell.value = cell.value
 
-def evaluate_and_replace_formulas(sheet, cell_range):
-    for row in sheet[cell_range]:
-        for cell in row:
-            if cell.data_type == 'f':  # If cell contains a formula
-                evaluated_value = cell.value  # Get the evaluated value
-                cell.value = evaluated_value  # Replace the formula with its evaluated value
+def override_formula_if_needed(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
+    for row in range(start_row, end_row + 1):
+        mnemonic = sheet.cell(row=row, column=mnemonic_col).value
+        if mnemonic:
+            financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
+            if not financial_row.empty:
+                for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
+                    cell = sheet.cell(row=row, column=col)
+                    if cell.data_type == 'f':  # If cell contains a formula
+                        date = sheet.cell(row=date_row, column=col).value
+                        if date in financial_df.columns:
+                            financial_col = financial_df.columns.get_loc(date)
+                            override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                            if pd.notna(override_value):
+                                cell.value = override_value  # Override the formula with the financial data value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1425,7 +1434,7 @@ def populate_ciq_template():
                 template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Copy-paste values for specified cells in the Upload sheet
+                # Convert specified cells to values
                 for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
@@ -1471,7 +1480,12 @@ def populate_ciq_template():
                                             try:
                                                 financial_col = financial_dates.get_loc(date)
                                                 template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
-                                                template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
+                                                if template_cell.data_type == 'f':  # If cell contains a formula
+                                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                                                    if pd.notna(override_value):
+                                                        template_cell.value = override_value  # Override the formula with the financial data value
+                                                else:
+                                                    template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
@@ -1543,10 +1557,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
