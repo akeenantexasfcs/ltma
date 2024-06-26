@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[13]:
 
 
 import io
@@ -1431,8 +1431,8 @@ def populate_ciq_template():
         if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                # Load the workbook with formulas evaluated
-                template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
+                # Load the workbook without evaluating formulas
+                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
                 # Convert specified cells to values
@@ -1481,13 +1481,12 @@ def populate_ciq_template():
                                             try:
                                                 financial_col = financial_dates.get_loc(date)
                                                 template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
-                                                if col < 11 or col > 17:  # Ignore columns K to Q
-                                                    if template_cell.data_type == 'f':  # If cell contains a formula
-                                                        override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                                                        if pd.notna(override_value):
-                                                            template_cell.value = override_value  # Override the formula with the financial data value
-                                                    else:
-                                                        template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
+                                                if template_cell.data_type == 'f':  # If cell contains a formula
+                                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                                                    if pd.notna(override_value):
+                                                        template_cell.value = override_value  # Override the formula with the financial data value
+                                                else:
+                                                    template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
@@ -1538,6 +1537,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
 
                                    
