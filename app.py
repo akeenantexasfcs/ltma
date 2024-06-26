@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[35]:
+# In[36]:
 
 
 import io
@@ -1390,12 +1390,9 @@ def populate_ciq_template_pt():
             standardized_sheet = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
 
             # Check for required columns in the Standardized - Balance Sheet
-            if 'Label' not in standardized_sheet.columns or 'Final Mnemonic Selection' not in standardized_sheet.columns:
-                st.error("The columns 'Label' and 'Final Mnemonic Selection' are missing from the Standardized - Balance Sheet.")
+            if 'CIQ' not in standardized_sheet.columns:
+                st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
                 return
-
-            # Remove the first two columns but keep the header row
-            standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
 
             # Copy the "As Presented - Balance Sheet" sheet to the template workbook
             if "As Presented - Balance Sheet" in template_wb.sheetnames:
@@ -1425,18 +1422,19 @@ def populate_ciq_template_pt():
 
             # Perform lookups and update the "Upload" sheet
             upload_sheet = template_wb["Upload"]
-            acceptable_range_dates = list(upload_sheet.iter_cols(min_col=4, max_col=9, min_row=92, max_row=92))[0]
-            ciq_range = list(upload_sheet.iter_cols(min_col=11, max_col=11, min_row=94, max_row=160))[0]
+            ciq_values = standardized_sheet['CIQ'].tolist()
+            dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
-            for ciq_cell in ciq_range:
+            for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
+                ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
                 ciq_value = ciq_cell.value
-                if ciq_value in standardized_sheet['CIQ'].values:
-                    for date_cell in acceptable_range_dates:
-                        date_value = date_cell.value
-                        if date_value in standardized_sheet.columns:
+                if ciq_value in ciq_values:
+                    for col in range(4, 10):
+                        date_value = upload_sheet.cell(row=92, column=col).value
+                        if date_value in dates:
                             lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
                             if not pd.isna(lookup_value):
-                                cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=date_cell.col_idx)
+                                cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
                                 if cell_to_update.data_type == 'f' or cell_to_update.value is None:
                                     cell_to_update.value = lookup_value
                                     st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
