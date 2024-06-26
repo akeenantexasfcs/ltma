@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -1426,7 +1426,7 @@ def populate_ciq_template():
                 template_sheet = template_book["Upload"]
                 
                 # Copy-paste values for specified cells in the Upload sheet
-                for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92']:
+                for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
                 if uploaded_income_statement:
@@ -1543,4 +1543,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
