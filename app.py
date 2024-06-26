@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[7]:
 
 
 import io
@@ -1398,7 +1398,8 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
 
 def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
-    cell.value = cell.value
+    if cell.data_type == 'f':  # If the cell contains a formula
+        cell.value = cell.value  # Set the cell value to the evaluated result of the formula
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1514,7 +1515,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
 
 
