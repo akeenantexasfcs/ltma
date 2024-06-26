@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[48]:
+# In[49]:
 
 
 import io
@@ -1364,8 +1364,7 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl import load_workbook
-from openpyxl.writer.excel import save_virtual_workbook
+from openpyxl.styles import PatternFill
 from io import BytesIO
 
 def populate_ciq_template_pt():
@@ -1382,55 +1381,54 @@ def populate_ciq_template_pt():
         try:
             # Read the uploaded files
             template_file = uploaded_template.read()
-            template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+            template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
             upload_sheet = template_wb["Upload"]
 
-            if uploaded_balance_sheet:
-                balance_sheet_file = uploaded_balance_sheet.read()
-                balance_sheet_wb = load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
-                as_presented_sheet_bs = balance_sheet_wb["As Presented - Balance Sheet"]
-                standardized_sheet_bs = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
+            def update_template(sheet_name, min_row, max_row, date_row, ciq_col, new_sheet_name, tab_color):
+                nonlocal template_wb, upload_sheet
+                uploaded_file = uploaded_balance_sheet if sheet_name == "Balance Sheet" else uploaded_cash_flow if sheet_name == "Cash Flow" else uploaded_income_statement
+                as_presented_sheet = uploaded_file["As Presented - " + sheet_name]
+                standardized_sheet = pd.read_excel(BytesIO(uploaded_file), sheet_name="Standardized - " + sheet_name)
 
-                if 'CIQ' not in standardized_sheet_bs.columns:
-                    st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
+                if 'CIQ' not in standardized_sheet.columns:
+                    st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
                     return
 
-                # Copy the "As Presented - Balance Sheet" sheet to the template workbook
-                if "As Presented - Balance Sheet" in template_wb.sheetnames:
-                    del template_wb["As Presented - Balance Sheet"]
-                new_sheet_bs = template_wb.create_sheet("As Presented - Balance Sheet")
-                for row in as_presented_sheet_bs.iter_rows():
+                # Copy the "As Presented" sheet to the template workbook
+                if "As Presented - " + sheet_name in template_wb.sheetnames:
+                    del template_wb["As Presented - " + sheet_name]
+                new_sheet = template_wb.create_sheet("As Presented - " + sheet_name)
+                for row in as_presented_sheet.iter_rows():
                     for cell in row:
-                        new_sheet_bs[cell.coordinate].value = cell.value
+                        new_sheet[cell.coordinate].value = cell.value
 
-                # Color the "As Presented - Balance Sheet" tab orange
-                tab_color = "FFA500"
-                new_sheet_bs.sheet_properties.tabColor = tab_color
+                # Color the "As Presented" tab
+                new_sheet.sheet_properties.tabColor = tab_color
 
-                # Copy the "Standardized - Balance Sheet" sheet to the template workbook
-                if "Standardized - Balance Sheet" in template_wb.sheetnames:
-                    del template_wb["Standardized - Balance Sheet"]
-                standardized_ws_bs = template_wb.create_sheet("Standardized - Balance Sheet")
+                # Copy the "Standardized" sheet to the template workbook
+                if "Standardized - " + sheet_name in template_wb.sheetnames:
+                    del template_wb["Standardized - " + sheet_name]
+                standardized_ws = template_wb.create_sheet("Standardized - " + sheet_name)
 
-                for col_num, header in enumerate(standardized_sheet_bs.columns, 1):
-                    standardized_ws_bs.cell(row=1, column=col_num, value=header)
+                for col_num, header in enumerate(standardized_sheet.columns, 1):
+                    standardized_ws.cell(row=1, column=col_num, value=header)
 
-                for r_idx, row in enumerate(standardized_sheet_bs.itertuples(index=False), 2):
+                for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
                     for c_idx, value in enumerate(row, 1):
-                        standardized_ws_bs.cell(row=r_idx, column=c_idx, value=value)
+                        standardized_ws.cell(row=r_idx, column=c_idx, value=value)
 
-                # Perform lookups and update the "Upload" sheet for Balance Sheet
-                ciq_values_bs = standardized_sheet_bs['CIQ'].tolist()
-                dates_bs = list(standardized_sheet_bs.columns[1:])  # Assumes dates start from the second column
+                # Perform lookups and update the "Upload" sheet
+                ciq_values = standardized_sheet['CIQ'].tolist()
+                dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
-                for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
-                    ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                for row in upload_sheet.iter_rows(min_row=min_row, max_row=max_row, min_col=4, max_col=upload_sheet.max_column):
+                    ciq_cell = upload_sheet.cell(row=row[0].row, column=ciq_col)
                     ciq_value = ciq_cell.value
-                    if ciq_value in ciq_values_bs:
+                    if ciq_value in ciq_values:
                         for col in range(4, 10):
-                            date_value = upload_sheet.cell(row=92, column=col).value
-                            if date_value in dates_bs:
-                                lookup_value = standardized_sheet_bs.loc[standardized_sheet_bs['CIQ'] == ciq_value, date_value].sum()
+                            date_value = upload_sheet.cell(row=date_row, column=col).value
+                            if date_value in dates:
+                                lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
                                 if not pd.isna(lookup_value):
                                     cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
                                     if cell_to_update.data_type == 'f' or cell_to_update.value is None:
@@ -1446,114 +1444,29 @@ def populate_ciq_template_pt():
                             except ValueError:
                                 st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
+            if uploaded_balance_sheet:
+                update_template("Balance Sheet", 94, 160, 92, 11, "As Presented - Balance Sheet", "FFA500")
+
             if uploaded_cash_flow:
-                cash_flow_file = uploaded_cash_flow.read()
-                cash_flow_wb = load_workbook(BytesIO(cash_flow_file), keep_vba=True)
-                as_presented_sheet_cf = cash_flow_wb["As Presented - Cash Flow"]
-                standardized_sheet_cf = pd.read_excel(BytesIO(cash_flow_file), sheet_name="Standardized - Cash Flow")
-
-                if 'CIQ' not in standardized_sheet_cf.columns:
-                    st.error("The column 'CIQ' is missing from the Standardized - Cash Flow.")
-                    return
-
-                # Copy the "As Presented - Cash Flow" sheet to the template workbook
-                if "As Presented - Cash Flow" in template_wb.sheetnames:
-                    del template_wb["As Presented - Cash Flow"]
-                new_sheet_cf = template_wb.create_sheet("As Presented - Cash Flow")
-                for row in as_presented_sheet_cf.iter_rows():
-                    for cell in row:
-                        new_sheet_cf[cell.coordinate].value = cell.value
-
-                # Color the "As Presented - Cash Flow" tab orange
-                tab_color = "FFA500"
-                new_sheet_cf.sheet_properties.tabColor = tab_color
-
-                # Copy the "Standardized - Cash Flow" sheet to the template workbook
-                if "Standardized - Cash Flow" in template_wb.sheetnames:
-                    del template_wb["Standardized - Cash Flow"]
-                standardized_ws_cf = template_wb.create_sheet("Standardized - Cash Flow")
-
-                for col_num, header in enumerate(standardized_sheet_cf.columns, 1):
-                    standardized_ws_cf.cell(row=1, column=col_num, value=header)
-
-                for r_idx, row in enumerate(standardized_sheet_cf.itertuples(index=False), 2):
-                    for c_idx, value in enumerate(row, 1):
-                        standardized_ws_cf.cell(row=r_idx, column=c_idx, value=value)
-
-                # Perform lookups and update the "Upload" sheet for Cash Flow
-                ciq_values_cf = standardized_sheet_cf['CIQ'].tolist()
-                dates_cf = list(standardized_sheet_cf.columns[1:])  # Assumes dates start from the second column
-
-                for row in upload_sheet.iter_rows(min_row=169, max_row=232, min_col=4, max_col=upload_sheet.max_column):
-                    ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                    ciq_value = ciq_cell.value
-                    if ciq_value in ciq_values_cf:
-                        for col in range(4, 10):
-                            date_value = upload_sheet.cell(row=167, column=col).value
-                            if date_value in dates_cf:
-                                lookup_value = standardized_sheet_cf.loc[standardized_sheet_cf['CIQ'] == ciq_value, date_value].sum()
-                                if not pd.isna(lookup_value):
-                                    cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                    if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                        cell_to_update.value = lookup_value
-                                        st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+                update_template("Cash Flow", 169, 232, 167, 11, "As Presented - Cash Flow", "FFA500")
 
             if uploaded_income_statement:
-                income_statement_file = uploaded_income_statement.read()
-                income_statement_wb = load_workbook(BytesIO(income_statement_file), keep_vba=True)
-                as_presented_sheet_is = income_statement_wb["As Presented - Income Stmt"]
-                standardized_sheet_is = pd.read_excel(BytesIO(income_statement_file), sheet_name="Standardized - Income Stmt")
+                update_template("Income Statement", 10, 70, 10, 11, "As Presented - Income Stmt", "FFA500")
 
-                if 'CIQ' not in standardized_sheet_is.columns:
-                    st.error("The column 'CIQ' is missing from the Standardized - Income Stmt.")
-                    return
-
-                # Copy the "As Presented - Income Stmt" sheet to the template workbook
-                if "As Presented - Income Stmt" in template_wb.sheetnames:
-                    del template_wb["As Presented - Income Stmt"]
-                new_sheet_is = template_wb.create_sheet("As Presented - Income Stmt")
-                for row in as_presented_sheet_is.iter_rows():
-                    for cell in row:
-                        new_sheet_is[cell.coordinate].value = cell.value
-
-                # Color the "As Presented - Income Stmt" tab orange
-                tab_color = "FFA500"
-                new_sheet_is.sheet_properties.tabColor = tab_color
-
-                # Copy the "Standardized - Income Stmt" sheet to the template workbook
-                if "Standardized - Income Stmt" in template_wb.sheetnames:
-                    del template_wb["Standardized - Income Stmt"]
-                standardized_ws_is = template_wb.create_sheet("Standardized - Income Stmt")
-
-                for col_num, header in enumerate(standardized_sheet_is.columns, 1):
-                    standardized_ws_is.cell(row=1, column=col_num, value=header)
-
-                for r_idx, row in enumerate(standardized_sheet_is.itertuples(index=False), 2):
-                    for c_idx, value in enumerate(row, 1):
-                        standardized_ws_is.cell(row=r_idx, column=c_idx, value=value)
-
-                # Perform lookups and update the "Upload" sheet for Income Statement
-                ciq_values_is = standardized_sheet_is['CIQ'].tolist()
-                dates_is = list(standardized_sheet_is.columns[1:])  # Assumes dates start from the second column
-
-                for row in upload_sheet.iter_rows(min_row=13, max_row=79, min_col=4, max_col=upload_sheet.max_column):
-                    ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                    ciq_value = ciq_cell.value
-                    if ciq_value in ciq_values_is:
-                        for col in range(4, 10):
-                            date_value = upload_sheet.cell(row=11, column=col).value
-                            if date_value in dates_is:
-                                lookup_value = standardized_sheet_is.loc[standardized_sheet_is['CIQ'] == ciq_value, date_value].sum()
-                                if not pd.isna(lookup_value):
-                                    cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                    if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                        cell_to_update.value = lookup_value
-                                        st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
-
-            # Save the modified template as XLSM
+            # Save the updated workbook to a BytesIO object
             output = BytesIO()
             template_wb.save(output)
-            st.download_button(label="Download Updated Template", data=output.getvalue(), file_name="Updated_CIQ_Template.xlsm")
+            template_data = output.getvalue()
+
+            # Provide a download button for the updated template
+            st.download_button(
+                label="Download Updated Template",
+                data=template_data,
+                file_name=uploaded_template.name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            st.success("Template populated successfully. You can now download the updated template.")
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
