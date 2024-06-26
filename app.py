@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[21]:
 
 
 import io
@@ -1424,7 +1424,7 @@ def populate_ciq_template_pt():
 
                 for ciq_cell in ciq_range:
                     for date_cell in acceptable_range_dates[0]:
-                        ciq_value = ciq_cell[0].value
+                        ciq_value = ciq_cell.value
                         date_value = date_cell.value
 
                         if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
@@ -1443,8 +1443,7 @@ def populate_ciq_template_pt():
                 # Ensure at least one sheet is visible
                 workbook.active = 0
 
-                writer.save()
-                template_data = output.getvalue()
+            template_data = output.getvalue()
 
             st.download_button(
                 label="Download Updated Template",
@@ -1458,25 +1457,7 @@ def populate_ciq_template_pt():
         except Exception as e:
             st.error(f"An error occurred: {e}")
 
-def main():
-    st.sidebar.title("Navigation")
-    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
-
-    if selection == "Balance Sheet":
-        balance_sheet()
-    elif selection == "Cash Flow Statement":
-        cash_flow_statement()
-    elif selection == "Income Statement":
-        income_statement()
-    elif selection == "Populate CIQ Template":
-        populate_ciq_template_pt()
-
-if __name__ == '__main__':
-    main()
-
-
-                                   
-########################################################################### Main Function
+#######################################MAIN FUNCTION############################
 def main():
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
