@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1406,7 +1406,7 @@ def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_
         if mnemonic:
             financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
             if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - start_col + 1):
+                for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
                     cell = sheet.cell(row=row, column=col)
                     date = sheet.cell(row=date_row, column=col).value
                     if date in financial_df.columns:
@@ -1414,6 +1414,8 @@ def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_
                         override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
                         if pd.notna(override_value):
                             cell.value = override_value  # Override the formula with the financial data value
+                        elif cell.data_type != 'f':  # If the cell does not contain a formula
+                            cell.value = financial_row.iloc[0, financial_col + start_col - 1]  # Place the value in the proper cell
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1483,7 +1485,7 @@ def populate_ciq_template():
                                                     override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
                                                     if pd.notna(override_value):
                                                         template_cell.value = override_value  # Override the formula with the financial data value
-                                                else:
+                                                elif template_cell.data_type != 'f':  # If cell does not contain a formula
                                                     template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
