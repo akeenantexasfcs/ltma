@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -1413,10 +1413,10 @@ def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_
                         financial_col = financial_df.columns.get_loc(date)
                         override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
                         if pd.notna(override_value):
-                            if col >= 4 and col <= 9:  # Columns D to I
+                            if 4 <= col <= 9:  # Columns D to I
                                 cell.value = override_value  # Override value regardless of formula
-                            elif cell.data_type == 'f':  # For other columns, only override if it's a formula
-                                cell.value = override_value
+                            elif col >= 11:  # Columns K to Q and beyond
+                                continue  # Skip any modifications for these columns
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1482,14 +1482,10 @@ def populate_ciq_template():
                                             try:
                                                 financial_col = financial_dates.get_loc(date)
                                                 template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
-                                                if col >= 4 and col <= 9:  # Columns D to I
+                                                if 4 <= (4 + j) <= 9:  # Columns D to I
                                                     template_cell.value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                                                elif template_cell.data_type == 'f':  # For other columns, only override if it's a formula
-                                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                                                    if pd.notna(override_value):
-                                                        template_cell.value = override_value
-                                                else:
-                                                    template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
+                                                elif (4 + j) >= 11:  # Columns K to Q and beyond
+                                                    continue  # Skip any modifications for these columns
                                             except Exception as e:
                                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
                             except Exception as e:
@@ -1540,6 +1536,8 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
+
 
                                    
 ########################################################################### Main Function
