@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1396,11 +1396,13 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
-def convert_formulas_to_values(sheet, cell_range):
+def convert_formulas_to_values(workbook, sheet_name, cell_range):
+    sheet = workbook[sheet_name]
     for row in sheet[cell_range]:
         for cell in row:
             if cell.data_type == 'f':  # If cell contains a formula
-                cell.value = cell.value  # Convert formula to its evaluated value
+                evaluated_value = cell.value  # Get the evaluated value
+                cell.value = evaluated_value  # Set the evaluated value back to the cell
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1420,9 +1422,9 @@ def populate_ciq_template():
                 template_sheet = template_book["Upload"]
                 
                 # Convert formulas to values as the first step
-                convert_formulas_to_values(template_sheet, 'D92:I92')  # Balance Sheet dates (D92 to I92)
-                convert_formulas_to_values(template_sheet, 'D10:I10')  # Income Statement dates (D10 to I10)
-                convert_formulas_to_values(template_sheet, 'D167:I167') # Cash Flow Statement dates (D167 to I167)
+                convert_formulas_to_values(template_book, "Upload", 'D92:I92')  # Balance Sheet dates (D92 to I92)
+                convert_formulas_to_values(template_book, "Upload", 'D10:I10')  # Income Statement dates (D10 to I10)
+                convert_formulas_to_values(template_book, "Upload", 'D167:I167') # Cash Flow Statement dates (D167 to I167)
 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1517,7 +1519,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
 
                                    
