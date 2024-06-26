@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -1361,160 +1361,88 @@ def income_statement():
 
                                
 ####################################### Populate CIQ Template ###################################
-import io
-import pandas as pd
 import streamlit as st
-from openpyxl import load_workbook
-
-def copy_sheet(source_book, target_book, sheet_name, tab_color=None):
-    source_sheet = source_book[sheet_name]
-    target_sheet = target_book.create_sheet(title=sheet_name)
-
-    for row in source_sheet.iter_rows():
-        for cell in row:
-            target_cell = target_sheet[cell.coordinate]
-            target_cell.value = cell.value
-
-            if cell.has_style:
-                target_cell.font = cell.font.copy()
-                target_cell.border = cell.border.copy()
-                target_cell.fill = cell.fill.copy()
-                target_cell.number_format = cell.number_format
-                target_cell.protection = cell.protection.copy() if cell.protection else None
-                target_cell.alignment = cell.alignment.copy()
-
-            if cell.hyperlink:
-                target_cell.hyperlink = cell.hyperlink
-            if cell.comment:
-                target_cell.comment = cell.comment
-
-    if tab_color:
-        target_sheet.sheet_properties.tabColor = tab_color
-
-    for merged_cell in source_sheet.merged_cells.ranges:
-        target_sheet.merge_cells(str(merged_cell))
-
-def copy_paste_value(sheet, cell_address):
-    cell = sheet[cell_address]
-    cell.value = cell.value
-
-def remove_columns(sheet, columns):
-    for col in sorted(columns, reverse=True):
-        sheet.delete_cols(col)
-
-def evaluate_and_replace_formulas(sheet, financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
-    for row in range(mnemonic_start_row, mnemonic_end_row + 1):
-        mnemonic = sheet.cell(row=row, column=mnemonic_col).value
-        if mnemonic:
-            financial_row = financial_df[financial_df.iloc[:, 0] == mnemonic]
-            if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - 1):
-                    cell = sheet.cell(row=row, column=col)
-                    date = sheet.cell(row=date_row, column=col).value
-                    if date in financial_df.columns:
-                        financial_col = financial_df.columns.get_loc(date)
-                        override_value = financial_row.iloc[0, financial_col + 1]
-                        if pd.notna(override_value):
-                            cell.value = override_value
-                        elif cell.data_type != 'f':
-                            cell.value = financial_row.iloc[0, financial_col + 1]
+import pandas as pd
+import openpyxl
+from io import BytesIO
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
-
-    tab1 = st.tabs(["FY Upload Template"])[0]
+    tab1, = st.tabs(["FY Upload Template"])
 
     with tab1:
-        uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
-        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
-        uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
-        uploaded_cash_flow_statement = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'], key='cash_flow_statement_uploader')
+        st.header("Upload Files")
+        ciq_template = st.file_uploader("Upload CIQ Template", type=["xlsx", "xlsm"])
+        balance_sheet = st.file_uploader("Upload Completed Balance Sheet Data", type=["xlsx", "xlsm"])
 
-        if uploaded_template:
-            try:
-                file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
-                template_sheet = template_book["Upload"]
-                
-                for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
-                    copy_paste_value(template_sheet, cell)
+        if ciq_template and balance_sheet:
+            if st.button("Populate Template Now"):
+                process_files(ciq_template, balance_sheet)
 
-                if uploaded_income_statement:
-                    income_statement_book = load_workbook(uploaded_income_statement, data_only=False)
-                if uploaded_balance_sheet:
-                    balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=False)
-                if uploaded_cash_flow_statement:
-                    cash_flow_book = load_workbook(uploaded_cash_flow_statement, data_only=False)
-            except Exception as e:
-                st.error(f"Error reading files: {e}")
-                return
+def process_files(ciq_template, balance_sheet):
+    try:
+        # Load workbooks
+        ciq_wb = openpyxl.load_workbook(ciq_template, data_only=True)
+        bs_wb = openpyxl.load_workbook(balance_sheet, data_only=True)
 
-            errors = []
+        # Process "As Presented - Balance Sheet"
+        as_presented = bs_wb["As Presented - Balance Sheet"]
+        if "As Presented - Balance Sheet" not in ciq_wb.sheetnames:
+            ciq_wb.create_sheet("As Presented - Balance Sheet")
+        ciq_as_presented = ciq_wb["As Presented - Balance Sheet"]
+        for row in as_presented.iter_rows(values_only=True):
+            ciq_as_presented.append(row)
+        ciq_as_presented.sheet_properties.tabColor = "FFA500"  # Orange
 
-            if st.button("Populate Template"):
-                def process_sheet(sheet_name, tab_color, standardized_sheet_name, acceptable_range, mnemonic_range, remove_cols):
-                    try:
-                        copy_sheet(balance_sheet_book, template_book, sheet_name, tab_color)
-                        copy_sheet(balance_sheet_book, template_book, standardized_sheet_name)
-                        target_sheet = template_book[standardized_sheet_name]
-                        remove_columns(target_sheet, remove_cols)
-                        standardized_df = pd.read_excel(uploaded_balance_sheet, sheet_name=standardized_sheet_name, usecols=lambda x: x not in ['Label', 'Final Mnemonic Selection'])
-                        evaluate_and_replace_formulas(template_sheet, standardized_df, *acceptable_range, *mnemonic_range)
-                    except Exception as e:
-                        errors.append(f"Error processing sheet {sheet_name}: {e}")
+        # Process "Standardized - Balance Sheet"
+        std_bs = bs_wb["Standardized - Balance Sheet"]
+        if "[Label]" not in std_bs[1] or "[Final Mnemonic Selection]" not in std_bs[2]:
+            raise ValueError("Required columns missing in Standardized - Balance Sheet")
+        
+        std_df = pd.DataFrame(std_bs.values)
+        std_df = std_df.iloc[:, 2:]  # Remove first two columns
+        std_df.columns = std_df.iloc[0]
+        std_df = std_df.iloc[1:]
 
-                if uploaded_balance_sheet:
-                    process_sheet(
-                        sheet_name="As Presented - Balance Sheet",
-                        tab_color="FFA500",
-                        standardized_sheet_name="Standardized - Balance Sheet",
-                        acceptable_range=(92, 4, 10),
-                        mnemonic_range=(94, 165, 11),
-                        remove_cols=[1, 2]
-                    )
+        # Process "Upload" sheet
+        upload_sheet = ciq_wb["Upload"]
+        date_range = upload_sheet["D92:I92"]
+        for cell in date_range[0]:
+            cell.value = cell.value if isinstance(cell.value, (int, float)) else cell.value
 
-                if uploaded_cash_flow_statement:
-                    process_sheet(
-                        sheet_name="As Presented - Cash Flow",
-                        tab_color="FFA500",
-                        standardized_sheet_name="Standardized - Cash Flow",
-                        acceptable_range=(167, 4, 10),
-                        mnemonic_range=(169, 231, 11),
-                        remove_cols=[1, 2]
-                    )
+        ciq_range = upload_sheet["K94:K160"]
+        acceptable_range = upload_sheet["D94:I160"]
 
-                if uploaded_income_statement:
-                    try:
-                        copy_sheet(income_statement_book, template_book, "As Presented - Income Stmt", tab_color="FFA500")
-                        copy_sheet(income_statement_book, template_book, "Standardized - Income Stmt")
-                        target_sheet = template_book["Standardized - Income Stmt"]
-                        remove_columns(target_sheet, [1])
-                        standardized_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized - Income Stmt", usecols=lambda x: x != 'Label')
-                        evaluate_and_replace_formulas(template_sheet, standardized_df, 10, 11, 90, 3, 1)
-                    except Exception as e:
-                        errors.append(f"Error processing sheet Income Stmt: {e}")
+        for row in range(94, 161):
+            ciq_value = upload_sheet[f"K{row}"].value
+            for col in range(4, 10):  # D to I
+                date_value = upload_sheet.cell(row=92, column=col).value
+                lookup_value = std_df.loc[(std_df["CIQ"] == ciq_value) & (std_df.columns == date_value)].values
+                if lookup_value.size > 0:
+                    cell = upload_sheet.cell(row=row, column=col)
+                    if not cell.data_type == 'f' or lookup_value[0][0] is not None:
+                        cell.value = lookup_value[0][0]
 
-                try:
-                    output_file_name = f"populated_template.{file_extension}"
-                    excel_file = io.BytesIO()
-                    template_book.save(excel_file)
-                    excel_file.seek(0)
-                except Exception as e:
-                    st.error(f"Error saving the populated template: {e}")
-                    return
+        # Make D113:I113 negative if present
+        for col in range(4, 10):
+            cell = upload_sheet.cell(row=113, column=col)
+            if cell.value is not None and cell.value > 0:
+                cell.value = -cell.value
 
-                if errors:
-                    st.error("Errors encountered during processing:")
-                    for error in errors:
-                        st.error(error)
+        # Save the updated CIQ template
+        output = BytesIO()
+        ciq_wb.save(output)
+        output.seek(0)
+        
+        st.download_button(
+            label="Download Updated CIQ Template",
+            data=output,
+            file_name="updated_ciq_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                st.download_button(
-                    label="Download Populated Template",
-                    data=excel_file,
-                    file_name=output_file_name,
-                    mime=mime_type
-                )
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 
                                    
 ########################################################################### Main Function
