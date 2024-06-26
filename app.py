@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[29]:
+# In[30]:
 
 
 import io
@@ -1430,16 +1430,15 @@ def populate_ciq_template_pt():
 
             for ciq_cell in ciq_range:
                 ciq_value = ciq_cell.value
-                if ciq_value in standardized_sheet['CIQ'].values:
-                    for date_cell in acceptable_range_dates:
-                        date_value = date_cell.value
-                        if date_value in standardized_sheet.columns:
-                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
-                            if not lookup_value.empty:
-                                cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=date_cell.col_idx)
-                                if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                    cell_to_update.value = lookup_value.values[0]
-                                    st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value.values[0]}")
+                for date_cell in acceptable_range_dates:
+                    date_value = date_cell.value
+                    if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
+                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
+                        if not lookup_value.empty:
+                            cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=date_cell.col_idx)
+                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                cell_to_update.value = lookup_value.values[0]
+                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value.values[0]}")
 
             for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
                 for cell in row:
