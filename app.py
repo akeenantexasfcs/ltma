@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[19]:
+# In[20]:
 
 
 import io
@@ -1434,7 +1434,11 @@ def populate_ciq_template_pt():
 
                 for cell in upload_sheet['D113':'I113'][0]:
                     if cell.value is not None:
-                        cell.value = -abs(cell.value)
+                        try:
+                            cell_value = float(cell.value)
+                            cell.value = -abs(cell_value)
+                        except ValueError:
+                            st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 # Ensure at least one sheet is visible
                 workbook.active = 0
@@ -1454,8 +1458,21 @@ def populate_ciq_template_pt():
         except Exception as e:
             st.error(f"An error occurred: {e}")
 
-def main_pt():
-    populate_ciq_template_pt()
+def main():
+    st.sidebar.title("Navigation")
+    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
+
+    if selection == "Balance Sheet":
+        balance_sheet()
+    elif selection == "Cash Flow Statement":
+        cash_flow_statement()
+    elif selection == "Income Statement":
+        income_statement()
+    elif selection == "Populate CIQ Template":
+        populate_ciq_template_pt()
+
+if __name__ == '__main__':
+    main()
 
 
                                    
