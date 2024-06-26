@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[47]:
+# In[48]:
 
 
 import io
@@ -1364,7 +1364,8 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl.styles import PatternFill
+from openpyxl import load_workbook
+from openpyxl.writer.excel import save_virtual_workbook
 from io import BytesIO
 
 def populate_ciq_template_pt():
@@ -1381,12 +1382,12 @@ def populate_ciq_template_pt():
         try:
             # Read the uploaded files
             template_file = uploaded_template.read()
-            template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
+            template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
             upload_sheet = template_wb["Upload"]
 
             if uploaded_balance_sheet:
                 balance_sheet_file = uploaded_balance_sheet.read()
-                balance_sheet_wb = openpyxl.load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
+                balance_sheet_wb = load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
                 as_presented_sheet_bs = balance_sheet_wb["As Presented - Balance Sheet"]
                 standardized_sheet_bs = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
 
@@ -1447,7 +1448,7 @@ def populate_ciq_template_pt():
 
             if uploaded_cash_flow:
                 cash_flow_file = uploaded_cash_flow.read()
-                cash_flow_wb = openpyxl.load_workbook(BytesIO(cash_flow_file), keep_vba=True)
+                cash_flow_wb = load_workbook(BytesIO(cash_flow_file), keep_vba=True)
                 as_presented_sheet_cf = cash_flow_wb["As Presented - Cash Flow"]
                 standardized_sheet_cf = pd.read_excel(BytesIO(cash_flow_file), sheet_name="Standardized - Cash Flow")
 
@@ -1499,7 +1500,7 @@ def populate_ciq_template_pt():
 
             if uploaded_income_statement:
                 income_statement_file = uploaded_income_statement.read()
-                income_statement_wb = openpyxl.load_workbook(BytesIO(income_statement_file), keep_vba=True)
+                income_statement_wb = load_workbook(BytesIO(income_statement_file), keep_vba=True)
                 as_presented_sheet_is = income_statement_wb["As Presented - Income Stmt"]
                 standardized_sheet_is = pd.read_excel(BytesIO(income_statement_file), sheet_name="Standardized - Income Stmt")
 
@@ -1549,10 +1550,10 @@ def populate_ciq_template_pt():
                                         cell_to_update.value = lookup_value
                                         st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-            # Save the modified template
+            # Save the modified template as XLSM
             output = BytesIO()
             template_wb.save(output)
-            st.download_button(label="Download Updated Template", data=output.getvalue(), file_name="Updated_CIQ_Template.xlsx")
+            st.download_button(label="Download Updated Template", data=output.getvalue(), file_name="Updated_CIQ_Template.xlsm")
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
