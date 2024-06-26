@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1397,15 +1397,11 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
-def get_cell_value_as_string(sheet, cell_address):
-    cell_value = sheet[cell_address].value
-    return str(cell_value) if cell_value is not None else ""
-
 def convert_formulas_to_values(sheet, row, start_col, end_col):
     for col in range(start_col, end_col + 1):
         cell = sheet.cell(row=row, column=col)
         if cell.data_type == 'f':  # If cell contains a formula
-            cell.value = cell.value  # Convert formula to its evaluated value
+            sheet.cell(row=row, column=col, value=cell.value)  # Convert formula to its evaluated value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
