@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -1366,7 +1366,7 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
-def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
+def copy_sheet(source_book, target_book, sheet_name, tab_color=None):
     source_sheet = source_book[sheet_name]
     target_sheet = target_book.create_sheet(title=sheet_name)
 
@@ -1375,7 +1375,6 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
             target_cell = target_sheet[cell.coordinate]
             target_cell.value = cell.value
 
-            # Copy styles manually
             if cell.has_style:
                 target_cell.font = cell.font.copy()
                 target_cell.border = cell.border.copy()
@@ -1384,15 +1383,14 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
                 target_cell.protection = cell.protection.copy() if cell.protection else None
                 target_cell.alignment = cell.alignment.copy()
 
-            # Copy hyperlinks and comments
             if cell.hyperlink:
                 target_cell.hyperlink = cell.hyperlink
             if cell.comment:
                 target_cell.comment = cell.comment
 
-    target_sheet.sheet_properties.tabColor = tab_color
+    if tab_color:
+        target_sheet.sheet_properties.tabColor = tab_color
 
-    # Copy merged cells
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
@@ -1400,22 +1398,26 @@ def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
     cell.value = cell.value
 
-def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
-    for row in range(start_row, end_row + 1):
+def remove_columns(sheet, columns):
+    for col in sorted(columns, reverse=True):
+        sheet.delete_cols(col)
+
+def evaluate_and_replace_formulas(sheet, financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
+    for row in range(mnemonic_start_row, mnemonic_end_row + 1):
         mnemonic = sheet.cell(row=row, column=mnemonic_col).value
         if mnemonic:
-            financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
+            financial_row = financial_df[financial_df.iloc[:, 0] == mnemonic]
             if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
+                for col in range(start_col, start_col + len(financial_df.columns) - 1):
                     cell = sheet.cell(row=row, column=col)
                     date = sheet.cell(row=date_row, column=col).value
                     if date in financial_df.columns:
                         financial_col = financial_df.columns.get_loc(date)
-                        override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                        override_value = financial_row.iloc[0, financial_col + 1]
                         if pd.notna(override_value):
-                            cell.value = override_value  # Override the formula with the financial data value
-                        elif cell.data_type != 'f':  # If the cell does not contain a formula
-                            cell.value = financial_row.iloc[0, financial_col + start_col - 1]  # Place the value in the proper cell
+                            cell.value = override_value
+                        elif cell.data_type != 'f':
+                            cell.value = financial_row.iloc[0, financial_col + 1]
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1431,20 +1433,18 @@ def populate_ciq_template():
         if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                # Load the workbook without evaluating formulas
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert specified cells to values
                 for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
                 if uploaded_income_statement:
-                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized - Income Stmt")
+                    income_statement_book = load_workbook(uploaded_income_statement, data_only=False)
                 if uploaded_balance_sheet:
-                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized - Balance Sheet")
+                    balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=False)
                 if uploaded_cash_flow_statement:
-                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized - Cash Flow")
+                    cash_flow_book = load_workbook(uploaded_cash_flow_statement, data_only=False)
             except Exception as e:
                 st.error(f"Error reading files: {e}")
                 return
@@ -1452,69 +1452,47 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
-                def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
+                def process_sheet(sheet_name, tab_color, standardized_sheet_name, acceptable_range, mnemonic_range, remove_cols):
                     try:
-                        ciq_mnemonics = financial_df.iloc[:, mnemonic_col]
-                        financial_dates = financial_df.columns[start_col-1:]  # Adjust index to start from the correct column
+                        copy_sheet(balance_sheet_book, template_book, sheet_name, tab_color)
+                        copy_sheet(balance_sheet_book, template_book, standardized_sheet_name)
+                        target_sheet = template_book[standardized_sheet_name]
+                        remove_columns(target_sheet, remove_cols)
+                        standardized_df = pd.read_excel(uploaded_balance_sheet, sheet_name=standardized_sheet_name, usecols=lambda x: x not in ['Label', 'Final Mnemonic Selection'])
+                        evaluate_and_replace_formulas(template_sheet, standardized_df, *acceptable_range, *mnemonic_range)
                     except Exception as e:
-                        st.error(f"Error processing financial data: {e}")
-                        return
-
-                    st.write("Financial Dates:", list(financial_dates))
-
-                    try:
-                        template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    st.write("Template Dates:", template_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics):
-                        if mnemonic:
-                            try:
-                                financial_row = financial_df[ciq_mnemonics == mnemonic]
-                                if not financial_row.empty:
-                                    for j, date in enumerate(template_dates):
-                                        if date in financial_dates.values:
-                                            try:
-                                                financial_col = financial_dates.get_loc(date)
-                                                template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
-                                                if template_cell.data_type == 'f':  # If cell contains a formula
-                                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                                                    if pd.notna(override_value):
-                                                        template_cell.value = override_value  # Override the formula with the financial data value
-                                                elif template_cell.data_type != 'f':  # If cell does not contain a formula
-                                                    template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                if uploaded_income_statement:
-                    populate_template(income_statement_df, 10, 11, 90, 3, 1)
-                    try:
-                        copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "Standardized - Income Stmt")
-                    except Exception as e:
-                        st.error(f"Error copying 'Standardized - Income Stmt' sheet: {e}")
-                        return
+                        errors.append(f"Error processing sheet {sheet_name}: {e}")
 
                 if uploaded_balance_sheet:
-                    populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
-                    try:
-                        copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "Standardized - Balance Sheet")
-                    except Exception as e:
-                        st.error(f"Error copying 'Standardized - Balance Sheet' sheet: {e}")
-                        return
+                    process_sheet(
+                        sheet_name="As Presented - Balance Sheet",
+                        tab_color="FFA500",
+                        standardized_sheet_name="Standardized - Balance Sheet",
+                        acceptable_range=(92, 4, 10),
+                        mnemonic_range=(94, 165, 11),
+                        remove_cols=[1, 2]
+                    )
 
                 if uploaded_cash_flow_statement:
-                    populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
+                    process_sheet(
+                        sheet_name="As Presented - Cash Flow",
+                        tab_color="FFA500",
+                        standardized_sheet_name="Standardized - Cash Flow",
+                        acceptable_range=(167, 4, 10),
+                        mnemonic_range=(169, 231, 11),
+                        remove_cols=[1, 2]
+                    )
+
+                if uploaded_income_statement:
                     try:
-                        copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "Standardized - Cash Flow")
+                        copy_sheet(income_statement_book, template_book, "As Presented - Income Stmt", tab_color="FFA500")
+                        copy_sheet(income_statement_book, template_book, "Standardized - Income Stmt")
+                        target_sheet = template_book["Standardized - Income Stmt"]
+                        remove_columns(target_sheet, [1])
+                        standardized_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized - Income Stmt", usecols=lambda x: x != 'Label')
+                        evaluate_and_replace_formulas(template_sheet, standardized_df, 10, 11, 90, 3, 1)
                     except Exception as e:
-                        st.error(f"Error copying 'Standardized - Cash Flow' sheet: {e}")
-                        return
+                        errors.append(f"Error processing sheet Income Stmt: {e}")
 
                 try:
                     output_file_name = f"populated_template.{file_extension}"
