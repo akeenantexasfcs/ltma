@@ -1413,14 +1413,20 @@ def populate_ciq_template_pt():
             if "Standardized - Balance Sheet" in template_wb.sheetnames:
                 del template_wb["Standardized - Balance Sheet"]
             standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
-            for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 1):
+
+            # Write the header row
+            for col_num, header in enumerate(standardized_sheet.columns, 1):
+                standardized_ws.cell(row=1, column=col_num, value=header)
+
+            # Write the data rows
+            for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
                 for c_idx, value in enumerate(row, 1):
                     standardized_ws.cell(row=r_idx, column=c_idx, value=value)
 
             # Perform lookups and update the "Upload" sheet
             upload_sheet = template_wb["Upload"]
-            acceptable_range_dates = upload_sheet['D92':'I92']
-            ciq_range = upload_sheet['K94':'K160']
+            acceptable_range_dates = upload_sheet['D92:I92']
+            ciq_range = upload_sheet['K94:K160']
 
             for row in acceptable_range_dates:
                 for cell in row:
@@ -1438,7 +1444,7 @@ def populate_ciq_template_pt():
                             if not lookup_value.empty:
                                 ciq_cell.value = lookup_value.values[0]
 
-            for row in upload_sheet['D113':'I113']:
+            for row in upload_sheet['D113:I113']:
                 for cell in row:
                     if cell.value is not None:
                         try:
