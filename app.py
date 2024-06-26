@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -1400,7 +1400,7 @@ def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
     cell.value = cell.value
 
-def override_formula_if_needed(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
+def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
     for row in range(start_row, end_row + 1):
         mnemonic = sheet.cell(row=row, column=mnemonic_col).value
         if mnemonic:
@@ -1408,13 +1408,14 @@ def override_formula_if_needed(sheet, financial_df, date_row, start_row, end_row
             if not financial_row.empty:
                 for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
                     cell = sheet.cell(row=row, column=col)
-                    if cell.data_type == 'f':  # If cell contains a formula
-                        date = sheet.cell(row=date_row, column=col).value
-                        if date in financial_df.columns:
-                            financial_col = financial_df.columns.get_loc(date)
-                            override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                            if pd.notna(override_value):
-                                cell.value = override_value  # Override the formula with the financial data value
+                    if col < 11 or col > 17:  # Ignore columns K to Q
+                        if cell.data_type == 'f':  # If cell contains a formula
+                            date = sheet.cell(row=date_row, column=col).value
+                            if date in financial_df.columns:
+                                financial_col = financial_df.columns.get_loc(date)
+                                override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                                if pd.notna(override_value):
+                                    cell.value = override_value  # Override the formula with the financial data value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1536,7 +1537,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
 
 
