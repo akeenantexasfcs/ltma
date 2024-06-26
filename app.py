@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[17]:
 
 
 import io
@@ -1396,7 +1396,10 @@ def populate_ciq_template_pt():
 
             # Load the CIQ Upload template to write data to
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                template.to_excel(writer, index=False)
+                for sheet_name in template.sheet_names:
+                    df = template.parse(sheet_name)
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
                 workbook = writer.book
                 
                 # Move 'As Presented - Balance Sheet' to CIQ Upload Template and color it orange
@@ -1450,7 +1453,6 @@ def populate_ciq_template_pt():
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
-
 
                                    
 ########################################################################### Main Function
