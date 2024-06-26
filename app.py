@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[14]:
 
 
 import io
@@ -1365,6 +1365,7 @@ import streamlit as st
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill
+from io import BytesIO
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1390,10 +1391,12 @@ def populate_ciq_template():
         standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
 
         # Load the CIQ Upload template to write data to
-        with pd.ExcelWriter(uploaded_template, engine='openpyxl', mode='a') as writer:
+        with pd.ExcelWriter(BytesIO(), engine='openpyxl') as writer:
+            template.to_excel(writer, index=False)
+            workbook = writer.book
+            
             # Move 'As Presented - Balance Sheet' to CIQ Upload Template and color it orange
             as_presented_sheet.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
-            workbook = writer.book
             as_presented_ws = workbook['As Presented - Balance Sheet']
             orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
             for row in as_presented_ws.iter_rows():
@@ -1426,7 +1429,17 @@ def populate_ciq_template():
                 if cell.value is not None:
                     cell.value = -abs(cell.value)
 
+            writer.save()
+            template_data = writer.book.save(writer.path)
+            st.download_button(
+                label="Download Updated Template",
+                data=template_data,
+                file_name="updated_template.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
         st.success("Template populated successfully. You can now download the updated template.")
+
 
 
                                    
