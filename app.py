@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -1398,8 +1398,14 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
 
 def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
-    if cell.data_type == 'f':  # If the cell contains a formula
-        cell.value = cell.value  # Set the cell value to the evaluated result of the formula
+    cell.value = cell.value
+
+def evaluate_and_replace_formulas(sheet, cell_range):
+    for row in sheet[cell_range]:
+        for cell in row:
+            if cell.data_type == 'f':  # If cell contains a formula
+                evaluated_value = cell.value  # Get the evaluated value
+                cell.value = evaluated_value  # Replace the formula with its evaluated value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1415,7 +1421,8 @@ def populate_ciq_template():
         if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
+                # Load the workbook with formulas evaluated
+                template_book = load_workbook(uploaded_template, data_only=True, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
                 # Copy-paste values for specified cells in the Upload sheet
@@ -1515,6 +1522,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
 
 
