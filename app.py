@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1406,15 +1406,14 @@ def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_
         if mnemonic:
             financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
             if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
+                for col in range(start_col, start_col + len(financial_df.columns) - start_col + 1):
                     cell = sheet.cell(row=row, column=col)
-                    if cell.data_type == 'f':  # If cell contains a formula
-                        date = sheet.cell(row=date_row, column=col).value
-                        if date in financial_df.columns:
-                            financial_col = financial_df.columns.get_loc(date)
-                            override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                            if pd.notna(override_value):
-                                cell.value = override_value  # Override the formula with the financial data value
+                    date = sheet.cell(row=date_row, column=col).value
+                    if date in financial_df.columns:
+                        financial_col = financial_df.columns.get_loc(date)
+                        override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                        if pd.notna(override_value):
+                            cell.value = override_value  # Override the formula with the financial data value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1536,6 +1535,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
                                    
 ########################################################################### Main Function
