@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1366,6 +1366,7 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
+# Function to copy a sheet from one workbook to another
 def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     source_sheet = source_book[sheet_name]
     target_sheet = target_book.create_sheet(title=sheet_name)
@@ -1396,17 +1397,19 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
+# Function to convert a cell with a formula to its evaluated value
 def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
     cell.value = cell.value
 
+# Function to evaluate formulas and replace them with values from the financial DataFrame
 def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
     for row in range(start_row, end_row + 1):
         mnemonic = sheet.cell(row=row, column=mnemonic_col).value
         if mnemonic:
             financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
             if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - mnemonic_col):
+                for col in range(start_col, start_col + len(financial_df.columns) - start_col):
                     cell = sheet.cell(row=row, column=col)
                     date = sheet.cell(row=date_row, column=col).value
                     if date in financial_df.columns:
@@ -1417,12 +1420,14 @@ def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_
                         elif cell.data_type != 'f':  # If the cell does not contain a formula
                             cell.value = financial_row.iloc[0, financial_col + start_col - 1]  # Place the value in the proper cell
 
+# Main function to populate the CIQ template
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
     tab1 = st.tabs(["FY Upload Template"])[0]
 
     with tab1:
+        # Upload files
         uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
         uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
@@ -1435,7 +1440,7 @@ def populate_ciq_template():
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert specified cells to values
+                # Convert specified cells to values (eliminate formulas)
                 for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
@@ -1452,6 +1457,7 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
+                # Function to populate the template with financial data
                 def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
                     try:
                         ciq_mnemonics = financial_df.iloc[:, mnemonic_col]
