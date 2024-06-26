@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[26]:
 
 
 import io
@@ -1394,8 +1394,8 @@ def populate_ciq_template_pt():
                 st.error("The columns 'Label' and 'Final Mnemonic Selection' are missing from the Standardized - Balance Sheet.")
                 return
 
-            # Remove the specified columns but keep the header row
-            standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
+            # Remove the first two columns but keep the header row
+            standardized_sheet = standardized_sheet.drop(['Label', 'Final Mnemonic Selection'], axis=1)
 
             # Copy the "As Presented - Balance Sheet" sheet to the template workbook
             if "As Presented - Balance Sheet" in template_wb.sheetnames:
@@ -1415,7 +1415,7 @@ def populate_ciq_template_pt():
             standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
             for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 1):
                 for c_idx, value in enumerate(row, 1):
-                    standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+                    standardized_ws.cell(row=r_idx + 1, column=c_idx, value=value)
 
             # Perform lookups and update the "Upload" sheet
             upload_sheet = template_wb["Upload"]
@@ -1480,4 +1480,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
