@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -1386,6 +1386,8 @@ def process_files(ciq_template, balance_sheet):
         bs_wb = openpyxl.load_workbook(balance_sheet, data_only=True)
 
         # Process "As Presented - Balance Sheet"
+        if "As Presented - Balance Sheet" not in bs_wb.sheetnames:
+            raise ValueError("'As Presented - Balance Sheet' is missing in the Balance Sheet file")
         as_presented = bs_wb["As Presented - Balance Sheet"]
         if "As Presented - Balance Sheet" not in ciq_wb.sheetnames:
             ciq_wb.create_sheet("As Presented - Balance Sheet")
@@ -1395,12 +1397,28 @@ def process_files(ciq_template, balance_sheet):
         ciq_as_presented.sheet_properties.tabColor = "FFA500"  # Orange
 
         # Process "Standardized - Balance Sheet"
+        if "Standardized - Balance Sheet" not in bs_wb.sheetnames:
+            raise ValueError("'Standardized - Balance Sheet' sheet is missing in the Balance Sheet file")
+
         std_bs = bs_wb["Standardized - Balance Sheet"]
-        if "[Label]" not in std_bs[1] or "[Final Mnemonic Selection]" not in std_bs[2]:
-            raise ValueError("Required columns missing in Standardized - Balance Sheet")
         
+        # Check for required columns
+        first_row = next(std_bs.iter_rows(min_row=1, max_row=1, values_only=True))
+        if "Label" not in first_row or "Final Mnemonic Selection" not in first_row:
+            missing_columns = []
+            if "Label" not in first_row:
+                missing_columns.append("Label")
+            if "Final Mnemonic Selection" not in first_row:
+                missing_columns.append("Final Mnemonic Selection")
+            raise ValueError(f"Required column(s) missing in Standardized - Balance Sheet: {', '.join(missing_columns)}")
+        
+        # Find the index of the required columns
+        label_index = first_row.index("Label")
+        mnemonic_index = first_row.index("Final Mnemonic Selection")
+        
+        # Create DataFrame, excluding the identified columns
         std_df = pd.DataFrame(std_bs.values)
-        std_df = std_df.iloc[:, 2:]  # Remove first two columns
+        std_df = std_df.drop(columns=[label_index, mnemonic_index])
         std_df.columns = std_df.iloc[0]
         std_df = std_df.iloc[1:]
 
@@ -1443,6 +1461,10 @@ def process_files(ciq_template, balance_sheet):
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+        st.error("Please check your 'Standardized - Balance Sheet' to ensure it contains the required columns.")
+
+if __name__ == "__main__":
+    populate_ciq_template()
 
                                    
 ########################################################################### Main Function
