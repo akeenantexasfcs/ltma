@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 import io
@@ -1453,6 +1453,10 @@ def populate_ciq_template_pt():
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
+
+def main_pt():
+    populate_ciq_template_pt()
+
 
                                    
 ########################################################################### Main Function
