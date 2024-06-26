@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[22]:
 
 
 import io
@@ -1415,30 +1415,33 @@ def populate_ciq_template_pt():
 
                 # Process the Upload sheet
                 upload_sheet = workbook['Upload']
-                acceptable_range_dates = upload_sheet['D92':'I92']
-                ciq_range = upload_sheet['K94':'K160']
+                acceptable_range_dates = upload_sheet['D92:I92']
+                ciq_range = upload_sheet['K94:K160']
 
-                for cell in acceptable_range_dates[0]:
-                    if cell.data_type == 'f':
-                        cell.value = cell.value
+                for row in acceptable_range_dates:
+                    for cell in row:
+                        if cell.data_type == 'f':
+                            cell.value = cell.value
 
-                for ciq_cell in ciq_range:
-                    for date_cell in acceptable_range_dates[0]:
+                for ciq_row in ciq_range:
+                    for ciq_cell in ciq_row:
                         ciq_value = ciq_cell.value
-                        date_value = date_cell.value
+                        for date_cell in acceptable_range_dates[0]:
+                            date_value = date_cell.value
 
-                        if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
-                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
-                            if not lookup_value.empty:
-                                ciq_cell.value = lookup_value.values[0]
+                            if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
+                                lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
+                                if not lookup_value.empty:
+                                    ciq_cell.value = lookup_value.values[0]
 
-                for cell in upload_sheet['D113':'I113'][0]:
-                    if cell.value is not None:
-                        try:
-                            cell_value = float(cell.value)
-                            cell.value = -abs(cell_value)
-                        except ValueError:
-                            st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                for row in upload_sheet['D113:I113']:
+                    for cell in row:
+                        if cell.value is not None:
+                            try:
+                                cell_value = float(cell.value)
+                                cell.value = -abs(cell_value)
+                            except ValueError:
+                                st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 # Ensure at least one sheet is visible
                 workbook.active = 0
@@ -1457,7 +1460,6 @@ def populate_ciq_template_pt():
         except Exception as e:
             st.error(f"An error occurred: {e}")
 
-#######################################MAIN FUNCTION############################
 def main():
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
