@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[36]:
+# In[37]:
 
 
 import io
@@ -1374,79 +1374,143 @@ def populate_ciq_template_pt():
 
     uploaded_template = st.file_uploader("Upload CIQ Template", type=['xlsx', 'xlsm'])
     uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet Data", type=['xlsx', 'xlsm'])
+    uploaded_cash_flow = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'])
 
-    if st.button("Populate Template Now") and uploaded_template and uploaded_balance_sheet:
+    if st.button("Populate Template Now") and uploaded_template and (uploaded_balance_sheet or uploaded_cash_flow):
         try:
             # Read the uploaded files
             template_file = uploaded_template.read()
-            balance_sheet_file = uploaded_balance_sheet.read()
-
-            # Load workbooks
             template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
-            balance_sheet_wb = openpyxl.load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
 
-            # Load sheets
-            as_presented_sheet = balance_sheet_wb["As Presented - Balance Sheet"]
-            standardized_sheet = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
+            if uploaded_balance_sheet:
+                balance_sheet_file = uploaded_balance_sheet.read()
+                balance_sheet_wb = openpyxl.load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
+                as_presented_sheet = balance_sheet_wb["As Presented - Balance Sheet"]
+                standardized_sheet = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
 
-            # Check for required columns in the Standardized - Balance Sheet
-            if 'CIQ' not in standardized_sheet.columns:
-                st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
-                return
+                # Check for required columns in the Standardized - Balance Sheet
+                if 'CIQ' not in standardized_sheet.columns:
+                    st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
+                    return
 
-            # Copy the "As Presented - Balance Sheet" sheet to the template workbook
-            if "As Presented - Balance Sheet" in template_wb.sheetnames:
-                del template_wb["As Presented - Balance Sheet"]
-            new_sheet = template_wb.create_sheet("As Presented - Balance Sheet")
-            for row in as_presented_sheet.iter_rows():
-                for cell in row:
-                    new_sheet[cell.coordinate].value = cell.value
+                # Copy the "As Presented - Balance Sheet" sheet to the template workbook
+                if "As Presented - Balance Sheet" in template_wb.sheetnames:
+                    del template_wb["As Presented - Balance Sheet"]
+                new_sheet = template_wb.create_sheet("As Presented - Balance Sheet")
+                for row in as_presented_sheet.iter_rows():
+                    for cell in row:
+                        new_sheet[cell.coordinate].value = cell.value
 
-            # Color the "As Presented - Balance Sheet" tab orange
-            tab_color = "FFA500"
-            new_sheet.sheet_properties.tabColor = tab_color
+                # Color the "As Presented - Balance Sheet" tab orange
+                tab_color = "FFA500"
+                new_sheet.sheet_properties.tabColor = tab_color
 
-            # Copy the "Standardized - Balance Sheet" sheet to the template workbook
-            if "Standardized - Balance Sheet" in template_wb.sheetnames:
-                del template_wb["Standardized - Balance Sheet"]
-            standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
+                # Copy the "Standardized - Balance Sheet" sheet to the template workbook
+                if "Standardized - Balance Sheet" in template_wb.sheetnames:
+                    del template_wb["Standardized - Balance Sheet"]
+                standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
 
-            # Write the header row
-            for col_num, header in enumerate(standardized_sheet.columns, 1):
-                standardized_ws.cell(row=1, column=col_num, value=header)
+                # Write the header row
+                for col_num, header in enumerate(standardized_sheet.columns, 1):
+                    standardized_ws.cell(row=1, column=col_num, value=header)
 
-            # Write the data rows
-            for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
-                for c_idx, value in enumerate(row, 1):
-                    standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+                # Write the data rows
+                for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
+                    for c_idx, value in enumerate(row, 1):
+                        standardized_ws.cell(row=r_idx, column=c_idx, value=value)
 
-            # Perform lookups and update the "Upload" sheet
-            upload_sheet = template_wb["Upload"]
-            ciq_values = standardized_sheet['CIQ'].tolist()
-            dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
+                # Perform lookups and update the "Upload" sheet
+                upload_sheet = template_wb["Upload"]
+                ciq_values = standardized_sheet['CIQ'].tolist()
+                dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
-            for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
-                ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                ciq_value = ciq_cell.value
-                if ciq_value in ciq_values:
-                    for col in range(4, 10):
-                        date_value = upload_sheet.cell(row=92, column=col).value
-                        if date_value in dates:
-                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                            if not pd.isna(lookup_value):
-                                cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                    cell_to_update.value = lookup_value
-                                    st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+                for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
+                    ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                    ciq_value = ciq_cell.value
+                    if ciq_value in ciq_values:
+                        for col in range(4, 10):
+                            date_value = upload_sheet.cell(row=92, column=col).value
+                            if date_value in dates:
+                                lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                if not pd.isna(lookup_value):
+                                    cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                    if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                        cell_to_update.value = lookup_value
+                                        st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-            for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
-                for cell in row:
-                    if cell.value is not None:
-                        try:
-                            cell_value = float(cell.value)
-                            cell.value = -abs(cell_value)
-                        except ValueError:
-                            st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
+                    for cell in row:
+                        if cell.value is not None:
+                            try:
+                                cell_value = float(cell.value)
+                                cell.value = -abs(cell_value)
+                            except ValueError:
+                                st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+
+            if uploaded_cash_flow:
+                cash_flow_file = uploaded_cash_flow.read()
+                cash_flow_wb = openpyxl.load_workbook(BytesIO(cash_flow_file), keep_vba=True)
+                as_presented_sheet = cash_flow_wb["As Presented - Cash Flow"]
+                standardized_sheet = pd.read_excel(BytesIO(cash_flow_file), sheet_name="Standardized - Cash Flow")
+
+                # Check for required columns in the Standardized - Cash Flow
+                if 'CIQ' not in standardized_sheet.columns:
+                    st.error("The column 'CIQ' is missing from the Standardized - Cash Flow.")
+                    return
+
+                # Copy the "As Presented - Cash Flow" sheet to the template workbook
+                if "As Presented - Cash Flow" in template_wb.sheetnames:
+                    del template_wb["As Presented - Cash Flow"]
+                new_sheet = template_wb.create_sheet("As Presented - Cash Flow")
+                for row in as_presented_sheet.iter_rows():
+                    for cell in row:
+                        new_sheet[cell.coordinate].value = cell.value
+
+                # Color the "As Presented - Cash Flow" tab orange
+                tab_color = "FFA500"
+                new_sheet.sheet_properties.tabColor = tab_color
+
+                # Copy the "Standardized - Cash Flow" sheet to the template workbook
+                if "Standardized - Cash Flow" in template_wb.sheetnames:
+                    del template_wb["Standardized - Cash Flow"]
+                standardized_ws = template_wb.create_sheet("Standardized - Cash Flow")
+
+                # Write the header row
+                for col_num, header in enumerate(standardized_sheet.columns, 1):
+                    standardized_ws.cell(row=1, column=col_num, value=header)
+
+                # Write the data rows
+                for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
+                    for c_idx, value in enumerate(row, 1):
+                        standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+
+                # Perform lookups and update the "Upload" sheet
+                upload_sheet = template_wb["Upload"]
+                ciq_values = standardized_sheet['CIQ'].tolist()
+                dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
+
+                for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
+                    ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                    ciq_value = ciq_cell.value
+                    if ciq_value in ciq_values:
+                        for col in range(4, 10):
+                            date_value = upload_sheet.cell(row=92, column=col).value
+                            if date_value in dates:
+                                lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                if not pd.isna(lookup_value):
+                                    cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                    if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                        cell_to_update.value = lookup_value
+                                        st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
+                    for cell in row:
+                        if cell.value is not None:
+                            try:
+                                cell_value = float(cell.value)
+                                cell.value = -abs(cell_value)
+                            except ValueError:
+                                st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
             # Save the updated workbook to a BytesIO object
             output = BytesIO()
