@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[15]:
+# In[1]:
 
 
 import io
@@ -1424,9 +1424,9 @@ def populate_ciq_template():
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert date formulas to values as the first step
-                convert_formulas_to_values(template_sheet, 10, 4, 9)  # Income Statement dates (D10 to I10)
+                # Convert formulas to values as the first step
                 convert_formulas_to_values(template_sheet, 92, 4, 9)  # Balance Sheet dates (D92 to I92)
+                convert_formulas_to_values(template_sheet, 10, 4, 9)  # Income Statement dates (D10 to I10)
                 convert_formulas_to_values(template_sheet, 167, 4, 9) # Cash Flow Statement dates (D167 to I167)
 
                 if uploaded_income_statement:
@@ -1522,7 +1522,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
 
                                    
