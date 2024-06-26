@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[6]:
 
 
 import io
@@ -1381,7 +1381,7 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
                 target_cell.border = cell.border.copy()
                 target_cell.fill = cell.fill.copy()
                 target_cell.number_format = cell.number_format
-                target_cell.protection = cell.protection.copy()
+                target_cell.protection = cell.protection.copy() if cell.protection else None
                 target_cell.alignment = cell.alignment.copy()
 
             # Copy hyperlinks and comments
@@ -1396,13 +1396,9 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
-def convert_formulas_to_values(workbook, sheet_name, cell_range):
-    sheet = workbook[sheet_name]
-    for row in sheet[cell_range]:
-        for cell in row:
-            if cell.data_type == 'f':  # If cell contains a formula
-                evaluated_value = cell.value  # Get the evaluated value
-                cell.value = evaluated_value  # Set the evaluated value back to the cell
+def copy_paste_value(sheet, cell_address):
+    cell = sheet[cell_address]
+    cell.value = cell.value
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1421,10 +1417,9 @@ def populate_ciq_template():
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert formulas to values as the first step
-                convert_formulas_to_values(template_book, "Upload", 'D92:I92')  # Balance Sheet dates (D92 to I92)
-                convert_formulas_to_values(template_book, "Upload", 'D10:I10')  # Income Statement dates (D10 to I10)
-                convert_formulas_to_values(template_book, "Upload", 'D167:I167') # Cash Flow Statement dates (D167 to I167)
+                # Copy-paste values for specified cells in the Upload sheet
+                for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92']:
+                    copy_paste_value(template_sheet, cell)
 
                 if uploaded_income_statement:
                     income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
@@ -1519,6 +1514,8 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
+
 
 
                                    
