@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[32]:
+# In[33]:
 
 
 import io
@@ -1422,7 +1422,7 @@ def populate_ciq_template_pt():
 
             # Perform lookups and update the "Upload" sheet
             upload_sheet = template_wb["Upload"]
-            acceptable_range_dates = list(upload_sheet.iter_cols(min_col=4, max_col=9, min_row=92, max_row=92))[0]
+            fiscal_year_columns = list(upload_sheet.iter_cols(min_col=4, max_col=9, min_row=92, max_row=92))[0]
             ciq_range = list(upload_sheet.iter_cols(min_col=11, max_col=11, min_row=94, max_row=160))[0]
 
             fiscal_years = ['FY2023', 'FY2022', 'FY2021', 'FY2020']
@@ -1430,10 +1430,10 @@ def populate_ciq_template_pt():
             for ciq_cell in ciq_range:
                 ciq_value = ciq_cell.value
                 if ciq_value in standardized_sheet['CIQ'].values:
-                    for date_cell, fy in zip(acceptable_range_dates, fiscal_years):
+                    for fy_cell, fy in zip(fiscal_year_columns, fiscal_years):
                         if fy in standardized_sheet.columns:
                             lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, fy].sum()
-                            cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=date_cell.col_idx)
+                            cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=fy_cell.col_idx)
                             if cell_to_update.data_type == 'f' or cell_to_update.value is None:
                                 cell_to_update.value = lookup_value
                                 st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
