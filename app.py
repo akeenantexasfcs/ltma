@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[8]:
 
 
 import io
@@ -1375,7 +1375,6 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
             target_cell = target_sheet[cell.coordinate]
             target_cell.value = cell.value
 
-            # Copy styles manually
             if cell.has_style:
                 target_cell.font = cell.font.copy()
                 target_cell.border = cell.border.copy()
@@ -1384,7 +1383,6 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
                 target_cell.protection = cell.protection.copy() if cell.protection else None
                 target_cell.alignment = cell.alignment.copy()
 
-            # Copy hyperlinks and comments
             if cell.hyperlink:
                 target_cell.hyperlink = cell.hyperlink
             if cell.comment:
@@ -1392,7 +1390,6 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
 
     target_sheet.sheet_properties.tabColor = tab_color
 
-    # Copy merged cells
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
@@ -1400,13 +1397,14 @@ def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
     cell.value = cell.value
 
-def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
+def populate_template(template_sheet, financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
+    errors = []
     try:
-        ciq_mnemonics = financial_df.iloc[:, mnemonic_col - 1]  # Adjust index
-        financial_dates = financial_df.columns[start_col-1:]  # Adjust index to start from the correct column
+        ciq_mnemonics = financial_df.iloc[:, mnemonic_col - 1]
+        financial_dates = financial_df.columns[start_col-1:]
     except Exception as e:
         st.error(f"Error processing financial data: {e}")
-        return
+        return errors
 
     st.write("Financial Dates:", list(financial_dates))
 
@@ -1415,7 +1413,7 @@ def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_r
         template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
     except Exception as e:
         st.error(f"Error processing template data: {e}")
-        return
+        return errors
 
     st.write("Template Dates:", template_dates)
 
@@ -1430,20 +1428,18 @@ def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_r
                                 financial_col = financial_dates.get_loc(date)
                                 template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
                                 
-                                # Check for override value
                                 override_value = financial_row.iloc[0, financial_col]
                                 
                                 if pd.notna(override_value):
-                                    # Use override value if it exists
                                     template_cell.value = override_value
                                 elif template_cell.data_type != 'f':
-                                    # If no override and no formula, use the standard lookup value
                                     template_cell.value = financial_row.iloc[0, financial_col]
-                                # If there's a formula and no override, leave the formula as is
                             except Exception as e:
                                 errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
             except Exception as e:
                 errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
+    
+    return errors
 
 def populate_ciq_template():
     st.title("Populate CIQ Template")
@@ -1459,11 +1455,9 @@ def populate_ciq_template():
         if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                # Load the workbook without evaluating formulas
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert specified cells to values
                 for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
@@ -1481,7 +1475,7 @@ def populate_ciq_template():
 
             if st.button("Populate Template"):
                 if uploaded_income_statement:
-                    populate_template(income_statement_df, 10, 11, 90, 3, 1)
+                    errors.extend(populate_template(template_sheet, income_statement_df, 10, 11, 90, 3, 1))
                     try:
                         copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
                     except Exception as e:
@@ -1489,7 +1483,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_balance_sheet:
-                    populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
+                    errors.extend(populate_template(template_sheet, balance_sheet_df, 92, 94, 165, 4, 2))
                     try:
                         copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
                     except Exception as e:
@@ -1497,7 +1491,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_cash_flow_statement:
-                    populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
+                    errors.extend(populate_template(template_sheet, cash_flow_statement_df, 167, 169, 231, 4, 2))
                     try:
                         copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
                     except Exception as e:
@@ -1525,6 +1519,7 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
+
 
                                    
 ########################################################################### Main Function
