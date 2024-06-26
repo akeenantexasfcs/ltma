@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[12]:
 
 
 import io
@@ -1463,8 +1463,6 @@ def process_files(ciq_template, balance_sheet):
         st.error(f"An error occurred: {str(e)}")
         st.error("Please check your 'Standardized - Balance Sheet' to ensure it contains the required columns.")
 
-if __name__ == "__main__":
-    populate_ciq_template()
 
                                    
 ########################################################################### Main Function
@@ -1483,4 +1481,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
