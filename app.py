@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[23]:
+# In[24]:
 
 
 import io
@@ -1406,10 +1406,13 @@ def populate_ciq_template_pt():
             # Copy the "As Presented - Balance Sheet" sheet to the template workbook
             if "As Presented - Balance Sheet" in template_wb.sheetnames:
                 del template_wb["As Presented - Balance Sheet"]
-            template_wb._add_sheet(as_presented_sheet)
+            new_sheet = template_wb.create_sheet("As Presented - Balance Sheet")
+            for row in as_presented_sheet.iter_rows():
+                for cell in row:
+                    new_sheet[cell.coordinate].value = cell.value
+                    new_sheet[cell.coordinate].fill = orange_fill
 
             # Copy the "Standardized - Balance Sheet" sheet to the template workbook
-            standardized_sheet_data = standardized_sheet.to_dict(orient='list')
             if "Standardized - Balance Sheet" in template_wb.sheetnames:
                 del template_wb["Standardized - Balance Sheet"]
             standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
@@ -1427,8 +1430,8 @@ def populate_ciq_template_pt():
                     if cell.data_type == 'f':
                         cell.value = cell.value
 
-            for row in ciq_range:
-                for ciq_cell in row:
+            for ciq_row in ciq_range:
+                for ciq_cell in ciq_row:
                     ciq_value = ciq_cell.value
                     for date_cell in acceptable_range_dates[0]:
                         date_value = date_cell.value
