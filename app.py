@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[27]:
+# In[28]:
 
 
 import io
@@ -1428,21 +1428,16 @@ def populate_ciq_template_pt():
             acceptable_range_dates = upload_sheet['D92:I92']
             ciq_range = upload_sheet['K94:K160']
 
-            for row in acceptable_range_dates:
-                for cell in row:
-                    if cell.data_type == 'f':
-                        cell.value = cell.value
-
-            for ciq_row in ciq_range:
-                for ciq_cell in ciq_row:
-                    ciq_value = ciq_cell.value
-                    for date_cell in acceptable_range_dates[0]:
-                        date_value = date_cell.value
-
-                        if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
-                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
-                            if not lookup_value.empty:
-                                ciq_cell.value = lookup_value.values[0]
+            for ciq_cell in ciq_range:
+                ciq_value = ciq_cell.value
+                for date_cell in acceptable_range_dates[0]:
+                    date_value = date_cell.value
+                    if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
+                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
+                        if not lookup_value.empty:
+                            cell_to_update = upload_sheet.cell(row=ciq_cell.row, column=date_cell.col_idx)
+                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                cell_to_update.value = lookup_value.values[0]
 
             for row in upload_sheet['D113:I113']:
                 for cell in row:
