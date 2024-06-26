@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1440,11 +1440,11 @@ def populate_ciq_template():
                     copy_paste_value(template_sheet, cell)
 
                 if uploaded_income_statement:
-                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized - Income Stmt")
+                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
                 if uploaded_balance_sheet:
-                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized - Balance Sheet")
+                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
                 if uploaded_cash_flow_statement:
-                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized - Cash Flow")
+                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
             except Exception as e:
                 st.error(f"Error reading files: {e}")
                 return
@@ -1539,9 +1539,6 @@ def populate_ciq_template():
                 )
 
 
-
-
-
                                    
 ########################################################################### Main Function
 def main():
@@ -1559,10 +1556,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# In[ ]:
-
-
-
 
