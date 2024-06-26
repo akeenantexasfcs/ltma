@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[15]:
 
 
 import io
@@ -1367,7 +1367,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 from io import BytesIO
 
-def populate_ciq_template():
+def populate_ciq_template_pt():
     st.title("Populate CIQ Template")
 
     tab1 = st.tabs(["FY Upload Template"])[0]
@@ -1376,61 +1376,69 @@ def populate_ciq_template():
     uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet Data", type=['xlsx', 'xlsm'])
 
     if st.button("Populate Template Now") and uploaded_template and uploaded_balance_sheet:
-        template = pd.ExcelFile(uploaded_template)
-        balance_sheet = pd.ExcelFile(uploaded_balance_sheet)
-        
-        # Load sheets
-        as_presented_sheet = balance_sheet.parse("As Presented - Balance Sheet")
-        standardized_sheet = balance_sheet.parse("Standardized - Balance Sheet")
-
-        # Remove 'Label' and 'Final Mnemonic Selection' columns from standardized_sheet
-        if 'Label' not in standardized_sheet.columns or 'Final Mnemonic Selection' not in standardized_sheet.columns:
-            st.error("The columns 'Label' and 'Final Mnemonic Selection' are missing from the Standardized - Balance Sheet.")
-            return
-
-        standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
-
-        # Load the CIQ Upload template to write data to
-        with pd.ExcelWriter(BytesIO(), engine='openpyxl') as writer:
-            template.to_excel(writer, index=False)
-            workbook = writer.book
+        try:
+            template = pd.ExcelFile(uploaded_template)
+            balance_sheet = pd.ExcelFile(uploaded_balance_sheet)
             
-            # Move 'As Presented - Balance Sheet' to CIQ Upload Template and color it orange
-            as_presented_sheet.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
-            as_presented_ws = workbook['As Presented - Balance Sheet']
-            orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
-            for row in as_presented_ws.iter_rows():
-                for cell in row:
-                    cell.fill = orange_fill
+            # Load sheets
+            as_presented_sheet = balance_sheet.parse("As Presented - Balance Sheet")
+            standardized_sheet = balance_sheet.parse("Standardized - Balance Sheet")
 
-            # Move 'Standardized - Balance Sheet' to CIQ Upload Template
-            standardized_sheet.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+            # Remove 'Label' and 'Final Mnemonic Selection' columns from standardized_sheet
+            if 'Label' not in standardized_sheet.columns or 'Final Mnemonic Selection' not in standardized_sheet.columns:
+                st.error("The columns 'Label' and 'Final Mnemonic Selection' are missing from the Standardized - Balance Sheet.")
+                return
 
-            # Process the Upload sheet
-            upload_sheet = workbook['Upload']
-            acceptable_range_dates = upload_sheet['D92':'I92']
-            ciq_range = upload_sheet['K94':'K160']
+            standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
 
-            for cell in acceptable_range_dates[0]:
-                if cell.data_type == 'f':
-                    cell.value = cell.value
+            # Prepare to save to a BytesIO object
+            output = BytesIO()
 
-            for ciq_cell in ciq_range:
-                for date_cell in acceptable_range_dates[0]:
-                    ciq_value = ciq_cell[0].value
-                    date_value = date_cell.value
+            # Load the CIQ Upload template to write data to
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                template.to_excel(writer, index=False)
+                workbook = writer.book
+                
+                # Move 'As Presented - Balance Sheet' to CIQ Upload Template and color it orange
+                as_presented_sheet.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
+                as_presented_ws = workbook['As Presented - Balance Sheet']
+                orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
+                for row in as_presented_ws.iter_rows():
+                    for cell in row:
+                        cell.fill = orange_fill
 
-                    if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
-                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
-                        if not lookup_value.empty:
-                            ciq_cell.value = lookup_value.values[0]
+                # Move 'Standardized - Balance Sheet' to CIQ Upload Template
+                standardized_sheet.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
 
-            for cell in upload_sheet['D113':'I113'][0]:
-                if cell.value is not None:
-                    cell.value = -abs(cell.value)
+                # Process the Upload sheet
+                upload_sheet = workbook['Upload']
+                acceptable_range_dates = upload_sheet['D92':'I92']
+                ciq_range = upload_sheet['K94':'K160']
 
-            writer.save()
-            template_data = writer.book.save(writer.path)
+                for cell in acceptable_range_dates[0]:
+                    if cell.data_type == 'f':
+                        cell.value = cell.value
+
+                for ciq_cell in ciq_range:
+                    for date_cell in acceptable_range_dates[0]:
+                        ciq_value = ciq_cell[0].value
+                        date_value = date_cell.value
+
+                        if ciq_value in standardized_sheet.columns and date_value in standardized_sheet.columns:
+                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value]
+                            if not lookup_value.empty:
+                                ciq_cell.value = lookup_value.values[0]
+
+                for cell in upload_sheet['D113':'I113'][0]:
+                    if cell.value is not None:
+                        cell.value = -abs(cell.value)
+
+                # Ensure at least one sheet is visible
+                workbook.active = 0
+
+                writer.save()
+                template_data = output.getvalue()
+
             st.download_button(
                 label="Download Updated Template",
                 data=template_data,
@@ -1438,8 +1446,10 @@ def populate_ciq_template():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-        st.success("Template populated successfully. You can now download the updated template.")
+            st.success("Template populated successfully. You can now download the updated template.")
 
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 
                                    
