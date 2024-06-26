@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[19]:
 
 
 import io
@@ -1471,7 +1471,7 @@ def main():
     elif selection == "Income Statement":
         income_statement()
     elif selection == "Populate CIQ Template":
-        populate_ciq_template()
+        populate_ciq_template_pt()
 
 if __name__ == '__main__':
     main()
