@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[37]:
+# In[38]:
 
 
 import io
@@ -1489,12 +1489,12 @@ def populate_ciq_template_pt():
                 ciq_values = standardized_sheet['CIQ'].tolist()
                 dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
-                for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
+                for row in upload_sheet.iter_rows(min_row=169, max_row=232, min_col=4, max_col=upload_sheet.max_column):
                     ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
                     ciq_value = ciq_cell.value
                     if ciq_value in ciq_values:
                         for col in range(4, 10):
-                            date_value = upload_sheet.cell(row=92, column=col).value
+                            date_value = upload_sheet.cell(row=167, column=col).value
                             if date_value in dates:
                                 lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
                                 if not pd.isna(lookup_value):
@@ -1503,7 +1503,7 @@ def populate_ciq_template_pt():
                                         cell_to_update.value = lookup_value
                                         st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
+                for row in upload_sheet.iter_rows(min_row=183, max_row=183, min_col=4, max_col=9):
                     for cell in row:
                         if cell.value is not None:
                             try:
