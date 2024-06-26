@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -1515,7 +1515,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
                                    
 ########################################################################### Main Function
