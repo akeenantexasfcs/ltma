@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[24]:
+# In[25]:
 
 
 import io
@@ -1394,14 +1394,8 @@ def populate_ciq_template_pt():
                 st.error("The columns 'Label' and 'Final Mnemonic Selection' are missing from the Standardized - Balance Sheet.")
                 return
 
-            # Remove the specified columns
+            # Remove the specified columns but keep the header row
             standardized_sheet = standardized_sheet.drop(columns=['Label', 'Final Mnemonic Selection'])
-
-            # Color the entire "As Presented - Balance Sheet" tab orange
-            orange_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
-            for row in as_presented_sheet.iter_rows():
-                for cell in row:
-                    cell.fill = orange_fill
 
             # Copy the "As Presented - Balance Sheet" sheet to the template workbook
             if "As Presented - Balance Sheet" in template_wb.sheetnames:
@@ -1410,7 +1404,10 @@ def populate_ciq_template_pt():
             for row in as_presented_sheet.iter_rows():
                 for cell in row:
                     new_sheet[cell.coordinate].value = cell.value
-                    new_sheet[cell.coordinate].fill = orange_fill
+
+            # Color the "As Presented - Balance Sheet" tab orange
+            tab_color = "FFA500"
+            new_sheet.sheet_properties.tabColor = tab_color
 
             # Copy the "Standardized - Balance Sheet" sheet to the template workbook
             if "Standardized - Balance Sheet" in template_wb.sheetnames:
@@ -1430,8 +1427,8 @@ def populate_ciq_template_pt():
                     if cell.data_type == 'f':
                         cell.value = cell.value
 
-            for ciq_row in ciq_range:
-                for ciq_cell in ciq_row:
+            for row in ciq_range:
+                for ciq_cell in row:
                     ciq_value = ciq_cell.value
                     for date_cell in acceptable_range_dates[0]:
                         date_value = date_cell.value
