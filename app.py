@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1366,7 +1366,6 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
-# Function to copy a sheet from one workbook to another
 def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     source_sheet = source_book[sheet_name]
     target_sheet = target_book.create_sheet(title=sheet_name)
@@ -1397,37 +1396,52 @@ def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
     for merged_cell in source_sheet.merged_cells.ranges:
         target_sheet.merge_cells(str(merged_cell))
 
-# Function to convert a cell with a formula to its evaluated value
 def copy_paste_value(sheet, cell_address):
     cell = sheet[cell_address]
-    cell.value = cell.value
+    if cell.data_type == 'f':  # If the cell contains a formula
+        cell.value = sheet[cell_address].value  # Convert the formula to its evaluated value
 
-# Function to evaluate formulas and replace them with values from the financial DataFrame
-def evaluate_and_replace_formulas(sheet, financial_df, date_row, start_row, end_row, mnemonic_col, start_col):
-    for row in range(start_row, end_row + 1):
-        mnemonic = sheet.cell(row=row, column=mnemonic_col).value
+def populate_template(template_sheet, financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
+    errors = []
+    ciq_mnemonics = financial_df.iloc[:, mnemonic_col - 1]
+    financial_dates = financial_df.columns[start_col - 1:]
+
+    st.write("Financial Dates:", list(financial_dates))
+
+    template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
+    template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
+
+    st.write("Template Dates:", template_dates)
+
+    for i, mnemonic in enumerate(template_mnemonics):
         if mnemonic:
-            financial_row = financial_df[financial_df.iloc[:, mnemonic_col - 1] == mnemonic]
-            if not financial_row.empty:
-                for col in range(start_col, start_col + len(financial_df.columns) - start_col):
-                    cell = sheet.cell(row=row, column=col)
-                    date = sheet.cell(row=date_row, column=col).value
-                    if date in financial_df.columns:
-                        financial_col = financial_df.columns.get_loc(date)
-                        override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                        if pd.notna(override_value):
-                            cell.value = override_value  # Override the formula with the financial data value
-                        elif cell.data_type != 'f':  # If the cell does not contain a formula
-                            cell.value = financial_row.iloc[0, financial_col + start_col - 1]  # Place the value in the proper cell
+            try:
+                financial_row = financial_df[ciq_mnemonics == mnemonic]
+                if not financial_row.empty:
+                    for j, date in enumerate(template_dates):
+                        if date in financial_dates.values:
+                            try:
+                                financial_col = financial_dates.get_loc(date)
+                                template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
+                                if template_cell.data_type == 'f':  # If cell contains a formula
+                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
+                                    if pd.notna(override_value):
+                                        template_cell.value = override_value  # Override the formula with the financial data value
+                                elif template_cell.data_type != 'f':  # If cell does not contain a formula
+                                    template_cell.value = financial_row.iloc[0, financial_col + start_col - 1]
+                            except Exception as e:
+                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
+            except Exception as e:
+                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
+    
+    return errors
 
-# Main function to populate the CIQ template
 def populate_ciq_template():
     st.title("Populate CIQ Template")
 
     tab1 = st.tabs(["FY Upload Template"])[0]
 
     with tab1:
-        # Upload files
         uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
         uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
         uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
@@ -1436,11 +1450,10 @@ def populate_ciq_template():
         if uploaded_template:
             try:
                 file_extension = uploaded_template.name.split('.')[-1]
-                # Load the workbook without evaluating formulas
                 template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
                 template_sheet = template_book["Upload"]
                 
-                # Convert specified cells to values (eliminate formulas)
+                # Convert specified cells to values
                 for cell in ['D92', 'E92', 'F92', 'G92', 'H92', 'I92', 'D10', 'E10', 'F10', 'G10', 'H10', 'I10', 'D167', 'E167', 'F167', 'G167', 'H167', 'I167']:
                     copy_paste_value(template_sheet, cell)
 
@@ -1457,49 +1470,8 @@ def populate_ciq_template():
             errors = []
 
             if st.button("Populate Template"):
-                # Function to populate the template with financial data
-                def populate_template(financial_df, date_row, mnemonic_start_row, mnemonic_end_row, start_col, mnemonic_col):
-                    try:
-                        ciq_mnemonics = financial_df.iloc[:, mnemonic_col]
-                        financial_dates = financial_df.columns[start_col-1:]  # Adjust index to start from the correct column
-                    except Exception as e:
-                        st.error(f"Error processing financial data: {e}")
-                        return
-
-                    st.write("Financial Dates:", list(financial_dates))
-
-                    try:
-                        template_mnemonics = [template_sheet[f"K{row}"].value for row in range(mnemonic_start_row, mnemonic_end_row + 1)]
-                        template_dates = [template_sheet.cell(row=date_row, column=col).value for col in range(4, 10)]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    st.write("Template Dates:", template_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics):
-                        if mnemonic:
-                            try:
-                                financial_row = financial_df[ciq_mnemonics == mnemonic]
-                                if not financial_row.empty:
-                                    for j, date in enumerate(template_dates):
-                                        if date in financial_dates.values:
-                                            try:
-                                                financial_col = financial_dates.get_loc(date)
-                                                template_cell = template_sheet.cell(row=mnemonic_start_row + i, column=4 + j)
-                                                if template_cell.data_type == 'f':  # If cell contains a formula
-                                                    override_value = financial_row.iloc[0, financial_col + (mnemonic_col - start_col)]
-                                                    if pd.notna(override_value):
-                                                        template_cell.value = override_value  # Override the formula with the financial data value
-                                                elif template_cell.data_type != 'f':  # If cell does not contain a formula
-                                                    template_cell.value = financial_row.iloc[0, financial_col + start_col-1]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {mnemonic_start_row + i}, column {4 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
                 if uploaded_income_statement:
-                    populate_template(income_statement_df, 10, 11, 90, 3, 1)
+                    errors.extend(populate_template(template_sheet, income_statement_df, 10, 11, 90, 3, 1))
                     try:
                         copy_sheet(load_workbook(uploaded_income_statement, data_only=False), template_book, "As Presented - Income Stmt")
                     except Exception as e:
@@ -1507,7 +1479,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_balance_sheet:
-                    populate_template(balance_sheet_df, 92, 94, 165, 4, 2)
+                    errors.extend(populate_template(template_sheet, balance_sheet_df, 92, 94, 165, 4, 2))
                     try:
                         copy_sheet(load_workbook(uploaded_balance_sheet, data_only=False), template_book, "As Presented - Balance Sheet")
                     except Exception as e:
@@ -1515,7 +1487,7 @@ def populate_ciq_template():
                         return
 
                 if uploaded_cash_flow_statement:
-                    populate_template(cash_flow_statement_df, 167, 169, 231, 4, 2)
+                    errors.extend(populate_template(template_sheet, cash_flow_statement_df, 167, 169, 231, 4, 2))
                     try:
                         copy_sheet(load_workbook(uploaded_cash_flow_statement, data_only=False), template_book, "As Presented - Cash Flow")
                     except Exception as e:
@@ -1543,7 +1515,6 @@ def populate_ciq_template():
                     file_name=output_file_name,
                     mime=mime_type
                 )
-
 
                                    
 ########################################################################### Main Function
