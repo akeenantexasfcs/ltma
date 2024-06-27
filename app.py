@@ -1502,7 +1502,7 @@ def populate_ciq_template_pt():
 
                     # Ensure accumulated depreciation is negative
                     accumulated_depreciation_row = 113
-                    for cell in upload_sheet.iter_rows(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):  # Changed to column U (21)
+                    for cell in upload_sheet.iter_rows(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):  # Ensure processing only row 113
                         for cell in row:
                             if cell.value is not None:
                                 try:
