@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1364,7 +1364,7 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl.styles import PatternFill
+from openpyxl import load_workbook
 from io import BytesIO
 
 def populate_ciq_template_pt():
@@ -1384,11 +1384,19 @@ def populate_ciq_template_pt():
             try:
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
-                template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
+                try:
+                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+                except Exception as e:
+                    st.error(f"Error loading template file: {e}")
+                    return
 
-                def process_sheet(sheet_name, row_range, date_row):
-                    sheet_file = uploaded_balance_sheet.read()
-                    sheet_wb = openpyxl.load_workbook(BytesIO(sheet_file), keep_vba=True)
+                def process_sheet(sheet_file, sheet_name, row_range, date_row):
+                    try:
+                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
+                    except Exception as e:
+                        st.error(f"Error loading {sheet_name} file: {e}")
+                        return
+                    
                     as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
                     standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
 
@@ -1463,19 +1471,25 @@ def populate_ciq_template_pt():
                 # Process sheets based on the uploaded files
                 if template_type == "Annual":
                     if uploaded_balance_sheet:
-                        process_sheet("Balance Sheet", (94, 160), 92)
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
                     if uploaded_cash_flow:
-                        process_sheet("Cash Flow", (169, 232), 167)
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
                     if uploaded_income_statement:
-                        process_sheet("Income Stmt", (12, 70), 10)
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
 
                 if template_type == "Quarterly":
                     if uploaded_balance_sheet:
-                        process_sheet("Balance Sheet", (94, 160), 92)  # Adjust these values if needed
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)  # Adjust these values if needed
                     if uploaded_cash_flow:
-                        process_sheet("Cash Flow", (169, 232), 167)  # Adjust these values if needed
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)  # Adjust these values if needed
                     if uploaded_income_statement:
-                        process_sheet("Income Stmt", (12, 70), 10)  # Adjust these values if needed
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)  # Adjust these values if needed
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
