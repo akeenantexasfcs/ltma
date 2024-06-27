@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[10]:
 
 
 import io
@@ -1482,6 +1482,17 @@ def populate_ciq_template_pt():
                                                 cell_to_update.value = lookup_value
                                                 st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
+                        # Ensure accumulated depreciation is negative for Annual
+                        accumulated_depreciation_row = 113
+                        for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=10):
+                            for c in cell:
+                                if c.value is not None:
+                                    try:
+                                        cell_value = float(c.value)
+                                        c.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
+                    
                     elif template_type == "Quarterly":
                         for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
                             ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
@@ -1500,16 +1511,16 @@ def populate_ciq_template_pt():
                                                 cell_to_update.value = lookup_value
                                                 st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                    # Ensure accumulated depreciation is negative
-                    accumulated_depreciation_row = 113
-                    for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):  # Ensure processing only row 113
-                        for c in cell:
-                            if c.value is not None:
-                                try:
-                                    cell_value = float(c.value)
-                                    c.value = -abs(cell_value)
-                                except ValueError:
-                                    st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
+                        # Ensure accumulated depreciation is negative for Quarterly
+                        accumulated_depreciation_row = 113
+                        for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):
+                            for c in cell:
+                                if c.value is not None:
+                                    try:
+                                        cell_value = float(c.value)
+                                        c.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
 
                 # Process sheets based on the uploaded files
                 if template_type == "Annual":
