@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1074,7 +1074,7 @@ def save_lookup_table(df, file_path):
 
 def adjust_values(df, mnemonics):
     for index, row in df.iterrows():
-        if row['Final Mnemonic Selection'] in mnemonics:
+        if row['CIQ'] in mnemonics:
             for col in df.columns[2:]:
                 if row[col] > 0:
                     df.at[index, col] = -row[col]
@@ -1376,6 +1376,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
