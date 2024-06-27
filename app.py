@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1078,6 +1078,10 @@ def adjust_values(df, mnemonics):
             for col in df.columns[2:]:
                 if row[col] > 0:
                     df.at[index, col] = -row[col]
+        else:
+            for col in df.columns[2:]:
+                if row[col] < 0:
+                    df.at[index, col] = -row[col]
     return df
 
 def income_statement():
@@ -1115,7 +1119,7 @@ def income_statement():
                                             for rel in cell_block['Relationships']:
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if b['Id'] == word_id), None)
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
