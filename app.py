@@ -972,6 +972,11 @@ conversion_factors = {
     "Billions": 1000000000
 }
 
+mnemonics = [
+    "IQ_COGS", "IQ_SGA_SUPPL", "IQ_RD_EXP", "IQ_DA_SUPPL",
+    "IQ_STOCK_BASED", "IQ_OTHER_OPER", "IQ_INC_TAX"
+]
+
 def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
@@ -1067,6 +1072,14 @@ def aggregate_data_IS(uploaded_files):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
+def adjust_values(df, mnemonics):
+    for index, row in df.iterrows():
+        if row['Final Mnemonic Selection'] in mnemonics:
+            for col in df.columns[2:]:
+                if row[col] > 0:
+                    df.at[index, col] = -row[col]
+    return df
+
 def income_statement():
     global income_statement_lookup_df
 
@@ -1102,7 +1115,7 @@ def income_statement():
                                             for rel in cell_block['Relationships']:
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        word_block = next((w for w in data['Blocks'] if b['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
@@ -1266,6 +1279,9 @@ def income_statement():
                         axis=1
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+
+                    # Adjust values in the final_output_df_is
+                    final_output_df_is = adjust_values(final_output_df_is, mnemonics)
                     
                     combined_df_is = create_combined_df_IS([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
@@ -1356,6 +1372,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
