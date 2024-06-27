@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1445,8 +1445,10 @@ def populate_ciq_template_pt():
                             st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=balance_sheet_date_row, column=col).value
+                                st.write(f"Checking date {date_value} at column {col}")
                                 if date_value in dates:
                                     lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                    st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
                                     if not pd.isna(lookup_value):
                                         cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
                                         if cell_to_update.data_type == 'f' or cell_to_update.value is None:
@@ -1521,8 +1523,10 @@ def populate_ciq_template_pt():
                             st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=cash_flow_date_row, column=col).value
+                                st.write(f"Checking date {date_value} at column {col}")
                                 if date_value in dates:
                                     lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                    st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
                                     if not pd.isna(lookup_value):
                                         cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
                                         if cell_to_update.data_type == 'f' or cell_to_update.value is None:
@@ -1597,8 +1601,10 @@ def populate_ciq_template_pt():
                             st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=income_statement_date_row, column=col).value
+                                st.write(f"Checking date {date_value} at column {col}")
                                 if date_value in dates:
                                     lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                    st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
                                     if not pd.isna(lookup_value):
                                         cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
                                         if cell_to_update.data_type == 'f' or cell_to_update.value is None:
