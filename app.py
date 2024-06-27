@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -1138,7 +1138,6 @@ def income_statement():
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
-
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
@@ -1283,17 +1282,6 @@ def income_statement():
                         axis=1
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
-
-                    # Debugging: check DataFrame columns before calling adjust_values
-                    st.write("Final DataFrame columns before adjust_values:")
-                    st.write(final_output_df_is.columns)
-
-                    # Adjust values in the final_output_df_is
-                    final_output_df_is = adjust_values(final_output_df_is, mnemonics)
-
-                    # Debugging: check DataFrame columns after calling adjust_values
-                    st.write("Final DataFrame columns after adjust_values:")
-                    st.write(final_output_df_is.columns)
                     
                     combined_df_is = create_combined_df_IS([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
@@ -1310,6 +1298,9 @@ def income_statement():
 
                     columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
+
+                    # Adjust values in the "Standardized - Income Stmt" sheet
+                    combined_df_is = adjust_values(combined_df_is, mnemonics)
 
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_df_is = sort_by_sort_index(as_presented_df_is)
