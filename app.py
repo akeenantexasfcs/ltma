@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[9]:
 
 
 import io
@@ -1502,14 +1502,14 @@ def populate_ciq_template_pt():
 
                     # Ensure accumulated depreciation is negative
                     accumulated_depreciation_row = 113
-                    for cell in upload_sheet.iter_rows(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):  # Ensure processing only row 113
-                        for cell in row:
-                            if cell.value is not None:
+                    for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):  # Ensure processing only row 113
+                        for c in cell:
+                            if c.value is not None:
                                 try:
-                                    cell_value = float(cell.value)
-                                    cell.value = -abs(cell_value)
+                                    cell_value = float(c.value)
+                                    c.value = -abs(cell_value)
                                 except ValueError:
-                                    st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                                    st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
 
                 # Process sheets based on the uploaded files
                 if template_type == "Annual":
