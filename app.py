@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1373,12 +1373,14 @@ def populate_ciq_template_pt():
     tab1, tab2 = st.tabs(["Annual Upload Template", "Quarterly Upload Template"])
 
     def process_template(template_type):
-        uploaded_template = st.file_uploader("Upload CIQ Template", type=['xlsx', 'xlsm'])
-        uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet Data", type=['xlsx', 'xlsm'])
-        uploaded_cash_flow = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'])
-        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement Data", type=['xlsx', 'xlsm'])
+        unique_id = template_type.lower()
 
-        if st.button(f"Populate {template_type} Template Now") and uploaded_template and (uploaded_balance_sheet or uploaded_cash_flow or uploaded_income_statement):
+        uploaded_template = st.file_uploader(f"Upload CIQ Template ({template_type})", type=['xlsx', 'xlsm'], key=f"template_{unique_id}")
+        uploaded_balance_sheet = st.file_uploader(f"Upload Completed Balance Sheet Data ({template_type})", type=['xlsx', 'xlsm'], key=f"balance_sheet_{unique_id}")
+        uploaded_cash_flow = st.file_uploader(f"Upload Completed Cash Flow Statement ({template_type})", type=['xlsx', 'xlsm'], key=f"cash_flow_{unique_id}")
+        uploaded_income_statement = st.file_uploader(f"Upload Completed Income Statement Data ({template_type})", type=['xlsx', 'xlsm'], key=f"income_statement_{unique_id}")
+
+        if st.button(f"Populate {template_type} Template Now", key=f"populate_button_{unique_id}") and uploaded_template and (uploaded_balance_sheet or uploaded_cash_flow or uploaded_income_statement):
             try:
                 # Read the uploaded files
                 template_file = uploaded_template.read()
