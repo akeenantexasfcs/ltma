@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 import io
@@ -1076,12 +1076,7 @@ def adjust_values(df, mnemonics):
     for index, row in df.iterrows():
         if row['CIQ'] in mnemonics:
             for col in df.columns[2:]:
-                if row[col] > 0:
-                    df.at[index, col] = -row[col]
-        else:
-            for col in df.columns[2:]:
-                if row[col] < 0:
-                    df.at[index, col] = -row[col]
+                df.at[index, col] = -row[col]
     return df
 
 def income_statement():
@@ -1375,6 +1370,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
