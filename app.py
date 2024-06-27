@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[5]:
 
 
 import io
@@ -1284,8 +1284,16 @@ def income_statement():
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
 
+                    # Debugging: check DataFrame columns before calling adjust_values
+                    st.write("Final DataFrame columns before adjust_values:")
+                    st.write(final_output_df_is.columns)
+
                     # Adjust values in the final_output_df_is
                     final_output_df_is = adjust_values(final_output_df_is, mnemonics)
+
+                    # Debugging: check DataFrame columns after calling adjust_values
+                    st.write("Final DataFrame columns after adjust_values:")
+                    st.write(final_output_df_is.columns)
                     
                     combined_df_is = create_combined_df_IS([final_output_df_is])
                     combined_df_is = sort_by_sort_index(combined_df_is)
@@ -1376,6 +1384,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 
