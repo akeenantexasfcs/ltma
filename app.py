@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import io
@@ -1387,6 +1387,7 @@ def populate_ciq_template_pt():
                 template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
 
                 if uploaded_balance_sheet:
+                    st.write("Processing Balance Sheet...")
                     balance_sheet_file = uploaded_balance_sheet.read()
                     balance_sheet_wb = openpyxl.load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
                     as_presented_sheet = balance_sheet_wb["As Presented - Balance Sheet"]
@@ -1396,6 +1397,9 @@ def populate_ciq_template_pt():
                     if 'CIQ' not in standardized_sheet.columns:
                         st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
                         return
+
+                    st.write("Balance Sheet CIQ column found, proceeding...")
+                    st.write(standardized_sheet.head())
 
                     # Copy the "As Presented - Balance Sheet" sheet to the template workbook
                     if "As Presented - Balance Sheet" in template_wb.sheetnames:
@@ -1428,14 +1432,17 @@ def populate_ciq_template_pt():
                     ciq_values = standardized_sheet['CIQ'].tolist()
                     dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
+                    st.write("CIQ Values from Balance Sheet:", ciq_values)
+                    st.write("Dates from Balance Sheet:", dates)
+
                     balance_sheet_row_range = (94, 160) if template_type == "Annual" else (94, 160)
                     balance_sheet_date_row = 92 if template_type == "Annual" else 92
-                    ciq_col_range = (11, 11)
 
                     for row in upload_sheet.iter_rows(min_row=balance_sheet_row_range[0], max_row=balance_sheet_row_range[1], min_col=4, max_col=upload_sheet.max_column):
                         ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
                         ciq_value = ciq_cell.value
                         if ciq_value in ciq_values:
+                            st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=balance_sheet_date_row, column=col).value
                                 if date_value in dates:
@@ -1456,6 +1463,7 @@ def populate_ciq_template_pt():
                                     st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 if uploaded_cash_flow:
+                    st.write("Processing Cash Flow...")
                     cash_flow_file = uploaded_cash_flow.read()
                     cash_flow_wb = openpyxl.load_workbook(BytesIO(cash_flow_file), keep_vba=True)
                     as_presented_sheet = cash_flow_wb["As Presented - Cash Flow"]
@@ -1465,6 +1473,9 @@ def populate_ciq_template_pt():
                     if 'CIQ' not in standardized_sheet.columns:
                         st.error("The column 'CIQ' is missing from the Standardized - Cash Flow.")
                         return
+
+                    st.write("Cash Flow CIQ column found, proceeding...")
+                    st.write(standardized_sheet.head())
 
                     # Copy the "As Presented - Cash Flow" sheet to the template workbook
                     if "As Presented - Cash Flow" in template_wb.sheetnames:
@@ -1497,14 +1508,17 @@ def populate_ciq_template_pt():
                     ciq_values = standardized_sheet['CIQ'].tolist()
                     dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
+                    st.write("CIQ Values from Cash Flow:", ciq_values)
+                    st.write("Dates from Cash Flow:", dates)
+
                     cash_flow_row_range = (169, 232) if template_type == "Annual" else (169, 232)
                     cash_flow_date_row = 167 if template_type == "Annual" else 167
-                    ciq_col_range = (11, 11)
 
                     for row in upload_sheet.iter_rows(min_row=cash_flow_row_range[0], max_row=cash_flow_row_range[1], min_col=4, max_col=upload_sheet.max_column):
                         ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
                         ciq_value = ciq_cell.value
                         if ciq_value in ciq_values:
+                            st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=cash_flow_date_row, column=col).value
                                 if date_value in dates:
@@ -1525,6 +1539,7 @@ def populate_ciq_template_pt():
                                     st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 if uploaded_income_statement:
+                    st.write("Processing Income Statement...")
                     income_statement_file = uploaded_income_statement.read()
                     income_statement_wb = openpyxl.load_workbook(BytesIO(income_statement_file), keep_vba=True)
                     as_presented_sheet = income_statement_wb["As Presented - Income Stmt"]
@@ -1534,6 +1549,9 @@ def populate_ciq_template_pt():
                     if 'CIQ' not in standardized_sheet.columns:
                         st.error("The column 'CIQ' is missing from the Standardized - Income Stmt.")
                         return
+
+                    st.write("Income Statement CIQ column found, proceeding...")
+                    st.write(standardized_sheet.head())
 
                     # Copy the "As Presented - Income Stmt" sheet to the template workbook
                     if "As Presented - Income Stmt" in template_wb.sheetnames:
@@ -1566,14 +1584,17 @@ def populate_ciq_template_pt():
                     ciq_values = standardized_sheet['CIQ'].tolist()
                     dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
+                    st.write("CIQ Values from Income Statement:", ciq_values)
+                    st.write("Dates from Income Statement:", dates)
+
                     income_statement_row_range = (12, 70) if template_type == "Annual" else (12, 70)
                     income_statement_date_row = 10 if template_type == "Annual" else 10
-                    ciq_col_range = (11, 11)
 
                     for row in upload_sheet.iter_rows(min_row=income_statement_row_range[0], max_row=income_statement_row_range[1], min_col=4, max_col=upload_sheet.max_column):
                         ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
                         ciq_value = ciq_cell.value
                         if ciq_value in ciq_values:
+                            st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
                             for col in range(4, 10):
                                 date_value = upload_sheet.cell(row=income_statement_date_row, column=col).value
                                 if date_value in dates:
