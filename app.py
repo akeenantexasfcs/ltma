@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -1442,31 +1442,59 @@ def populate_ciq_template_pt():
                     st.write(f"CIQ Values from {sheet_name}:", ciq_values)
                     st.write(f"Dates from {sheet_name}:", dates)
 
-                    for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
-                        ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                        ciq_value = ciq_cell.value
-                        if ciq_value in ciq_values:
-                            st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
-                            for col in range(4, 10):
-                                date_value = upload_sheet.cell(row=date_row, column=col).value
-                                st.write(f"Checking date {date_value} at column {col}")
-                                if date_value in dates:
-                                    lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                                    st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
-                                    if not pd.isna(lookup_value):
-                                        cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                        if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                            cell_to_update.value = lookup_value
-                                            st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+                    if template_type == "Annual":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 10):
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                    for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
-                        for cell in row:
-                            if cell.value is not None:
-                                try:
-                                    cell_value = float(cell.value)
-                                    cell.value = -abs(cell_value)
-                                except ValueError:
-                                    st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                    
+                    elif template_type == "Quarterly":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 22):  # Changed to include columns D to U
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 # Process sheets based on the uploaded files
                 if template_type == "Annual":
@@ -1483,13 +1511,13 @@ def populate_ciq_template_pt():
                 if template_type == "Quarterly":
                     if uploaded_balance_sheet:
                         balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)  # Adjust these values if needed
+                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
                     if uploaded_cash_flow:
                         cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)  # Adjust these values if needed
+                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
                     if uploaded_income_statement:
                         income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)  # Adjust these values if needed
+                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
