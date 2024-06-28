@@ -146,11 +146,6 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-# Function to check if all values in columns past the first 2 columns are 0
-def check_all_zeroes(df):
-    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
-    return zeroes
-
 # Balance Sheet Functions
 def balance_sheet():
     global balance_sheet_lookup_df
@@ -237,21 +232,23 @@ def balance_sheet():
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
+                            # Extract base labels without indices
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
 
-                            start_index = df[df[account_column] == start_label_base].index.min()
-                            end_index = df[df[account_column] == end_label_base].index.max()
+                            # Find the indices for start and end labels
+                            start_indices = df[df[account_column].str.contains(re.escape(start_label_base), case=False, na=False)].index
+                            end_indices = df[df[account_column].str.contains(re.escape(end_label_base), case=False, na=False)].index
 
-                            if pd.isna(start_index):
-                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
-                            if pd.isna(end_index):
-                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
-
-                            if pd.notna(start_index) and pd.notna(end_index):
-                                df.loc[start_index:end_index, 'Label'] = label
+                            if not start_indices.empty and not end_indices.empty:
+                                start_index = start_indices.min()
+                                end_index = end_indices.max()
+                                if start_index <= end_index:
+                                    df.loc[start_index:end_index, 'Label'] = label
+                                else:
+                                    st.error(f"Start index {start_index} is greater than end index {end_index} for label {label}. Skipping...")
                             else:
-                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                                st.error(f"Start or end label not found for {label}. Skipping...")
                         except KeyError as e:
                             st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
                     else:
@@ -264,16 +261,15 @@ def balance_sheet():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-
+            
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
@@ -317,8 +313,8 @@ def balance_sheet():
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
-
-                if selected_value != "Actuals":
+                
+                if selected_value != "No Conversions Necessary":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
@@ -341,7 +337,7 @@ def balance_sheet():
 
     with tab2:
         st.subheader("Aggregate My Data")
-
+        
         uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
 
         dfs = []
@@ -358,35 +354,12 @@ def balance_sheet():
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
-            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
-            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
-
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
-
-            # Highlight rows with all zeros for potential removal
-            st.write("Highlighted rows with all zero values for potential removal:")
-            for index in zero_rows_indices:
-                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
-
-            rows_removed = False  # Flag to check if rows are removed
-            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
-                rows_removed = True
-                st.success("Highlighted rows removed successfully")
-                st.dataframe(aggregated_table)
-
-            st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
-            else:
-                download_label = "Download Aggregated Excel"
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
@@ -404,7 +377,7 @@ def balance_sheet():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
-
+            
             statement_dates = {}
             for col in df.columns[2:]:
                 statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
@@ -449,10 +422,9 @@ def balance_sheet():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
-                    manual_selection_options = [f"{mnemonic} [{label}]" for mnemonic, label in zip(balance_sheet_lookup_df['Mnemonic'], balance_sheet_lookup_df['Label'])]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
@@ -462,7 +434,7 @@ def balance_sheet():
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'],
+                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
@@ -503,7 +475,7 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
@@ -541,30 +513,20 @@ def balance_sheet():
         st.dataframe(balance_sheet_lookup_df)
 
         remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
-        rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
             balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-            rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
 
-        st.subheader("Download Data Dictionary")
-        if rows_removed:
-            download_label = "Download Updated Data Dictionary"
-        else:
-            download_label = "Download Data Dictionary"
-        excel_file = io.BytesIO()
-        balance_sheet_lookup_df.to_excel(excel_file, index=False)
-        excel_file.seek(0)
-        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
+            excel_file = io.BytesIO()
+            balance_sheet_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        st.subheader("Check for Rows with All Zero Values")
-        zero_rows = check_all_zeroes(balance_sheet_lookup_df)
-        st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
 
- 
-####################################### Cash Flow Statement Functions #####
+#######################################Cash Flow Statement Functions#####
 def cash_flow_statement():
     global cash_flow_lookup_df
 
@@ -675,10 +637,9 @@ def cash_flow_statement():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
@@ -758,37 +719,14 @@ def cash_flow_statement():
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
-            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
-            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
-            
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
-            
-            # Highlight rows with all zeros for potential removal
-            st.write("Highlighted rows with all zero values for potential removal:")
-            for index in zero_rows_indices:
-                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
-            
-            rows_removed = False  # Flag to check if rows are removed
-            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
-                rows_removed = True
-                st.success("Highlighted rows removed successfully")
-                st.dataframe(aggregated_table)
-
-            st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
-            else:
-                download_label = "Download Aggregated Excel"
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
-            st.warning("Please upload valid Excel files for aggregation. You will have the opportunity to remove rows of your choosing at this point.")
+            st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
         st.subheader("Mappings and Data Consolidation")
@@ -849,10 +787,9 @@ def cash_flow_statement():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
-                    manual_selection_options = [f"{mnemonic} [{label}]" for mnemonic, label in zip(cash_flow_lookup_df['Mnemonic'], cash_flow_lookup_df['Label'])]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
@@ -952,6 +889,7 @@ def cash_flow_statement():
             cash_flow_lookup_df.to_excel(excel_file, index=False)
             excel_file.seek(0)
             st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 ############################################## Income Statement Functions########################################
@@ -1117,10 +1055,9 @@ def income_statement():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
-
+            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
+            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
