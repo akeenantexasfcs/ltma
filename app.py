@@ -491,7 +491,7 @@ def balance_sheet():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
@@ -558,6 +558,10 @@ def balance_sheet():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        st.subheader("Check for Rows with All Zero Values")
+        zero_rows = check_all_zeroes(balance_sheet_lookup_df)
+        st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
 
  
 ####################################### Cash Flow Statement Functions #####
@@ -887,7 +891,7 @@ def cash_flow_statement():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized - Cash Flow - ', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
@@ -931,7 +935,7 @@ def cash_flow_statement():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(cash_flow_lookup_df)
@@ -939,7 +943,7 @@ def cash_flow_statement():
         remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
             cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
@@ -1287,7 +1291,7 @@ def income_statement():
 
                     excel_file_is = io.BytesIO()
                     with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                        combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
+                        combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
                         cover_df_is = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
@@ -1360,184 +1364,107 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 from io import BytesIO
 
 def populate_ciq_template_pt():
     st.title("Populate CIQ Template")
 
-    tab1, tab2 = st.tabs(["Annual Upload Template", "Quarterly Upload Template"])
+    tab1 = st.tabs(["FY Upload Template"])[0]
 
-    def process_template(template_type):
-        unique_id = template_type.lower()
+    uploaded_template = st.file_uploader("Upload CIQ Template", type=['xlsx', 'xlsm'])
+    uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet Data", type=['xlsx', 'xlsm'])
 
-        uploaded_template = st.file_uploader(f"Upload CIQ Template ({template_type})", type=['xlsx', 'xlsm'], key=f"template_{unique_id}")
-        uploaded_balance_sheet = st.file_uploader(f"Upload Completed Balance Sheet Data ({template_type})", type=['xlsx', 'xlsm'], key=f"balance_sheet_{unique_id}")
-        uploaded_cash_flow = st.file_uploader(f"Upload Completed Cash Flow Statement ({template_type})", type=['xlsx', 'xlsm'], key=f"cash_flow_{unique_id}")
-        uploaded_income_statement = st.file_uploader(f"Upload Completed Income Statement Data ({template_type})", type=['xlsx', 'xlsm'], key=f"income_statement_{unique_id}")
+    if st.button("Populate Template Now") and uploaded_template and uploaded_balance_sheet:
+        try:
+            # Read the uploaded files
+            template_file = uploaded_template.read()
+            balance_sheet_file = uploaded_balance_sheet.read()
 
-        if st.button(f"Populate {template_type} Template Now", key=f"populate_button_{unique_id}") and uploaded_template and (uploaded_balance_sheet or uploaded_cash_flow or uploaded_income_statement):
-            try:
-                # Read the uploaded template file
-                template_file = uploaded_template.read()
-                try:
-                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
-                except Exception as e:
-                    st.error(f"Error loading template file: {e}")
-                    return
+            # Load workbooks
+            template_wb = openpyxl.load_workbook(BytesIO(template_file), keep_vba=True)
+            balance_sheet_wb = openpyxl.load_workbook(BytesIO(balance_sheet_file), keep_vba=True)
 
-                def process_sheet(sheet_file, sheet_name, row_range, date_row):
-                    try:
-                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
-                    except Exception as e:
-                        st.error(f"Error loading {sheet_name} file: {e}")
-                        return
-                    
-                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
-                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
+            # Load sheets
+            as_presented_sheet = balance_sheet_wb["As Presented - Balance Sheet"]
+            standardized_sheet = pd.read_excel(BytesIO(balance_sheet_file), sheet_name="Standardized - Balance Sheet")
 
-                    # Check for required columns in the Standardized sheet
-                    if 'CIQ' not in standardized_sheet.columns:
-                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
-                        return
+            # Check for required columns in the Standardized - Balance Sheet
+            if 'CIQ' not in standardized_sheet.columns:
+                st.error("The column 'CIQ' is missing from the Standardized - Balance Sheet.")
+                return
 
-                    st.write(f"{sheet_name} CIQ column found, proceeding...")
-                    st.write(standardized_sheet.head())
+            # Copy the "As Presented - Balance Sheet" sheet to the template workbook
+            if "As Presented - Balance Sheet" in template_wb.sheetnames:
+                del template_wb["As Presented - Balance Sheet"]
+            new_sheet = template_wb.create_sheet("As Presented - Balance Sheet")
+            for row in as_presented_sheet.iter_rows():
+                for cell in row:
+                    new_sheet[cell.coordinate].value = cell.value
 
-                    # Copy the "As Presented" sheet to the template workbook
-                    if f"As Presented - {sheet_name}" in template_wb.sheetnames:
-                        del template_wb[f"As Presented - {sheet_name}"]
-                    new_sheet = template_wb.create_sheet(f"As Presented - {sheet_name}")
-                    for row in as_presented_sheet.iter_rows():
-                        for cell in row:
-                            new_sheet[cell.coordinate].value = cell.value
+            # Color the "As Presented - Balance Sheet" tab orange
+            tab_color = "FFA500"
+            new_sheet.sheet_properties.tabColor = tab_color
 
-                    # Color the "As Presented" tab orange
-                    tab_color = "FFA500"
-                    new_sheet.sheet_properties.tabColor = tab_color
+            # Copy the "Standardized - Balance Sheet" sheet to the template workbook
+            if "Standardized - Balance Sheet" in template_wb.sheetnames:
+                del template_wb["Standardized - Balance Sheet"]
+            standardized_ws = template_wb.create_sheet("Standardized - Balance Sheet")
 
-                    # Copy the "Standardized" sheet to the template workbook
-                    if f"Standardized - {sheet_name}" in template_wb.sheetnames:
-                        del template_wb[f"Standardized - {sheet_name}"]
-                    standardized_ws = template_wb.create_sheet(f"Standardized - {sheet_name}")
+            # Write the header row
+            for col_num, header in enumerate(standardized_sheet.columns, 1):
+                standardized_ws.cell(row=1, column=col_num, value=header)
 
-                    # Write the header row
-                    for col_num, header in enumerate(standardized_sheet.columns, 1):
-                        standardized_ws.cell(row=1, column=col_num, value=header)
+            # Write the data rows
+            for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
+                for c_idx, value in enumerate(row, 1):
+                    standardized_ws.cell(row=r_idx, column=c_idx, value=value)
 
-                    # Write the data rows
-                    for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
-                        for c_idx, value in enumerate(row, 1):
-                            standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+            # Perform lookups and update the "Upload" sheet
+            upload_sheet = template_wb["Upload"]
+            ciq_values = standardized_sheet['CIQ'].tolist()
+            dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
 
-                    # Perform lookups and update the "Upload" sheet
-                    upload_sheet = template_wb["Upload"]
-                    ciq_values = standardized_sheet['CIQ'].tolist()
-                    dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
+            for row in upload_sheet.iter_rows(min_row=94, max_row=160, min_col=4, max_col=upload_sheet.max_column):
+                ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                ciq_value = ciq_cell.value
+                if ciq_value in ciq_values:
+                    for col in range(4, 10):
+                        date_value = upload_sheet.cell(row=92, column=col).value
+                        if date_value in dates:
+                            lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                            if not pd.isna(lookup_value):
+                                cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                    cell_to_update.value = lookup_value
+                                    st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                    st.write(f"CIQ Values from {sheet_name}:", ciq_values)
-                    st.write(f"Dates from {sheet_name}:", dates)
+            for row in upload_sheet.iter_rows(min_row=113, max_row=113, min_col=4, max_col=9):
+                for cell in row:
+                    if cell.value is not None:
+                        try:
+                            cell_value = float(cell.value)
+                            cell.value = -abs(cell_value)
+                        except ValueError:
+                            st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
-                    if template_type == "Annual":
-                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
-                            ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                            ciq_value = ciq_cell.value
-                            if ciq_value in ciq_values:
-                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
-                                for col in range(4, 10):
-                                    date_value = upload_sheet.cell(row=date_row, column=col).value
-                                    st.write(f"Checking date {date_value} at column {col}")
-                                    if date_value in dates:
-                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
-                                        if not pd.isna(lookup_value):
-                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                                cell_to_update.value = lookup_value
-                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+            # Save the updated workbook to a BytesIO object
+            output = BytesIO()
+            template_wb.save(output)
+            template_data = output.getvalue()
 
-                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
-                            for cell in row:
-                                if cell.value is not None:
-                                    try:
-                                        cell_value = float(cell.value)
-                                        cell.value = -abs(cell_value)
-                                    except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
-                    
-                    elif template_type == "Quarterly":
-                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
-                            ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
-                            ciq_value = ciq_cell.value
-                            if ciq_value in ciq_values:
-                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
-                                for col in range(4, 22):  # Changed to include columns D to U
-                                    date_value = upload_sheet.cell(row=date_row, column=col).value
-                                    st.write(f"Checking date {date_value} at column {col}")
-                                    if date_value in dates:
-                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
-                                        if not pd.isna(lookup_value):
-                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                                cell_to_update.value = lookup_value
-                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+            # Provide a download button for the updated template
+            st.download_button(
+                label="Download Updated Template",
+                data=template_data,
+                file_name=uploaded_template.name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
-                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
-                            for cell in row:
-                                if cell.value is not None:
-                                    try:
-                                        cell_value = float(cell.value)
-                                        cell.value = -abs(cell_value)
-                                    except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+            st.success("Template populated successfully. You can now download the updated template.")
 
-                # Process sheets based on the uploaded files
-                if template_type == "Annual":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
-
-                if template_type == "Quarterly":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
-
-                # Save the updated workbook to a BytesIO object
-                output = BytesIO()
-                template_wb.save(output)
-                template_data = output.getvalue()
-
-                # Provide a download button for the updated template
-                st.download_button(
-                    label=f"Download Updated {template_type} Template",
-                    data=template_data,
-                    file_name=uploaded_template.name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-
-                st.success(f"{template_type} Template populated successfully. You can now download the updated template.")
-
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-
-    with tab1:
-        process_template("Annual")
-
-    with tab2:
-        process_template("Quarterly")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 def main():
     st.sidebar.title("Navigation")
