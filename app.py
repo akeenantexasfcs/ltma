@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[1]:
 
 
 import io
@@ -93,8 +93,7 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-
-
+# Function to aggregate data
 def aggregate_data(df):
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
@@ -105,6 +104,7 @@ def aggregate_data(df):
                                  aggfunc='sum').reset_index()
     return pivot_table
 
+# Function to clean numeric values
 def clean_numeric_value(value):
     value_str = str(value).strip()
     if value_str.startswith('(') and value_str.endswith(')'):
@@ -115,6 +115,7 @@ def clean_numeric_value(value):
     except ValueError:
         return 0
 
+# Function to sort by label and account
 def sort_by_label_and_account(df):
     sort_order = {
         "Current Assets": 0,
@@ -131,6 +132,7 @@ def sort_by_label_and_account(df):
     df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
+# Function to sort by label and final mnemonic
 def sort_by_label_and_final_mnemonic(df):
     sort_order = {
         "Current Assets": 0,
@@ -147,6 +149,7 @@ def sort_by_label_and_final_mnemonic(df):
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
+# Function to apply unit conversion
 def apply_unit_conversion(df, columns, factor):
     for selected_column in columns:
         if selected_column in df.columns:
@@ -571,7 +574,6 @@ def balance_sheet():
         zero_rows = check_all_zeroes(balance_sheet_lookup_df)
         st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
 
- 
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
