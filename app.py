@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -265,8 +265,8 @@ def balance_sheet():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
+            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
@@ -449,7 +449,7 @@ def balance_sheet():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
-                    manual_selection_options = [f"{mnemonic} [{label}]" for mnemonic, label in zip(balance_sheet_lookup_df['Mnemonic'], balance_sheet_lookup_df['Label'])]
+                    manual_selection_options = [mnemonic for mnemonic in balance_sheet_lookup_df['Mnemonic']]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options + ['REMOVE ROW'],
