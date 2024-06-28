@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[5]:
 
 
 import io
@@ -47,12 +47,7 @@ def load_or_initialize_lookup(file_path, initial_data):
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    if file_path.endswith('.csv'):
-        df.to_csv(file_path, index=False)
-    elif file_path.endswith('.xlsx'):
-        df.to_excel(file_path, index=False)
-    else:
-        raise ValueError(f"No engine for filetype: '{file_path.split('.')[-1]}'")
+    df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -93,7 +88,6 @@ def create_combined_df(dfs):
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
 
-# Function to aggregate data
 def aggregate_data(df):
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
@@ -104,7 +98,6 @@ def aggregate_data(df):
                                  aggfunc='sum').reset_index()
     return pivot_table
 
-# Function to clean numeric values
 def clean_numeric_value(value):
     value_str = str(value).strip()
     if value_str.startswith('(') and value_str.endswith(')'):
@@ -115,7 +108,6 @@ def clean_numeric_value(value):
     except ValueError:
         return 0
 
-# Function to sort by label and account
 def sort_by_label_and_account(df):
     sort_order = {
         "Current Assets": 0,
@@ -132,7 +124,6 @@ def sort_by_label_and_account(df):
     df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
-# Function to sort by label and final mnemonic
 def sort_by_label_and_final_mnemonic(df):
     sort_order = {
         "Current Assets": 0,
@@ -149,7 +140,6 @@ def sort_by_label_and_final_mnemonic(df):
     df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
-# Function to apply unit conversion
 def apply_unit_conversion(df, columns, factor):
     for selected_column in columns:
         if selected_column in df.columns:
@@ -574,6 +564,7 @@ def balance_sheet():
         zero_rows = check_all_zeroes(balance_sheet_lookup_df)
         st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
 
+ 
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
@@ -611,7 +602,7 @@ def cash_flow_statement():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
@@ -952,7 +943,7 @@ def cash_flow_statement():
 
         remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
-            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
+            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).resetindex(drop=True)
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
