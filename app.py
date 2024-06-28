@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[6]:
 
 
 import io
@@ -46,14 +46,14 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table(df, file_path):
+def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
-# Function to process uploaded files
+# General Utility Functions
 def process_file(file):
     try:
         df = pd.read_excel(file, sheet_name=None)
@@ -64,7 +64,6 @@ def process_file(file):
         st.error(f"Error processing file {file.name}: {e}")
         return None
 
-# Function to create combined dataframe from multiple dataframes
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
@@ -602,7 +601,7 @@ def cash_flow_statement():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
@@ -943,7 +942,7 @@ def cash_flow_statement():
 
         remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
-            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).resetindex(drop=True)
+            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
@@ -972,11 +971,6 @@ conversion_factors = {
     "Millions": 1000000,
     "Billions": 1000000000
 }
-
-mnemonics = [
-    "IQ_COGS", "IQ_SGA_SUPPL", "IQ_RD_EXP", "IQ_DA_SUPPL",
-    "IQ_STOCK_BASED", "IQ_OTHER_OPER", "IQ_INC_TAX"
-]
 
 def clean_numeric_value_IS(value):
     try:
@@ -1073,13 +1067,6 @@ def aggregate_data_IS(uploaded_files):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
-def adjust_values(df, mnemonics):
-    for index, row in df.iterrows():
-        if row['CIQ'] in mnemonics:
-            for col in df.columns[2:]:
-                df.at[index, col] = -row[col]
-    return df
-
 def income_statement():
     global income_statement_lookup_df
 
@@ -1133,6 +1120,7 @@ def income_statement():
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -1295,9 +1283,6 @@ def income_statement():
                     columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
 
-                    # Adjust values in the "Standardized - Income Stmt" sheet
-                    combined_df_is = adjust_values(combined_df_is, mnemonics)
-
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_df_is = sort_by_sort_index(as_presented_df_is)
                     as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
@@ -1371,10 +1356,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
-
-
 
 
 
@@ -1479,16 +1460,14 @@ def populate_ciq_template_pt():
                                                 cell_to_update.value = lookup_value
                                                 st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                        # Ensure accumulated depreciation is negative for Annual
-                        accumulated_depreciation_row = 113
-                        for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=10):
-                            for c in cell:
-                                if c.value is not None:
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
+                            for cell in row:
+                                if cell.value is not None:
                                     try:
-                                        cell_value = float(c.value)
-                                        c.value = -abs(cell_value)
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
                                     except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
                     
                     elif template_type == "Quarterly":
                         for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
@@ -1508,16 +1487,14 @@ def populate_ciq_template_pt():
                                                 cell_to_update.value = lookup_value
                                                 st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
 
-                        # Ensure accumulated depreciation is negative for Quarterly
-                        accumulated_depreciation_row = 113
-                        for cell in upload_sheet.iter_cols(min_row=accumulated_depreciation_row, max_row=accumulated_depreciation_row, min_col=4, max_col=21):
-                            for c in cell:
-                                if c.value is not None:
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
+                            for cell in row:
+                                if cell.value is not None:
                                     try:
-                                        cell_value = float(c.value)
-                                        c.value = -abs(cell_value)
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
                                     except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {c.coordinate}, skipping negation.")
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
 
                 # Process sheets based on the uploaded files
                 if template_type == "Annual":
