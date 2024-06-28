@@ -46,7 +46,7 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table(df, file_path):
+def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
@@ -146,6 +146,11 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
+# Function to check if all values in columns past the first 2 columns are 0
+def check_all_zeroes(df):
+    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
+    return zeroes
+
 # Balance Sheet Functions
 def balance_sheet():
     global balance_sheet_lookup_df
@@ -233,9 +238,16 @@ def balance_sheet():
                     if start_label and end_label:
                         try:
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
+
+                            start_index = df[df[account_column] == start_label_base].index.min()
+                            end_index = df[df[account_column] == end_label_base].index.max()
+
+                            if pd.isna(start_index):
+                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
+                            if pd.isna(end_index):
+                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
+
                             if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
@@ -252,15 +264,16 @@ def balance_sheet():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            new_column_names = {}
+            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-            
+
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
@@ -304,8 +317,8 @@ def balance_sheet():
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
-                if selected_value != "No Conversions Necessary":
+
+                if selected_value != "Actuals":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
                 updated_table.replace('-', 0, inplace=True)
@@ -328,7 +341,7 @@ def balance_sheet():
 
     with tab2:
         st.subheader("Aggregate My Data")
-        
+
         uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
 
         dfs = []
@@ -345,12 +358,35 @@ def balance_sheet():
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2"):
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.subheader("Preview Data and Edit Rows")
+            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
+            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
+
+            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+
+            # Highlight rows with all zeros for potential removal
+            st.write("Highlighted rows with all zero values for potential removal:")
+            for index in zero_rows_indices:
+                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
+
+            rows_removed = False  # Flag to check if rows are removed
+            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                rows_removed = True
+                st.success("Highlighted rows removed successfully")
+                st.dataframe(aggregated_table)
+
+            st.subheader("Download Aggregated Data")
+            if rows_removed:
+                download_label = "Download Updated Aggregated Excel"
+            else:
+                download_label = "Download Aggregated Excel"
+            excel_file = io.BytesIO()
+            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+            excel_file.seek(0)
+            st.download_button(download_label, excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
@@ -368,6 +404,12 @@ def balance_sheet():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
+
+            statement_dates = {}
+            for col in df.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+                statement_dates[col] = statement_date
+
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
             if 'Account' not in df.columns:
@@ -407,9 +449,10 @@ def balance_sheet():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
+                    manual_selection_options = [f"{mnemonic} [{label}]" for mnemonic, label in zip(balance_sheet_lookup_df['Mnemonic'], balance_sheet_lookup_df['Label'])]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + balance_sheet_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
@@ -419,7 +462,7 @@ def balance_sheet():
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'],
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
@@ -448,11 +491,11 @@ def balance_sheet():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency, selected_magnitude, company_name_bs]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
@@ -460,7 +503,7 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
                         axis=1
                     )
                     new_entries = []
@@ -481,7 +524,7 @@ def balance_sheet():
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                    save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
 
@@ -492,25 +535,32 @@ def balance_sheet():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(balance_sheet_lookup_df)
 
         remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
             balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
 
-        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_bs"):
-            excel_file = io.BytesIO()
-            balance_sheet_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.subheader("Download Data Dictionary")
+        if rows_removed:
+            download_label = "Download Updated Data Dictionary"
+        else:
+            download_label = "Download Data Dictionary"
+        excel_file = io.BytesIO()
+        balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-#######################################Cash Flow Statement Functions#####
+ 
+####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
     global cash_flow_lookup_df
 
@@ -595,9 +645,16 @@ def cash_flow_statement():
                     if start_label and end_label:
                         try:
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            start_index = df[df[account_column].str.contains(start_label_base)].index.min()
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-                            end_index = df[df[account_column].str.contains(end_label_base)].index.max()
+                            
+                            start_index = df[df[account_column] == start_label_base].index.min()
+                            end_index = df[df[account_column] == end_label_base].index.max()
+                            
+                            if pd.isna(start_index):
+                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
+                            if pd.isna(end_index):
+                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
+
                             if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
@@ -614,9 +671,10 @@ def cash_flow_statement():
                 st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            new_column_names = {}
+            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
@@ -696,14 +754,37 @@ def cash_flow_statement():
             st.subheader("Aggregated Data")
             st.dataframe(aggregated_table)
 
-            if st.button("Download Aggregated Excel", key="download_aggregated_excel_tab2_cfs"):
-                excel_file = io.BytesIO()
-                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.subheader("Preview Data and Edit Rows")
+            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
+            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
+            
+            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+            
+            # Highlight rows with all zeros for potential removal
+            st.write("Highlighted rows with all zero values for potential removal:")
+            for index in zero_rows_indices:
+                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
+            
+            rows_removed = False  # Flag to check if rows are removed
+            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                rows_removed = True
+                st.success("Highlighted rows removed successfully")
+                st.dataframe(aggregated_table)
+
+            st.subheader("Download Aggregated Data")
+            if rows_removed:
+                download_label = "Download Updated Aggregated Excel"
+            else:
+                download_label = "Download Aggregated Excel"
+            excel_file = io.BytesIO()
+            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+            excel_file.seek(0)
+            st.download_button(download_label, excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
-            st.warning("Please upload valid Excel files for aggregation.")
+            st.warning("Please upload valid Excel files for aggregation. You will have the opportunity to remove rows of your choosing at this point.")
 
     with tab3:
         st.subheader("Mappings and Data Consolidation")
@@ -719,6 +800,12 @@ def cash_flow_statement():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
+            
+            statement_dates = {}
+            for col in df.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_cfs")
+                statement_dates[col] = statement_date
+
             st.write("Columns in the uploaded file:", df.columns.tolist())
 
             if 'Account' not in df.columns:
@@ -758,9 +845,10 @@ def cash_flow_statement():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
+                    manual_selection_options = [f"{mnemonic} [{label}]" for mnemonic, label in zip(cash_flow_lookup_df['Mnemonic'], cash_flow_lookup_df['Label'])]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + cash_flow_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
@@ -781,10 +869,10 @@ def cash_flow_statement():
                     # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value.empty:
-                            return 'CIQ IQ Required'
+                            return 'CIQ ID Required'
                         return ciq_value.values[0]
 
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
@@ -799,11 +887,11 @@ def cash_flow_statement():
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        combined_df.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df.to_excel(writer, sheet_name='Standardized - Cash Flow - ', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
                         cover_df = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency, selected_magnitude, company_name_cfs]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_cfs] + list(statement_dates.values())
                         })
                         cover_df.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file.seek(0)
@@ -820,7 +908,7 @@ def cash_flow_statement():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ IQ Required'
+                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
@@ -843,7 +931,7 @@ def cash_flow_statement():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(cash_flow_lookup_df)
@@ -851,7 +939,7 @@ def cash_flow_statement():
         remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
             cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
@@ -1025,9 +1113,10 @@ def income_statement():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            quarter_options = [f"FQ{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 5)]
-            dropdown_options = [''] + ['Account'] + quarter_options + ytd_options
+            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -1113,8 +1202,14 @@ def income_statement():
         selected_magnitude_is = st.selectbox("Select Magnitude", magnitude_options_is, key='magnitude_selection_tab3_is')
         company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
 
+        statement_dates = {}
         if uploaded_excel_is is not None:
             df_is = pd.read_excel(uploaded_excel_is)
+            
+            for col in df_is.columns:
+                if col not in ['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']:
+                    statement_dates[col] = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+
             st.write("Columns in the uploaded file:", df_is.columns.tolist())
 
             if 'Account' not in df_is.columns:
@@ -1150,9 +1245,10 @@ def income_statement():
                         message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message_is)
                     
+                    unique_mappings = income_statement_lookup_df['Mnemonic'].drop_duplicates().tolist()
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + income_statement_lookup_df['Mnemonic'].tolist() + ['REMOVE ROW'],
+                        options=[''] + unique_mappings + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
@@ -1162,7 +1258,7 @@ def income_statement():
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
-                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
@@ -1191,11 +1287,11 @@ def income_statement():
 
                     excel_file_is = io.BytesIO()
                     with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                        combined_df_is.to_excel(writer, sheet_name='Standardized', index=False)
+                        combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
                         cover_df_is = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'],
-                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is]
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates.values())
                         })
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
@@ -1259,317 +1355,190 @@ def income_statement():
 
 
 
-
-                                   
+                               
 ####################################### Populate CIQ Template ###################################
-import io
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import openpyxl
 from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
+from io import BytesIO
 
-def copy_sheet(source_book, target_book, sheet_name, tab_color="00FF00"):
-    source_sheet = source_book[sheet_name]
-    target_sheet = target_book.create_sheet(title=sheet_name)
-
-    for row in source_sheet.iter_rows():
-        for cell in row:
-            target_cell = target_sheet[cell.coordinate]
-            target_cell.value = cell.value
-
-            # Copy styles manually
-            if cell.has_style:
-                target_cell.font = cell.font.copy()
-                target_cell.border = cell.border.copy()
-                target_cell.fill = cell.fill.copy()
-                target_cell.number_format = cell.number_format
-                target_cell.protection = cell.protection.copy()
-                target_cell.alignment = cell.alignment.copy()
-
-            # Copy hyperlinks and comments
-            if cell.hyperlink:
-                target_cell.hyperlink = cell.hyperlink
-            if cell.comment:
-                target_cell.comment = cell.comment
-
-    target_sheet.sheet_properties.tabColor = tab_color
-
-    # Copy merged cells
-    for merged_cell in source_sheet.merged_cells.ranges:
-        target_sheet.merge_cells(str(merged_cell))
-
-def get_cell_value_as_string(sheet, cell_address):
-    cell_value = sheet[cell_address].value
-    return str(cell_value) if cell_value is not None else ""
-
-def populate_ciq_template():
+def populate_ciq_template_pt():
     st.title("Populate CIQ Template")
 
-    tab1 = st.tabs(["Final Output"])[0]
+    tab1, tab2 = st.tabs(["Annual Upload Template", "Quarterly Upload Template"])
 
-    with tab1:
-        uploaded_template = st.file_uploader("Upload Template", type=['xlsx', 'xlsm'], key='template_uploader')
-        uploaded_income_statement = st.file_uploader("Upload Completed Income Statement", type=['xlsx', 'xlsm'], key='income_statement_uploader')
-        uploaded_balance_sheet = st.file_uploader("Upload Completed Balance Sheet", type=['xlsx', 'xlsm'], key='balance_sheet_uploader')
-        uploaded_cash_flow_statement = st.file_uploader("Upload Completed Cash Flow Statement", type=['xlsx', 'xlsm'], key='cash_flow_statement_uploader')
+    def process_template(template_type):
+        unique_id = template_type.lower()
 
-        if uploaded_template and (uploaded_income_statement or uploaded_balance_sheet or uploaded_cash_flow_statement):
+        uploaded_template = st.file_uploader(f"Upload CIQ Template ({template_type})", type=['xlsx', 'xlsm'], key=f"template_{unique_id}")
+        uploaded_balance_sheet = st.file_uploader(f"Upload Completed Balance Sheet Data ({template_type})", type=['xlsx', 'xlsm'], key=f"balance_sheet_{unique_id}")
+        uploaded_cash_flow = st.file_uploader(f"Upload Completed Cash Flow Statement ({template_type})", type=['xlsx', 'xlsm'], key=f"cash_flow_{unique_id}")
+        uploaded_income_statement = st.file_uploader(f"Upload Completed Income Statement Data ({template_type})", type=['xlsx', 'xlsm'], key=f"income_statement_{unique_id}")
+
+        if st.button(f"Populate {template_type} Template Now", key=f"populate_button_{unique_id}") and uploaded_template and (uploaded_balance_sheet or uploaded_cash_flow or uploaded_income_statement):
             try:
-                file_extension = uploaded_template.name.split('.')[-1]
-                template_book = load_workbook(uploaded_template, data_only=False, keep_vba=True if file_extension == 'xlsm' else False)
-                if uploaded_income_statement:
-                    income_statement_book = load_workbook(uploaded_income_statement, data_only=False)
-                    income_statement_df = pd.read_excel(uploaded_income_statement, sheet_name="Standardized")
-                    template_income_statement_df = pd.read_excel(uploaded_template, sheet_name="Income Statement")
-                if uploaded_balance_sheet:
-                    balance_sheet_book = load_workbook(uploaded_balance_sheet, data_only=False)
-                    balance_sheet_df = pd.read_excel(uploaded_balance_sheet, sheet_name="Standardized")
-                    template_balance_sheet_df = pd.read_excel(uploaded_template, sheet_name="Balance Sheet")
-                if uploaded_cash_flow_statement:
-                    cash_flow_statement_book = load_workbook(uploaded_cash_flow_statement, data_only=False)
-                    cash_flow_statement_df = pd.read_excel(uploaded_cash_flow_statement, sheet_name="Standardized")
-                    template_cash_flow_statement_df = pd.read_excel(uploaded_template, sheet_name="Cash Flow")
-            except Exception as e:
-                st.error(f"Error reading files: {e}")
-                return
-
-            errors = []
-
-            if st.button("Populate Template"):
-                if uploaded_income_statement:
-                    try:
-                        ciq_mnemonics_income = income_statement_df.iloc[:, 1]
-                        income_statement_dates = income_statement_df.columns[2:]
-                    except Exception as e:
-                        st.error(f"Error processing income statement data: {e}")
-                        return
-
-                    st.write("Income Statement Dates:", list(income_statement_dates))
-
-                    try:
-                        template_mnemonics_income = template_income_statement_df.iloc[11:89, 8]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    try:
-                        template_income_sheet = template_book["Income Statement"]
-                        template_income_dates = [
-                            get_cell_value_as_string(template_income_sheet, "D10"),
-                            get_cell_value_as_string(template_income_sheet, "E10"),
-                            get_cell_value_as_string(template_income_sheet, "F10"),
-                            get_cell_value_as_string(template_income_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template income statement: {e}")
-                        return
-
-                    st.write("Template Income Statement Dates:", template_income_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_income):
-                        if pd.notna(mnemonic):
-                            try:
-                                income_statement_row = income_statement_df[ciq_mnemonics_income == mnemonic]
-                                if not income_statement_row.empty:
-                                    for j, date in enumerate(template_income_dates):
-                                        if date in income_statement_dates.values:
-                                            try:
-                                                income_statement_col = income_statement_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from income statement column {income_statement_col + 2}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_income_statement_df.iat[i + 11, 3 + j] = income_statement_row.iat[0, income_statement_col + 2]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_income_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_income_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_income_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_income_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template income sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(income_statement_book, template_book, "As Presented - Income Stmt")
-                    except Exception as e:
-                        st.error(f"Error copying 'As Presented - Income Stmt' sheet: {e}")
-                        return
-
-                if uploaded_balance_sheet:
-                    try:
-                        ciq_mnemonics_balance = balance_sheet_df.iloc[:, 2]
-                        balance_sheet_dates = balance_sheet_df.columns[3:]
-                    except Exception as e:
-                        st.error(f"Error processing balance sheet data: {e}")
-                        return
-
-                    st.write("Balance Sheet Dates:", list(balance_sheet_dates))
-
-                    try:
-                        template_mnemonics_balance = template_balance_sheet_df.iloc[11:89, 8]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    try:
-                        template_balance_sheet = template_book["Balance Sheet"]
-                        template_balance_dates = [
-                            get_cell_value_as_string(template_balance_sheet, "D10"),
-                            get_cell_value_as_string(template_balance_sheet, "E10"),
-                            get_cell_value_as_string(template_balance_sheet, "F10"),
-                            get_cell_value_as_string(template_balance_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template balance sheet: {e}")
-                        return
-
-                    st.write("Template Balance Sheet Datesst:", template_balance_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_balance):
-                        if pd.notna(mnemonic):
-                            try:
-                                balance_sheet_row = balance_sheet_df[ciq_mnemonics_balance == mnemonic]
-                                if not balance_sheet_row.empty:
-                                    for j, date in enumerate(template_balance_dates):
-                                        if date in balance_sheet_dates.values:
-                                            try:
-                                                balance_sheet_col = balance_sheet_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from balance sheet column {balance_sheet_col + 3}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_balance_sheet_df.iat[i + 11, 3 + j] = balance_sheet_row.iat[0, balance_sheet_col + 3]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_balance_sheet_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_balance_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_balance_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_balance_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template balance sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(balance_sheet_book, template_book, "As Presented - Balance Sheet")
-                    except Exception as e:
-                        st.error(f"Error copying 'As Presented - Balance Sheet' sheet: {e}")
-                        return
-
-                if uploaded_cash_flow_statement:
-                    try:
-                        ciq_mnemonics_cash_flow = cash_flow_statement_df.iloc[:, 2]
-                        cash_flow_statement_dates = cash_flow_statement_df.columns[3:]
-                    except Exception as e:
-                        st.error(f"Error processing cash flow statement data: {e}")
-                        return
-
-                    st.write("Cash Flow Statement Dates:", list(cash_flow_statement_dates))
-
-                    try:
-                        template_mnemonics_cash_flow = template_cash_flow_statement_df.iloc[11:89, 8]
-                    except Exception as e:
-                        st.error(f"Error processing template data: {e}")
-                        return
-
-                    try:
-                        template_cash_flow_sheet = template_book["Cash Flow"]
-                        template_cash_flow_dates = [
-                            get_cell_value_as_string(template_cash_flow_sheet, "D10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "E10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "F10"),
-                            get_cell_value_as_string(template_cash_flow_sheet, "G10")
-                        ]
-                    except Exception as e:
-                        st.error(f"Error reading dates from template cash flow statement: {e}")
-                        return
-
-                    st.write("Template Cash Flow Statement Dates:", template_cash_flow_dates)
-
-                    for i, mnemonic in enumerate(template_mnemonics_cash_flow):
-                        if pd.notna(mnemonic):
-                            try:
-                                cash_flow_statement_row = cash_flow_statement_df[ciq_mnemonics_cash_flow == mnemonic]
-                                if not cash_flow_statement_row.empty:
-                                    for j, date in enumerate(template_cash_flow_dates):
-                                        if date in cash_flow_statement_dates.values:
-                                            try:
-                                                cash_flow_statement_col = cash_flow_statement_dates.get_loc(date)
-                                                st.write(f"Populating template for mnemonic {mnemonic} at row {i + 12}, column {3 + j} with value from cash flow statement column {cash_flow_statement_col + 3}")
-                                                if 3 + j not in [10, 11, 12, 13]:  # Columns J, K, L, M are 10, 11, 12, 13
-                                                    template_cash_flow_statement_df.iat[i + 11, 3 + j] = cash_flow_statement_row.iat[0, cash_flow_statement_col + 3]
-                                            except Exception as e:
-                                                errors.append(f"Error at mnemonic {mnemonic}, row {i + 12}, column {3 + j}: {e}")
-                            except Exception as e:
-                                errors.append(f"Error processing row for mnemonic {mnemonic}: {e}")
-
-                    try:
-                        for r_idx, row in enumerate(dataframe_to_rows(template_cash_flow_statement_df, index=False, header=True), 1):
-                            if r_idx >= 12 and r_idx <= 90:
-                                for c_idx, value in enumerate(row, 1):
-                                    if c_idx >= 4 and c_idx <= 7:
-                                        cell = template_cash_flow_sheet.cell(row=r_idx, column=c_idx)
-                                        if cell.column not in [10, 11, 12, 13]:  # Skip columns J, K, L, M
-                                            if not (cell.value and isinstance(cell.value, str) and cell.value.startswith('=')):
-                                                for merge_cell in template_cash_flow_sheet.merged_cells.ranges:
-                                                    if cell.coordinate in merge_cell:
-                                                        template_cash_flow_sheet.unmerge_cells(str(merge_cell))
-                                                        break
-                                                cell.value = value
-                    except Exception as e:
-                        st.error(f"Error updating template cash flow sheet at cell {cell.coordinate}: {e}")
-                        return
-
-                    try:
-                        copy_sheet(cash_flow_statement_book, template_book, "As Presented - Cash Flow")
-                    except Exception as e:
-                        st.error(f"Error copying 'As Presented - Cash Flow' sheet: {e}")
-                        return
-
+                # Read the uploaded template file
+                template_file = uploaded_template.read()
                 try:
-                    output_file_name = f"populated_template.{file_extension}"
-                    excel_file = io.BytesIO()
-                    template_book.save(excel_file)
-                    excel_file.seek(0)
+                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
                 except Exception as e:
-                    st.error(f"Error saving the populated template: {e}")
+                    st.error(f"Error loading template file: {e}")
                     return
 
-                if errors:
-                    st.error("Errors encountered during processing:")
-                    for error in errors:
-                        st.error(error)
+                def process_sheet(sheet_file, sheet_name, row_range, date_row):
+                    try:
+                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
+                    except Exception as e:
+                        st.error(f"Error loading {sheet_name} file: {e}")
+                        return
+                    
+                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
+                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
 
-                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if file_extension == 'xlsm' else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    # Check for required columns in the Standardized sheet
+                    if 'CIQ' not in standardized_sheet.columns:
+                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
+                        return
+
+                    st.write(f"{sheet_name} CIQ column found, proceeding...")
+                    st.write(standardized_sheet.head())
+
+                    # Copy the "As Presented" sheet to the template workbook
+                    if f"As Presented - {sheet_name}" in template_wb.sheetnames:
+                        del template_wb[f"As Presented - {sheet_name}"]
+                    new_sheet = template_wb.create_sheet(f"As Presented - {sheet_name}")
+                    for row in as_presented_sheet.iter_rows():
+                        for cell in row:
+                            new_sheet[cell.coordinate].value = cell.value
+
+                    # Color the "As Presented" tab orange
+                    tab_color = "FFA500"
+                    new_sheet.sheet_properties.tabColor = tab_color
+
+                    # Copy the "Standardized" sheet to the template workbook
+                    if f"Standardized - {sheet_name}" in template_wb.sheetnames:
+                        del template_wb[f"Standardized - {sheet_name}"]
+                    standardized_ws = template_wb.create_sheet(f"Standardized - {sheet_name}")
+
+                    # Write the header row
+                    for col_num, header in enumerate(standardized_sheet.columns, 1):
+                        standardized_ws.cell(row=1, column=col_num, value=header)
+
+                    # Write the data rows
+                    for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
+                        for c_idx, value in enumerate(row, 1):
+                            standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+
+                    # Perform lookups and update the "Upload" sheet
+                    upload_sheet = template_wb["Upload"]
+                    ciq_values = standardized_sheet['CIQ'].tolist()
+                    dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
+
+                    st.write(f"CIQ Values from {sheet_name}:", ciq_values)
+                    st.write(f"Dates from {sheet_name}:", dates)
+
+                    if template_type == "Annual":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 10):
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                    
+                    elif template_type == "Quarterly":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 22):  # Changed to include columns D to U
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+
+                # Process sheets based on the uploaded files
+                if template_type == "Annual":
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
+
+                if template_type == "Quarterly":
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
+
+                # Save the updated workbook to a BytesIO object
+                output = BytesIO()
+                template_wb.save(output)
+                template_data = output.getvalue()
+
+                # Provide a download button for the updated template
                 st.download_button(
-                    label="Download Populated Template",
-                    data=excel_file,
-                    file_name=output_file_name,
-                    mime=mime_type
+                    label=f"Download Updated {template_type} Template",
+                    data=template_data,
+                    file_name=uploaded_template.name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
-                                   
-########################################################################### Main Function
+                st.success(f"{template_type} Template populated successfully. You can now download the updated template.")
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
+    with tab1:
+        process_template("Annual")
+
+    with tab2:
+        process_template("Quarterly")
+
 def main():
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
@@ -1581,7 +1550,7 @@ def main():
     elif selection == "Income Statement":
         income_statement()
     elif selection == "Populate CIQ Template":
-        populate_ciq_template()
+        populate_ciq_template_pt()
 
 if __name__ == '__main__':
     main()
