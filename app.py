@@ -265,8 +265,8 @@ def balance_sheet():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
@@ -672,8 +672,8 @@ def cash_flow_statement():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
@@ -1113,8 +1113,8 @@ def income_statement():
 
             st.subheader("Rename Columns")
             new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
 
