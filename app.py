@@ -559,10 +559,6 @@ def balance_sheet():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        st.subheader("Check for Rows with All Zero Values")
-        zero_rows = check_all_zeroes(balance_sheet_lookup_df)
-        st.write("Rows where all values (past the first 2 columns) are zero:", zero_rows)
-
  
 ####################################### Cash Flow Statement Functions #####
 def cash_flow_statement():
