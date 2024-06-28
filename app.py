@@ -46,14 +46,19 @@ def load_or_initialize_lookup(file_path, initial_data):
         lookup_df.to_csv(file_path, index=False)
     return lookup_df
 
-def save_lookup_table_bs_cf(df, file_path):
-    df.to_csv(file_path, index=False)
+def save_lookup_table(df, file_path):
+    if file_path.endswith('.csv'):
+        df.to_csv(file_path, index=False)
+    elif file_path.endswith('.xlsx'):
+        df.to_excel(file_path, index=False)
+    else:
+        raise ValueError(f"No engine for filetype: '{file_path.split('.')[-1]}'")
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
-# General Utility Functions
+# Function to process uploaded files
 def process_file(file):
     try:
         df = pd.read_excel(file, sheet_name=None)
@@ -64,6 +69,7 @@ def process_file(file):
         st.error(f"Error processing file {file.name}: {e}")
         return None
 
+# Function to create combined dataframe from multiple dataframes
 def create_combined_df(dfs):
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
@@ -86,6 +92,8 @@ def create_combined_df(dfs):
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
     return combined_df.reset_index()
+
+
 
 def aggregate_data(df):
     if 'Label' not in df.columns or 'Account' not in df.columns:
