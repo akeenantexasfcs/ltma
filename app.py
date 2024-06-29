@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -449,7 +449,9 @@ def balance_sheet():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
-                    manual_selection_options = [mnemonic for mnemonic in balance_sheet_lookup_df['Mnemonic']]
+                    # Create a dropdown list of unique mnemonics based on the label
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options + ['REMOVE ROW'],
