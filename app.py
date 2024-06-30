@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import io
@@ -563,135 +563,6 @@ def balance_sheet():
 
  
 ####################################### Cash Flow Statement Functions #####
-import io
-import json
-import os
-import pandas as pd
-import streamlit as st
-from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from Levenshtein import distance as levenshtein_distance
-import re
-
-# Define the initial lookup data for Cash Flow
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
-    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
-    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
-    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
-}
-
-# Define the file paths for the data dictionaries
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-
-# Load or initialize the lookup table
-def load_or_initialize_lookup(file_path, initial_data):
-    if os.path.exists(file_path):
-        lookup_df = pd.read_csv(file_path)
-    else:
-        lookup_df = pd.DataFrame(initial_data)
-        lookup_df.to_csv(file_path, index=False)
-    return lookup_df
-
-def save_lookup_table_cf(df, file_path):
-    df.to_csv(file_path, index=False)
-
-# Initialize lookup tables for Cash Flow
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
-
-# General Utility Functions
-def process_file(file):
-    try:
-        df = pd.read_excel(file, sheet_name=None)
-        first_sheet_name = list(df.keys())[0]
-        df = df[first_sheet_name]
-        return df
-    except Exception as e:
-        st.error(f"Error processing file {file.name}: {e}")
-        return None
-
-def create_combined_df(dfs):
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            continue
-        
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-        
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
-
-def aggregate_data(df):
-    if 'Label' not in df.columns or 'Account' not in df.columns:
-        st.error("'Label' and/or 'Account' columns not found in the data.")
-        return df
-    
-    pivot_table = df.pivot_table(index=['Label', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
-                                 aggfunc='sum').reset_index()
-    return pivot_table
-
-def clean_numeric_value(value):
-    value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    cleaned_value = re.sub(r'[$,]', '', value_str)
-    try:
-        return float(cleaned_value)
-    except ValueError:
-        return 0
-
-def sort_by_label_and_account(df):
-    sort_order = {
-        "Operating Activities": 0,
-        "Investing Activities": 1,
-        "Financing Activities": 2
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def sort_by_label_and_final_mnemonic(df):
-    sort_order = {
-        "Operating Activities": 0,
-        "Investing Activities": 1,
-        "Financing Activities": 2
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def apply_unit_conversion(df, columns, factor):
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
-    return df
-
-# Function to check if all values in columns past the first 2 columns are 0
-def check_all_zeroes(df):
-    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
-    return zeroes
-
-# Cash Flow Functions
 def cash_flow_statement():
     global cash_flow_lookup_df
 
@@ -1077,11 +948,15 @@ def cash_flow_statement():
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
-        if st.button("Download Data Dictionary", key="download_data_dictionary_tab4_cfs"):
-            excel_file = io.BytesIO()
-            cash_flow_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button("Download Excel", excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.subheader("Download Data Dictionary")
+        if rows_removed:
+            download_label = "Download Updated Data Dictionary"
+        else:
+            download_label = "Download Data Dictionary"
+        excel_file = io.BytesIO()
+        cash_flow_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 ############################################## Income Statement Functions########################################
