@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[1]:
 
 
 import io
@@ -599,8 +599,8 @@ def cash_flow_statement():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -648,10 +648,10 @@ def cash_flow_statement():
                         try:
                             start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
                             end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-                            
+
                             start_index = df[df[account_column] == start_label_base].index.min()
                             end_index = df[df[account_column] == end_label_base].index.max()
-                            
+
                             if pd.isna(start_index):
                                 start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
                             if pd.isna(end_index):
@@ -726,7 +726,7 @@ def cash_flow_statement():
                 for col in numerical_columns:
                     if col in updated_table.columns:
                         updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
+
                 if selected_value != "Actuals":
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
 
@@ -847,7 +847,9 @@ def cash_flow_statement():
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
 
-                    manual_selection_options = [mnemonic for mnemonic in cash_flow_lookup_df['Mnemonic']]
+                    # Create a dropdown list of unique mnemonics based on the label
+                    label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options + ['REMOVE ROW'],
@@ -922,7 +924,7 @@ def cash_flow_statement():
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     cash_flow_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                    save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
 
@@ -933,7 +935,7 @@ def cash_flow_statement():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_csv(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(cash_flow_lookup_df)
@@ -942,7 +944,7 @@ def cash_flow_statement():
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
             cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
