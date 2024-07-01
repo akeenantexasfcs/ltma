@@ -190,7 +190,7 @@ def balance_sheet():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -600,7 +600,7 @@ def cash_flow_statement():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
