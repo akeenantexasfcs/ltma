@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[3]:
 
 
 import io
@@ -1011,8 +1011,8 @@ def create_combined_df_IS(dfs):
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
         
-        # Sort the date columns in ascending order (oldest to newest)
-        df_pivot = df_pivot[sorted(df_pivot.columns)]
+        # Reverse the order of the date columns
+        df_pivot = df_pivot[sorted(df_pivot.columns, reverse=True)]
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -1023,12 +1023,6 @@ def create_combined_df_IS(dfs):
 def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
-    return df
-
-def sort_and_reorder_columns(df, order):
-    df = df.sort_values(by=['Sort Index'])
-    columns = ['Account'] + order + ['Sort Index']
-    df = df[columns]
     return df
 
 def aggregate_data_IS(uploaded_files):
@@ -1209,9 +1203,6 @@ def income_statement():
 
                 if 'Positive Decreases NI' in final_df.columns:
                     final_df.drop(columns=['Positive Decreases NI'], inplace=True)
-
-                order = ['FQ32023', 'FQ42024', 'FQ32024', 'FQ42023']  # Your desired order
-                final_df = sort_and_reorder_columns(final_df, order)
 
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
