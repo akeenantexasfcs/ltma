@@ -1127,7 +1127,6 @@ def income_statement():
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
-
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown")
@@ -1191,6 +1190,14 @@ def income_statement():
                                 editable_df_excluded.at[index, col] = row[col] * -1
 
                 final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
+
+                st.subheader("Select columns to keep before export")
+                columns_to_keep = []
+                for col in final_df.columns:
+                    if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_tab2"):
+                        columns_to_keep.append(col)
+
+                final_df = final_df[columns_to_keep]
 
                 if 'Positive Decreases NI' in final_df.columns:
                     final_df.drop(columns=['Positive Decreases NI'], inplace=True)
@@ -1362,8 +1369,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
 
                                
 ####################################### Populate CIQ Template ###################################
