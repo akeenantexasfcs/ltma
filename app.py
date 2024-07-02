@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import io
@@ -960,7 +960,6 @@ def cash_flow_statement():
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-############################################## Income Statement Functions########################################
 import io
 import os
 import re
@@ -1011,6 +1010,9 @@ def create_combined_df_IS(dfs):
         df_grouped = df.groupby([final_mnemonic_col]).sum(numeric_only=True).reset_index()
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
+        
+        # Reverse the order of the date columns
+        df_pivot = df_pivot[sorted(df_pivot.columns, reverse=True)]
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -1244,7 +1246,6 @@ def income_statement():
                         account_str = str(account)
                         score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                         if score_is < best_score_is:
-                            best_score_is = score_is
                             best_match_is = lookup_row
                     return best_match_is, best_score_is
 
@@ -1370,7 +1371,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
                                
