@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1011,8 +1011,8 @@ def create_combined_df_IS(dfs):
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
         
-        # Reverse the order of the date columns
-        df_pivot = df_pivot[sorted(df_pivot.columns, reverse=True)]
+        # Sort the date columns in ascending order (oldest to newest)
+        df_pivot = df_pivot[sorted(df_pivot.columns)]
         
         if combined_df.empty:
             combined_df = df_pivot
