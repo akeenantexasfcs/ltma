@@ -968,8 +968,6 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from dateutil.parser import parse
-from datetime import datetime
 
 # Ensure conversion_factors is defined
 conversion_factors = {
@@ -1013,17 +1011,8 @@ def create_combined_df_IS(dfs):
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
         df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
         
-        # Sort the date columns from most recent to oldest
-        def parse_date(col):
-            try:
-                # Try to parse the column as a date
-                return parse(col, fuzzy=True)
-            except:
-                # If parsing fails, return a minimum date
-                return datetime.min
-
-        sorted_cols = sorted(df_pivot.columns, key=parse_date, reverse=True)
-        df_pivot = df_pivot[sorted_cols]
+        # Sort the date columns in ascending order (oldest to newest)
+        df_pivot = df_pivot[sorted(df_pivot.columns)]
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -1034,6 +1023,12 @@ def create_combined_df_IS(dfs):
 def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
+    return df
+
+def sort_and_reorder_columns(df, order):
+    df = df.sort_values(by=['Sort Index'])
+    columns = ['Account'] + order + ['Sort Index']
+    df = df[columns]
     return df
 
 def aggregate_data_IS(uploaded_files):
@@ -1085,8 +1080,6 @@ def aggregate_data_IS(uploaded_files):
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
-
-
 
 def income_statement():
     global income_statement_lookup_df
