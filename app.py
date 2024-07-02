@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -961,7 +961,6 @@ def cash_flow_statement():
 
 
 ############################################## Income Statement Functions########################################
-############################################## Income Statement Functions########################################
 import io
 import os
 import re
@@ -1370,6 +1369,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                
 ####################################### Populate CIQ Template ###################################
