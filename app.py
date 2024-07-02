@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1025,6 +1025,12 @@ def sort_by_sort_index(df):
         df = df.sort_values(by=['Sort Index'])
     return df
 
+def sort_and_reorder_columns(df, order):
+    df = df.sort_values(by=['Sort Index'])
+    columns = ['Account'] + order + ['Sort Index']
+    df = df[columns]
+    return df
+
 def aggregate_data_IS(uploaded_files):
     dataframes = []
     unique_accounts = set()
@@ -1203,6 +1209,9 @@ def income_statement():
 
                 if 'Positive Decreases NI' in final_df.columns:
                     final_df.drop(columns=['Positive Decreases NI'], inplace=True)
+
+                order = ['FQ32023', 'FQ42024', 'FQ32024', 'FQ42023']  # Your desired order
+                final_df = sort_and_reorder_columns(final_df, order)
 
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
