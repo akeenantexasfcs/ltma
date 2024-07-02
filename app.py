@@ -1012,7 +1012,7 @@ def create_combined_df_IS(dfs):
         df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
         
         # Reverse the order of the date columns
-        df_pivot = df_pivot.loc[:, ::-1]
+        df_pivot = df_pivot[sorted(df_pivot.columns, reverse=True)]
         
         if combined_df.empty:
             combined_df = df_pivot
@@ -1128,7 +1128,6 @@ def income_statement():
             fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
-
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
