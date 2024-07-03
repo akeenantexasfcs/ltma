@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1087,9 +1087,9 @@ def update_negative_values(df):
     ]
     
     for index, row in df.iterrows():
-        if row['Account'] in criteria:
-            for col in df.columns[2:]:  # Assuming the first two columns are 'Account' and 'Positive Decreases NI'
-                if row[col] < 0:
+        if row['Final Mnemonic Selection'] in criteria:
+            for col in df.columns[1:]:  # Adjusted to look at all numeric columns
+                if isinstance(row[col], (int, float)) and row[col] < 0:
                     df.at[index, col] = row[col] * -1
     return df
 
@@ -1321,6 +1321,9 @@ def income_statement():
                     columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
                     combined_df_is = combined_df_is[columns_order_is]
 
+                    # Update negative values just before generating the Excel file
+                    combined_df_is = update_negative_values(combined_df_is)
+
                     as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_df_is = sort_by_sort_index(as_presented_df_is)
                     as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
@@ -1394,7 +1397,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
                                
 ####################################### Populate CIQ Template ###################################
