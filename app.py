@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[4]:
 
 
 import io
@@ -1039,6 +1039,10 @@ def aggregate_data_IS(uploaded_files):
 
         if 'Sort Index' not in df.columns:
             df['Sort Index'] = range(1, len(df) + 1)
+        else:
+            # If 'Sort Index' exists, move it to the end
+            sort_index = df.pop('Sort Index')
+            df['Sort Index'] = sort_index
         
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
@@ -1069,6 +1073,10 @@ def aggregate_data_IS(uploaded_files):
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
     final_df.insert(1, 'Positive Decreases NI', False)
+
+    # Ensure 'Sort Index' is the last column
+    sort_index = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index
 
     # Sort by the original Sort Index
     final_df.sort_values('Sort Index', inplace=True)
