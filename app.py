@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1018,6 +1018,15 @@ def create_combined_df_IS(dfs):
             combined_df = df_pivot
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
+    
+    # Apply the new logic for specific mnemonics
+    criteria_list = ["IQ_COGS", "IQ_SGA_SUPPL", "IQ_RD_EXP", "IQ_DA_SUPPL", "IQ_STOCK_BASED", "IQ_OTHER_OPER", "IQ_INC_TAX"]
+    for mnemonic in criteria_list:
+        if mnemonic in combined_df.index:
+            for col in combined_df.columns:
+                if combined_df.loc[mnemonic, col] < 0:
+                    combined_df.loc[mnemonic, col] *= -1
+    
     return combined_df.reset_index()
 
 def sort_by_sort_index(df):
