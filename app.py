@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -968,6 +968,7 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from Levenshtein import distance as levenshtein_distance
 
 # Ensure conversion_factors is defined
 conversion_factors = {
@@ -1269,6 +1270,7 @@ def income_statement():
                         account_str = str(account)
                         score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                         if score_is < best_score_is:
+                            best_score_is = score_is
                             best_match_is = lookup_row
                     return best_match_is, best_score_is
 
