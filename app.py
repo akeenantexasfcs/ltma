@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 import io
@@ -1025,13 +1025,6 @@ def sort_by_sort_index(df):
         df = df.sort_values(by=['Sort Index'])
     return df
 
-import pandas as pd
-import streamlit as st
-
-def clean_numeric_value_IS(value):
-    # Implement your cleaning logic here
-    return value
-
 def aggregate_data_IS(uploaded_files):
     dataframes = []
     unique_accounts = set()
@@ -1063,7 +1056,6 @@ def aggregate_data_IS(uploaded_files):
         if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
-    # Mimic the aggregation logic from aggregate_data
     value_columns = [col for col in numeric_rows.columns if col not in ['Account', 'Sort Index', 'Positive Decreases NI']]
     aggregated_df = numeric_rows.pivot_table(
         index=['Account'], 
@@ -1084,7 +1076,6 @@ def aggregate_data_IS(uploaded_files):
     final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
-
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
