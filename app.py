@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1073,6 +1073,9 @@ def aggregate_data_IS(uploaded_files):
     sort_index_column = final_df.pop('Sort Index')
     final_df['Sort Index'] = sort_index_column
 
+    # Assign new Sort Index after aggregation
+    final_df['Sort Index'] = range(1, len(final_df) + 1)
+
     final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
@@ -1208,6 +1211,9 @@ def income_statement():
 
                 if 'Positive Decreases NI' in final_df.columns:
                     final_df.drop(columns=['Positive Decreases NI'], inplace=True)
+
+                # Assign new Sort Index after aggregation
+                final_df['Sort Index'] = range(1, len(final_df) + 1)
 
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
