@@ -959,7 +959,7 @@ def cash_flow_statement():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
+#############################INCOME STATEMENT#######################################################################
 import io
 import os
 import re
@@ -1128,7 +1128,6 @@ def income_statement():
             fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
-
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
