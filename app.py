@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import io
@@ -958,7 +958,8 @@ def cash_flow_statement():
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-####INCOME STATEMENT########################################################################################
+
+
 import io
 import os
 import re
@@ -1036,9 +1037,7 @@ def aggregate_data_IS(uploaded_files):
             st.error(f"Column 'Account' not found in file {file.name}")
             return None
 
-        if 'Sort Index' not in df.columns:
-            df['Sort Index'] = range(1, len(df) + 1)
-        
+        df['Sort Index'] = range(1, len(df) + 1)
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
 
@@ -1057,23 +1056,19 @@ def aggregate_data_IS(uploaded_files):
         if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
-    value_columns = [col for col in numeric_rows.columns if col not in ['Account', 'Sort Index', 'Positive Decreases NI']]
-    
-    # Group by both 'Account' and 'Sort Index' to preserve order
-    aggregated_df = numeric_rows.groupby(['Account', 'Sort Index'], as_index=False)[value_columns].sum()
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
 
-    statement_date_rows['Sort Index'] = statement_date_rows['Sort Index'].fillna(100000)  # High value to ensure it's at the end
+    statement_date_rows['Sort Index'] = 100
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
 
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
     final_df.insert(1, 'Positive Decreases NI', False)
 
-    # Sort by the original Sort Index
-    final_df.sort_values('Sort Index', inplace=True)
+    sort_index_column = final_df.pop('Sort Index')
+    final_df['Sort Index'] = sort_index_column
 
-    # Reset Sort Index to ensure continuous numbering
-    final_df['Sort Index'] = range(1, len(final_df) + 1)
+    final_df.sort_values('Sort Index', inplace=True)
 
     return final_df
 
@@ -1133,6 +1128,7 @@ def income_statement():
             fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -1208,15 +1204,6 @@ def income_statement():
 
                 if 'Positive Decreases NI' in final_df.columns:
                     final_df.drop(columns=['Positive Decreases NI'], inplace=True)
-
-                # Assign new Sort Index after aggregation
-                final_df['Sort Index'] = range(1, len(final_df) + 1)
-
-                st.subheader("Rearrange or Drop Columns")
-                columns = final_df.columns.tolist()
-                default_order = columns[:-1] + ['Sort Index']
-                column_order = st.multiselect("Arrange Columns", options=columns, default=default_order)
-                final_df = final_df[column_order]
 
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
