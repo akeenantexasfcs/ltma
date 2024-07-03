@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import io
@@ -1184,6 +1184,12 @@ def income_statement():
             aggregated_df = aggregate_data_IS(uploaded_files)
             if aggregated_df is not None:
                 st.subheader("Aggregated Data Preview")
+
+                st.write("Select and order columns")
+                columns_to_order = st.multiselect("Select columns in order", aggregated_df.columns.tolist(), default=aggregated_df.columns.tolist())
+                
+                if columns_to_order:
+                    aggregated_df = aggregated_df[columns_to_order]
 
                 editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
                 editable_df_excluded = editable_df.iloc[:-1]
