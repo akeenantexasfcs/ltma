@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[3]:
 
 
 import io
@@ -1039,10 +1039,6 @@ def aggregate_data_IS(uploaded_files):
 
         if 'Sort Index' not in df.columns:
             df['Sort Index'] = range(1, len(df) + 1)
-        else:
-            # If 'Sort Index' exists, move it to the end
-            sort_index = df.pop('Sort Index')
-            df['Sort Index'] = sort_index
         
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
@@ -1074,10 +1070,6 @@ def aggregate_data_IS(uploaded_files):
 
     final_df.insert(1, 'Positive Decreases NI', False)
 
-    # Ensure 'Sort Index' is the last column
-    sort_index = final_df.pop('Sort Index')
-    final_df['Sort Index'] = sort_index
-
     # Sort by the original Sort Index
     final_df.sort_values('Sort Index', inplace=True)
 
@@ -1085,6 +1077,7 @@ def aggregate_data_IS(uploaded_files):
     final_df['Sort Index'] = range(1, len(final_df) + 1)
 
     return final_df
+
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
@@ -1192,55 +1185,38 @@ def income_statement():
     with tab2:
         st.subheader("Aggregate My Data")
 
-        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_cfs')
-        dfs = []
+        uploaded_files = st.file_uploader("Upload Excel files", type=['xlsx'], accept_multiple_files=True, key='excel_uploader_amd')
         if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
-        if dfs:
-            combined_df = pd.concat(dfs, ignore_index=True)
-            st.dataframe(combined_df)
-            aggregated_table = aggregate_data(combined_df)
-            aggregated_table = sort_by_label_and_account(aggregated_table)
-            st.subheader("Aggregated Data")
+            aggregated_df = aggregate_data_IS(uploaded_files)
+            if aggregated_df is not None:
+                st.subheader("Aggregated Data Preview")
 
-            # Allow users to reorder columns
-            all_columns = aggregated_table.columns.tolist()
-            selected_columns = st.multiselect("Select and reorder columns:", all_columns, default=all_columns)
+                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                editable_df_excluded = editable_df.iloc[:-1]
 
-            # Reorder the dataframe based on user selection
-            reordered_table = aggregated_table[selected_columns]
+                for col in editable_df_excluded.columns:
+                    if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
+                        editable_df_excluded[col] = pd.to_numeric(editable_df_excluded[col], errors='coerce').fillna(0)
 
-            st.dataframe(reordered_table)
-            st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(reordered_table)  # Check for rows with all zero values
-            zero_rows_indices = reordered_table.index[zero_rows].tolist()
-            st.write("Rows where all values (past the first 2 columns) are zero:", reordered_table.loc[zero_rows_indices])
+                numeric_cols = editable_df_excluded.select_dtypes(include='number').columns.tolist()
+                for index, row in editable_df_excluded.iterrows():
+                    if row['Positive Decreases NI'] and row['Sort Index'] != 100:
+                        for col in numeric_cols:
+                            if col not in ['Sort Index']:
+                                editable_df_excluded.at[index, col] = row[col] * -1
 
-            edited_data = st.experimental_data_editor(reordered_table, num_rows="dynamic")
+                final_df = pd.concat([editable_df_excluded, editable_df.iloc[-1:]], ignore_index=True)
 
-            # Highlight rows with all zeros for potential removal
-            st.write("Highlighted rows with all zero values for potential removal:")
-            for index in zero_rows_indices:
-                st.write(f"Row {index}: {reordered_table.loc[index].to_dict()}")
+                if 'Positive Decreases NI' in final_df.columns:
+                    final_df.drop(columns=['Positive Decreases NI'], inplace=True)
 
-            rows_removed = False  # Flag to check if rows are removed
-            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
-                reordered_table = reordered_table.drop(zero_rows_indices).reset_index(drop=True)
-                rows_removed = True
-                st.success("Highlighted rows removed successfully")
-                st.dataframe(reordered_table)
-            st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
-            else:
-                download_label = "Download Aggregated Excel"
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                reordered_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "Aggregate_My_Data_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        else:
-            st.warning("Please upload valid Excel files for aggregation. You will have the opportunity to remove rows of your choosing at this point.")
+                # Assign new Sort Index after aggregation
+                final_df['Sort Index'] = range(1, len(final_df) + 1)
+
+                excel_file = io.BytesIO()
+                final_df.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
         st.subheader("Mappings and Data Consolidation")
