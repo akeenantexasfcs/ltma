@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[2]:
 
 
 import io
@@ -959,7 +959,6 @@ def cash_flow_statement():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 ####INCOME STATEMENT########################################################################################
-
 import io
 import os
 import re
@@ -1213,6 +1212,12 @@ def income_statement():
                 # Assign new Sort Index after aggregation
                 final_df['Sort Index'] = range(1, len(final_df) + 1)
 
+                st.subheader("Rearrange or Drop Columns")
+                columns = final_df.columns.tolist()
+                default_order = columns[:-1] + ['Sort Index']
+                column_order = st.multiselect("Arrange Columns", options=columns, default=default_order)
+                final_df = final_df[column_order]
+
                 excel_file = io.BytesIO()
                 final_df.to_excel(excel_file, index=False)
                 excel_file.seek(0)
@@ -1379,6 +1384,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                
 ####################################### Populate CIQ Template ###################################
