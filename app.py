@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1018,33 +1018,11 @@ def create_combined_df_IS(dfs):
             combined_df = df_pivot
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
-    
-    # Apply the new logic for specific mnemonics
-    criteria_list = ["IQ_COGS", "IQ_SGA_SUPPL", "IQ_RD_EXP", "IQ_DA_SUPPL", "IQ_STOCK_BASED", "IQ_OTHER_OPER", "IQ_INC_TAX"]
-    for mnemonic in criteria_list:
-        if mnemonic in combined_df.index:
-            for col in combined_df.columns:
-                if combined_df.loc[mnemonic, col] < 0:
-                    combined_df.loc[mnemonic, col] *= -1
-    
     return combined_df.reset_index()
 
 def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
         df = df.sort_values(by=['Sort Index'])
-    return df
-
-def apply_criteria_and_modify_IS(df):
-    criteria_list = [
-        "IQ_COGS", "IQ_SGA_SUPPL", "IQ_RD_EXP", "IQ_DA_SUPPL", "IQ_STOCK_BASED", "IQ_OTHER_OPER", "IQ_INC_TAX"
-    ]
-
-    for index, row in df.iterrows():
-        if row['Account'] in criteria_list:
-            for col in df.columns:
-                if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
-                    if isinstance(row[col], (int, float)) and row[col] < 0:
-                        df.at[index, col] = row[col] * -1
     return df
 
 def aggregate_data_IS(uploaded_files):
@@ -1079,8 +1057,6 @@ def aggregate_data_IS(uploaded_files):
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
-    
-    aggregated_df = apply_criteria_and_modify_IS(aggregated_df)
 
     statement_date_rows['Sort Index'] = 100
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
@@ -1098,6 +1074,24 @@ def aggregate_data_IS(uploaded_files):
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
+
+def update_negative_values(df):
+    criteria = [
+        "IQ_COGS",
+        "IQ_SGA_SUPPL",
+        "IQ_RD_EXP",
+        "IQ_DA_SUPPL",
+        "IQ_STOCK_BASED",
+        "IQ_OTHER_OPER",
+        "IQ_INC_TAX"
+    ]
+    
+    for index, row in df.iterrows():
+        if row['Account'] in criteria:
+            for col in df.columns[2:]:  # Assuming the first two columns are 'Account' and 'Positive Decreases NI'
+                if row[col] < 0:
+                    df.at[index, col] = row[col] * -1
+    return df
 
 def income_statement():
     global income_statement_lookup_df
@@ -1400,6 +1394,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                
 ####################################### Populate CIQ Template ###################################
