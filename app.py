@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import io
@@ -1037,7 +1037,9 @@ def aggregate_data_IS(uploaded_files):
             st.error(f"Column 'Account' not found in file {file.name}")
             return None
 
-        df['Sort Index'] = range(1, len(df) + 1)
+        if 'Sort Index' not in df.columns:
+            df['Sort Index'] = range(1, len(df) + 1)
+        
         dataframes.append(df)
         unique_accounts.update(df['Account'].dropna().unique())
 
@@ -1057,26 +1059,22 @@ def aggregate_data_IS(uploaded_files):
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
     value_columns = [col for col in numeric_rows.columns if col not in ['Account', 'Sort Index', 'Positive Decreases NI']]
-    aggregated_df = numeric_rows.pivot_table(
-        index=['Account'], 
-        values=value_columns, 
-        aggfunc='sum'
-    ).reset_index()
+    
+    # Group by both 'Account' and 'Sort Index' to preserve order
+    aggregated_df = numeric_rows.groupby(['Account', 'Sort Index'], as_index=False)[value_columns].sum()
 
-    statement_date_rows['Sort Index'] = 100
+    statement_date_rows['Sort Index'] = statement_date_rows['Sort Index'].fillna(100000)  # High value to ensure it's at the end
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
 
     final_df = pd.concat([aggregated_df, statement_date_rows], ignore_index=True)
 
     final_df.insert(1, 'Positive Decreases NI', False)
 
-    sort_index_column = final_df.pop('Sort Index')
-    final_df['Sort Index'] = sort_index_column
-
-    # Assign new Sort Index after aggregation
-    final_df['Sort Index'] = range(1, len(final_df) + 1)
-
+    # Sort by the original Sort Index
     final_df.sort_values('Sort Index', inplace=True)
+
+    # Reset Sort Index to ensure continuous numbering
+    final_df['Sort Index'] = range(1, len(final_df) + 1)
 
     return final_df
 
