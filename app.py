@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[5]:
 
 
 import io
@@ -1088,7 +1088,7 @@ def update_negative_values(df):
     
     for index, row in df.iterrows():
         if row['Final Mnemonic Selection'] in criteria:
-            for col in df.columns[1:]:  # Adjusted to look at all numeric columns
+            for col in df.columns[2:]:  # Start from column index 2 (skip 'Final Mnemonic Selection' and 'CIQ')
                 if isinstance(row[col], (int, float)) and row[col] < 0:
                     df.at[index, col] = row[col] * -1
     return df
@@ -1397,6 +1397,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                
 ####################################### Populate CIQ Template ###################################
