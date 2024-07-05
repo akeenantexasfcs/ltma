@@ -1586,10 +1586,50 @@ def populate_ciq_template_pt():
 
     with tab2:
         process_template("Quarterly")
+#######################################Extras#############################
+import io
+import os
+import json
+import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from Levenshtein import distance as levenshtein_distance
+import re
+
+# Ensure other functions and imports remain unchanged
+
+# New function to handle the Extras tab
+def extras_tab():
+    st.title("Extras")
+
+    if st.button("Backup Data Dictionaries"):
+        # Load data dictionaries
+        balance_sheet_data = pd.read_csv('balance_sheet_data_dictionary.csv')
+        cash_flow_data = pd.read_csv('cash_flow_data_dictionary.csv')
+        income_statement_data = pd.read_excel('income_statement_data_dictionary.xlsx')
+
+        # Create a new Excel writer object
+        with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
+            # Write each DataFrame to a different sheet
+            balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
+            cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
+            income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
+
+        # Read the file into a BytesIO object for download
+        with open("data_dictionaries_backup.xlsx", "rb") as file:
+            backup_file = io.BytesIO(file.read())
+
+        st.download_button(
+            label="Download Backup",
+            data=backup_file,
+            file_name="data_dictionaries_backup.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 def main():
     st.sidebar.title("Navigation")
-    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template"])
+    selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
     if selection == "Balance Sheet":
         balance_sheet()
@@ -1599,7 +1639,15 @@ def main():
         income_statement()
     elif selection == "Populate CIQ Template":
         populate_ciq_template_pt()
+    elif selection == "Extras":
+        extras_tab()
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
