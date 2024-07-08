@@ -18,7 +18,7 @@ import random
 import time
 
 # Set up the Anthropic client
-client = anthropic.Anthropic(api_key="sk-ant-api03-2q8vWN0XsfDYZhLPL94V4oP5YzwMgYND2MmGU9U65h6Ra_zaSiwijAxBdA_V7fGeV3ADRdgCvvrPwOLvmz5Cljjg-JjivGwAA")
+client = anthropic.Anthropic(api_key="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")
 
 # Function to generate a response from Claude with retry mechanism
 def generate_response(prompt, max_retries=5):
