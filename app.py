@@ -17,8 +17,12 @@ import anthropic
 import random
 import time
 
-# Set up the Anthropic client
-client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+# Set up the Anthropic client with error handling
+try:
+    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+except KeyError:
+    st.error("Anthropic API key not found in secrets. Please check your configuration.")
+    st.stop()
 
 # Function to generate a response from Claude with retry mechanism
 def generate_response(prompt, max_retries=5):
