@@ -13,6 +13,10 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
+import anthropic
+
+# Set up the Anthropic client
+client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -150,6 +154,22 @@ def apply_unit_conversion(df, columns, factor):
 def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
+
+# Function to get Claude's suggestion
+def get_claude_suggestion(prompt):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        suggestion = response['choices'][0]['message']['content']
+        return suggestion
+    except Exception as e:
+        return f"Error in getting AI suggestion: {e}"
 
 # Balance Sheet Functions
 def balance_sheet():
@@ -448,6 +468,11 @@ def balance_sheet():
                         else:
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
+
+                        # Generate AI suggestion for the account
+                        prompt = f"Provide a mnemonic suggestion for the account '{account_value}' under the label '{label_value}'"
+                        ai_suggestion = get_claude_suggestion(prompt)
+                        st.markdown(f"**AI Suggestion:** {ai_suggestion}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
