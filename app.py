@@ -14,9 +14,48 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 import anthropic
+import random
+import time
 
 # Set up the Anthropic client
 client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+
+# Function to generate a response from Claude with retry mechanism
+def generate_response(prompt, max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            response = client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                temperature=0.2,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.content[0].text
+        except anthropic.RateLimitError:
+            wait_time = (2 ** attempt) + random.random()
+            st.warning(f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds...")
+            time.sleep(wait_time)
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+            return "I'm sorry, but I encountered an error while processing your request."
+    
+    return "I'm sorry, but I was unable to generate a response after multiple attempts."
+
+# Function to get AI-suggested mapping
+def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
+    prompt = f"""Given the following account information:
+    Label: {label}
+    Account: {account}
+
+    And the following balance sheet lookup data:
+    {balance_sheet_lookup_df.to_string()}
+
+    What is the most appropriate Mnemonic mapping for this account? Please provide only the Mnemonic name without any explanation."""
+
+    suggested_mnemonic = generate_response(prompt)
+    return suggested_mnemonic.strip()
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -154,22 +193,6 @@ def apply_unit_conversion(df, columns, factor):
 def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
-
-# Function to get Claude's suggestion
-def get_claude_suggestion(prompt):
-    try:
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=1000,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        suggestion = response['choices'][0]['message']['content']
-        return suggestion
-    except Exception as e:
-        return f"Error in getting AI suggestion: {e}"
 
 # Balance Sheet Functions
 def balance_sheet():
@@ -452,6 +475,7 @@ def balance_sheet():
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
+                df['AI Suggested Mapping'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -461,6 +485,7 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+                            df.at[idx, 'AI Suggested Mapping'] = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
 
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
                         if label_value:
@@ -468,11 +493,7 @@ def balance_sheet():
                         else:
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
-
-                        # Generate AI suggestion for the account
-                        prompt = f"Provide a mnemonic suggestion for the account '{account_value}' under the label '{label_value}'"
-                        ai_suggestion = get_claude_suggestion(prompt)
-                        st.markdown(f"**AI Suggestion:** {ai_suggestion}")
+                        st.markdown(f"**AI Suggested Mapping:** {df.at[idx, 'AI Suggested Mapping']}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -485,7 +506,7 @@ def balance_sheet():
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection', 'AI Suggested Mapping']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -512,7 +533,7 @@ def balance_sheet():
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
-                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'AI Suggested Mapping'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
