@@ -232,8 +232,8 @@ def balance_sheet():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -292,7 +292,7 @@ def balance_sheet():
                                 end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
 
                             if pd.notna(start_index) and pd.notna(end_index):
-                                df.loc[start_index:end_index, 'Label'] = label
+                                df.loc[start_index:endindex, 'Label'] = label
                             else:
                                 st.error(f"Invalid label bounds for {label}. Skipping...")
                         except KeyError as e:
@@ -310,7 +310,7 @@ def balance_sheet():
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal year_options + ytd_options
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -366,7 +366,7 @@ def balance_sheet():
 
                 updated_table.replace('-', 0, inplace=True)
 
-                excel_file = io.BytesIO()
+                excel_file = io.Bytes.IO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -415,7 +415,7 @@ def balance_sheet():
 
             rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                aggregated_table = aggregated_table.drop(zero_rows_indices).resetindex(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
@@ -571,7 +571,7 @@ def balance_sheet():
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    balance_sheet_lookup_df.resetindex(drop=True, inplace=True)
                     save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
@@ -591,7 +591,7 @@ def balance_sheet():
         remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).resetindex(drop=True)
             save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
