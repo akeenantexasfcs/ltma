@@ -232,8 +232,8 @@ def balance_sheet():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -366,7 +366,7 @@ def balance_sheet():
 
                 updated_table.replace('-', 0, inplace=True)
 
-                excel_file = io.Bytes.IO()
+                excel_file = io.BytesIO()
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -415,7 +415,7 @@ def balance_sheet():
 
             rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).resetindex(drop=True)
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
@@ -425,7 +425,7 @@ def balance_sheet():
                 download_label = "Download Updated Aggregated Excel"
             else:
                 download_label = "Download Aggregated Excel"
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -537,7 +537,7 @@ def balance_sheet():
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
-                    excel_file = io.Bytes.IO()
+                    excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
                         as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
@@ -571,7 +571,7 @@ def balance_sheet():
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    balance_sheet_lookup_df.resetindex(drop=True, inplace=True)
+                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
@@ -591,7 +591,7 @@ def balance_sheet():
         remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).resetindex(drop=True)
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
@@ -602,7 +602,7 @@ def balance_sheet():
             download_label = "Download Updated Data Dictionary"
         else:
             download_label = "Download Data Dictionary"
-        excel_file = io.Bytes.IO()
+        excel_file = io.BytesIO()
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
