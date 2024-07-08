@@ -4,3 +4,4 @@ python-Levenshtein
 openpyxl
 xlsxwriter
 anthropic
+re
