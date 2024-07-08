@@ -199,6 +199,7 @@ def check_all_zeroes(df):
     return zeroes
 
 # Balance Sheet Functions
+# Balance Sheet Functions
 def balance_sheet():
     global balance_sheet_lookup_df
 
@@ -467,7 +468,7 @@ def balance_sheet():
                     best_score = float('inf')
                     best_match = None
                     for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                        if 'Label' in lookup_row and lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
                             # Levenshtein distance for Account
@@ -475,6 +476,8 @@ def balance_sheet():
                             if score < best_score:
                                 best_score = score
                                 best_match = lookup_row
+                        else:
+                            st.error(f"Label key not found in lookup_row: {lookup_row}")
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
