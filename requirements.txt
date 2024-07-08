@@ -3,3 +3,4 @@ pandas
 python-Levenshtein
 openpyxl
 xlsxwriter
+anthropic
