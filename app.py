@@ -75,7 +75,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
                     best_match = row['Mnemonic']
             
             if best_match:
-                return f"Suggested (based on similarity): {best_match}"
+                return f"Suggested: {best_match}"
             else:
                 return "No matching Mnemonic found"
 
