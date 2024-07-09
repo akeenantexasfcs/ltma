@@ -24,28 +24,25 @@ except KeyError:
     st.error("Anthropic API key not found in secrets. Please check your configuration.")
     st.stop()
 
-# Function to generate a response from Claude with retry mechanism
-def generate_response(prompt, max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            response = client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=1000,
-                temperature=0.2,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            return response.content[0].text
-        except anthropic.RateLimitError:
-            wait_time = (2 ** attempt) + random.random()
-            st.warning(f"Rate limit exceeded. Retrying in {wait_time:.2f} seconds...")
-            time.sleep(wait_time)
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
-            return "I'm sorry, but I encountered an error while processing your request."
-    
-    return "I'm sorry, but I was unable to generate a response after multiple attempts."
+# Initialize session state for managing API call status
+if 'api_called' not in st.session_state:
+    st.session_state.api_called = False
+
+# Function to generate a response from Claude
+def generate_response(prompt):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
 
 # Function to get AI-suggested mapping
 def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
@@ -475,9 +472,11 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
-                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            if not st.session_state.api_called:
+                                ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
+                                st.session_state.api_called = True
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
