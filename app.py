@@ -466,7 +466,6 @@ def balance_sheet():
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
-                df['AI Suggested Mapping'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -476,15 +475,9 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            df.at[idx, 'AI Suggested Mapping'] = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
-
-                    if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        if label_value:
-                            message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
-                        else:
-                            message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
-                        st.markdown(message)
-                        st.markdown(f"**AI Suggested Mapping:** {df.at[idx, 'AI Suggested Mapping']}")
+                            ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -497,7 +490,7 @@ def balance_sheet():
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection', 'AI Suggested Mapping']])
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -524,7 +517,7 @@ def balance_sheet():
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
-                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'AI Suggested Mapping'], errors='ignore')
+                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
