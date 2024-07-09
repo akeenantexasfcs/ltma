@@ -51,8 +51,33 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
 
     What is the most appropriate Mnemonic mapping for this account? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame, without any explanation."""
 
-    suggested_mnemonic = generate_response(prompt)
-    return suggested_mnemonic.strip()
+    suggested_mnemonic = generate_response(prompt).strip()
+
+    # Check if the suggested_mnemonic is in the Mnemonic column
+    if suggested_mnemonic in balance_sheet_lookup_df['Mnemonic'].values:
+        return suggested_mnemonic
+    else:
+        # If not, try to find a matching row based on Label and Account
+        matching_row = balance_sheet_lookup_df[
+            (balance_sheet_lookup_df['Label'].str.lower() == label.lower()) &
+            (balance_sheet_lookup_df['Account'].str.lower() == account.lower())
+        ]
+        if not matching_row.empty:
+            return matching_row['Mnemonic'].values[0]
+        else:
+            # If still no match, find the closest match based on Levenshtein distance
+            best_match = None
+            best_score = float('inf')
+            for _, row in balance_sheet_lookup_df.iterrows():
+                score = levenshtein_distance(account.lower(), row['Account'].lower())
+                if score < best_score:
+                    best_score = score
+                    best_match = row['Mnemonic']
+            
+            if best_match:
+                return f"Suggested (based on similarity): {best_match}"
+            else:
+                return "No matching Mnemonic found"
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
