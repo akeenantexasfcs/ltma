@@ -501,18 +501,7 @@ def balance_sheet():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Add CIQ column based on lookup
-                    def lookup_ciq(mnemonic):
-                        if mnemonic == 'Human Intervention Required':
-                            return 'CIQ ID Required'
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value.empty:
-                            return 'CIQ ID Required'
-                        return ciq_value.values[0]
-
-                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
-
-                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    columns_order = ['Label', 'Final Mnemonic Selection'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection']]
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
@@ -543,15 +532,13 @@ def balance_sheet():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'Label': row['Label']})
                             else:
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
@@ -589,6 +576,7 @@ def balance_sheet():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 #############################INCOME STATEMENT#######################################################################
