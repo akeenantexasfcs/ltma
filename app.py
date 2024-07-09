@@ -63,26 +63,14 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
-    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
-                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
-                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
-            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
-}
-
-# Define the initial lookup data for Cash Flow
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
-    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
-    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
-    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
+    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
+    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
 }
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
@@ -96,9 +84,8 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet and Cash Flow
+# Initialize lookup tables for Balance Sheet
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
 # General Utility Functions
 def process_file(file):
@@ -198,7 +185,6 @@ def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
-# Balance Sheet Functions
 # Balance Sheet Functions
 def balance_sheet():
     global balance_sheet_lookup_df
