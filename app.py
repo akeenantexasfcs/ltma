@@ -49,7 +49,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
     And the following balance sheet lookup data:
     {balance_sheet_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account? Please provide only the name in the Mnemonic third column in the data dictionary without any explanation."""
+    What is the most appropriate Mnemonic mapping for this account? Please provide only the Mnemonic name without any explanation."""
 
     suggested_mnemonic = generate_response(prompt)
     return suggested_mnemonic.strip()
@@ -217,7 +217,7 @@ def balance_sheet():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -399,7 +399,7 @@ def balance_sheet():
 
             rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).resetindex(drop=True)
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
