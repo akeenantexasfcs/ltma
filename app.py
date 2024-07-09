@@ -49,7 +49,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
     And the following balance sheet lookup data:
     {balance_sheet_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity."""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
