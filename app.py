@@ -49,7 +49,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
     And the following balance sheet lookup data:
     {balance_sheet_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this accoun based on Label first and then Accountt? Please provide What is the most appropriate Mnemonic mapping for this account based on Label first and then Account? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a current asset Mnemonic for a current liability Label"""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
@@ -69,10 +69,11 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
             best_match = None
             best_score = float('inf')
             for _, row in balance_sheet_lookup_df.iterrows():
-                score = levenshtein_distance(account.lower(), row['Account'].lower())
-                if score < best_score:
-                    best_score = score
-                    best_match = row['Mnemonic']
+                if row['Label'].strip().lower() == label.strip().lower():
+                    score = levenshtein_distance(account.lower(), row['Account'].lower())
+                    if score < best_score:
+                        best_score = score
+                        best_match = row['Mnemonic']
             
             if best_match:
                 return f"{best_match}"
@@ -601,8 +602,6 @@ def balance_sheet():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
 
 
 
