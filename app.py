@@ -459,9 +459,11 @@ def balance_sheet():
                             account_str = str(account)
                             # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < 0.25 and score < best_score:
+                            if score < best_score:
                                 best_score = score
                                 best_match = lookup_row
+                        else:
+                            st.error(f"Label key not found in lookup_row: {lookup_row}")
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -472,11 +474,10 @@ def balance_sheet():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None:
+                        if best_match is not None and score < 0.25:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
-                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            df.at[idx, 'AI Suggested Mapping'] = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
+                            df.at[idx, 'Mnemonic'] = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
 
                     if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
                         if label_value:
@@ -484,7 +485,7 @@ def balance_sheet():
                         else:
                             message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
                         st.markdown(message)
-                        st.markdown(f"**AI Suggested Mapping:** {df.at[idx, 'AI Suggested Mapping']}")
+                        st.markdown(f"**AI Suggested Mapping:** {df.at[idx, 'Mnemonic']}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -542,7 +543,7 @@ def balance_sheet():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
+                        lambda row: row['Manual Selection'] not in ['REMOVE ROW', ''] if row['Manual Selection'] else row['Mnemonic'],
                         axis=1
                     )
                     new_entries = []
