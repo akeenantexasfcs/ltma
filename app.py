@@ -49,7 +49,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
     And the following balance sheet lookup data:
     {balance_sheet_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account? Please provide only the name in the Mnemonic column without any explanation."""
+    What is the most appropriate Mnemonic mapping for this account? Please provide only the name in the Mnemonic third column in the data dictionary without any explanation."""
 
     suggested_mnemonic = generate_response(prompt)
     return suggested_mnemonic.strip()
