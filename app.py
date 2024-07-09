@@ -24,10 +24,6 @@ except KeyError:
     st.error("Anthropic API key not found in secrets. Please check your configuration.")
     st.stop()
 
-# Initialize session state for managing API call status
-if 'api_called' not in st.session_state:
-    st.session_state.api_called = False
-
 # Function to generate a response from Claude
 def generate_response(prompt):
     try:
@@ -472,9 +468,13 @@ def balance_sheet():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            if not st.session_state.api_called:
+                            if f"ai_called_{idx}" not in st.session_state:
                                 ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
-                                st.session_state.api_called = True
+                                st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            else:
+                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
                                 st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
                                 st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
@@ -589,6 +589,7 @@ def balance_sheet():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 #############################INCOME STATEMENT#######################################################################
 import io
