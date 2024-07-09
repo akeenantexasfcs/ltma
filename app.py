@@ -459,11 +459,9 @@ def balance_sheet():
                             account_str = str(account)
                             # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < best_score:
+                            if score < 0.25 and score < best_score:
                                 best_score = score
                                 best_match = lookup_row
-                        else:
-                            st.error(f"Label key not found in lookup_row: {lookup_row}")
                     return best_match, best_score
 
                 df['Mnemonic'] = ''
@@ -474,7 +472,7 @@ def balance_sheet():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.25:
+                        if best_match is not None:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
