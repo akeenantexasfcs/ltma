@@ -3,5 +3,6 @@ pandas
 python-Levenshtein
 openpyxl
 xlsxwriter
+openai
 anthropic>=0.3.0
 numpy
