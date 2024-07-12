@@ -980,7 +980,6 @@ def cash_flow_statement():
                     save_lookup_table_bs_cf(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
-
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
 
