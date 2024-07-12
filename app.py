@@ -1023,6 +1023,9 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 
+# Define the path for the income statement data dictionary file
+income_statement_data_dictionary_file = 'path/to/your/income_statement_data_dictionary.xlsx'
+
 # Ensure conversion_factors is defined
 conversion_factors = {
     "Actuals": 1,
@@ -1452,6 +1455,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
                                
 ####################################### Populate CIQ Template ###################################
