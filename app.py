@@ -41,26 +41,26 @@ def generate_response(prompt):
         return "I'm sorry, but I encountered an error while processing your request."
 
 # Function to get AI-suggested mapping
-def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
+def get_ai_suggested_mapping(label, account, lookup_df):
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
 
     And the following balance sheet lookup data:
-    {balance_sheet_lookup_df.to_string()}
+    {lookup_df.to_string()}
 
     What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
     # Check if the suggested_mnemonic is in the Mnemonic column
-    if suggested_mnemonic in balance_sheet_lookup_df['Mnemonic'].values:
+    if suggested_mnemonic in lookup_df['Mnemonic'].values:
         return suggested_mnemonic
     else:
         # If not, try to find a matching row based on Label and Account
-        matching_row = balance_sheet_lookup_df[
-            (balance_sheet_lookup_df['Label'].str.lower() == label.lower()) &
-            (balance_sheet_lookup_df['Account'].str.lower() == account.lower())
+        matching_row = lookup_df[
+            (lookup_df['Label'].str.lower() == label.lower()) &
+            (lookup_df['Account'].str.lower() == account.lower())
         ]
         if not matching_row.empty:
             return matching_row['Mnemonic'].values[0]
@@ -68,7 +68,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
             # If still no match, find the closest match based on Levenshtein distance
             best_match = None
             best_score = float('inf')
-            for _, row in balance_sheet_lookup_df.iterrows():
+            for _, row in lookup_df.iterrows():
                 if row['Label'].strip().lower() == label.strip().lower():
                     score = levenshtein_distance(account.lower(), row['Account'].lower())
                     if score < best_score:
@@ -90,7 +90,7 @@ initial_balance_sheet_lookup_data = {
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
+cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
@@ -104,8 +104,9 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet
+# Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
+cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_balance_sheet_lookup_data)  # Update this with the initial data for cash flow statement
 
 # General Utility Functions
 def process_file(file):
