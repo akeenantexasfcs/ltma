@@ -90,6 +90,7 @@ initial_balance_sheet_lookup_data = {
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
