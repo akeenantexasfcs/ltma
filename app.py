@@ -718,7 +718,7 @@ def cash_flow_statement():
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+            dropdown_options = [''] + ['Account'] + fiscal year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
