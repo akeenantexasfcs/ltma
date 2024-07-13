@@ -46,10 +46,10 @@ def get_ai_suggested_mapping(label, account, lookup_df):
     Label: {label}
     Account: {account}
 
-    And the following balance sheet lookup data:
+    And the following lookup data:
     {lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
@@ -88,14 +88,6 @@ initial_balance_sheet_lookup_data = {
     "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
 }
 
-# Define the initial lookup data for Cash Flow Statement
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"],
-    "Account": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Proceeds from Sale of Property", "Issuance of Debt", "Repayment of Debt", "Dividends Paid"],
-    "Mnemonic": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Proceeds from Sale of Property", "Issuance of Debt", "Repayment of Debt", "Dividends Paid"],
-    "CIQ": ["IQ_NI", "IQ_DA", "IQ_CWC", "IQ_CAPEX", "IQ_PROCEEDS_SP", "IQ_ISSUE_DEBT", "IQ_REPAY_DEBT", "IQ_DIVIDENDS_PAID"]
-}
-
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
@@ -112,9 +104,9 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet and Cash Flow Statement
+# Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
+cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, {})
 
 # General Utility Functions
 def process_file(file):
@@ -246,7 +238,7 @@ def cash_flow_statement():
                                         cell_text = ''
                                         if 'Relationships' in cell_block:
                                             for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD']:
+                                                if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
@@ -611,8 +603,6 @@ def cash_flow_statement():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-if __name__ == "__main__":
-    cash_flow_statement()
 
 #############################INCOME STATEMENT#######################################################################
 import io
