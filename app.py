@@ -616,7 +616,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 
 # Define the path for the income statement data dictionary file
-income_statement_data_dictionary_file = 'path/to/your/income_statement_data_dictionary.xlsx'
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 # Ensure conversion_factors is defined
 conversion_factors = {
@@ -722,7 +722,15 @@ def aggregate_data_IS(uploaded_files):
     return final_df
 
 def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
+    try:
+        df.to_excel(file_path, index=False)
+    except OSError as e:
+        st.error(f"Error saving file: {e}")
+        st.warning("Using a temporary file instead.")
+        temp_file = io.BytesIO()
+        df.to_excel(temp_file, index=False)
+        temp_file.seek(0)
+        st.download_button("Download Data Dictionary", temp_file, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 def update_negative_values(df):
     criteria = [
@@ -749,7 +757,7 @@ def income_statement():
         if os.path.exists(income_statement_data_dictionary_file):
             income_statement_lookup_df = pd.read_excel(income_statement_data_dictionary_file)
         else:
-            income_statement_lookup_df = pd.DataFrame()
+            income_statement_lookup_df = pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ'])
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Income Statement Data Dictionary"])
@@ -883,148 +891,144 @@ def income_statement():
                 st.download_button("Download Excel", excel_file, "Aggregate_My_Data_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab3:
-        st.subheader("Mappings and Data Consolidation")
+            st.subheader("Mappings and Data Consolidation")
 
-        uploaded_excel_is = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_is')
+            uploaded_excel_is = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_is')
 
-        currency_options_is = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options_is = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+            currency_options_is = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+            magnitude_options_is = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency_is = st.selectbox("Select Currency", currency_options_is, key='currency_selection_tab3_is')
-        selected_magnitude_is = st.selectbox("Select Magnitude", magnitude_options_is, key='magnitude_selection_tab3_is')
-        company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
+            selected_currency_is = st.selectbox("Select Currency", currency_options_is, key='currency_selection_tab3_is')
+            selected_magnitude_is = st.selectbox("Select Magnitude", magnitude_options_is, key='magnitude_selection_tab3_is')
+            company_name_is = st.text_input("Enter Company Name", key='company_name_input_is')
 
-        statement_dates = {}
-        if uploaded_excel_is is not None:
-            df_is = pd.read_excel(uploaded_excel_is)
-            
-            for col in df_is.columns:
-                if col not in ['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']:
-                    statement_dates[col] = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+            statement_dates = {}
+            if uploaded_excel_is is not None:
+                df_is = pd.read_excel(uploaded_excel_is)
 
-            st.write("Columns in the uploaded file:", df_is.columns.tolist())
+                for col in df_is.columns:
+                    if col not in ['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']:
+                        statement_dates[col] = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
 
-            if 'Account' not in df_is.columns:
-                st.error("The uploaded file does not contain an 'Account' column.")
-            else:
-                if 'Sort Index' not in df_is.columns:
-                    df_is['Sort Index'] = range(1, len(df_is) + 1)
+                st.write("Columns in the uploaded file:", df_is.columns.tolist())
 
-                def get_best_match_is(account):
-                    best_score_is = float('inf')
-                    best_match_is = None
-                    for _, lookup_row in income_statement_lookup_df.iterrows():
-                        lookup_account = lookup_row['Account']
-                        account_str = str(account)
-                        score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                        if score_is < best_score_is:
-                            best_score_is = score_is
-                            best_match_is = lookup_row
-                    return best_match_is, best_score_is
+                if 'Account' not in df_is.columns:
+                    st.error("The uploaded file does not contain an 'Account' column.")
+                else:
+                    if 'Sort Index' not in df_is.columns:
+                        df_is['Sort Index'] = range(1, len(df_is) + 1)
 
-                df_is['Mnemonic'] = ''
-                df_is['Manual Selection'] = ''
-                for idx, row in df_is.iterrows():
-                    account_value = row['Account']
-                    if pd.notna(account_value):
-                        best_match_is, score_is = get_best_match_is(account_value)
-                        if best_match_is is not None and score_is < 0.25:
-                            df_is.at[idx, 'Mnemonic'] = best_match_is['Mnemonic']
-                        else:
-                            df_is.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                    
-                    if df_is.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
-                        st.markdown(message_is)
-                    
-                    unique_mappings = income_statement_lookup_df['Mnemonic'].drop_duplicates().tolist()
-                    manual_selection_is = st.selectbox(
-                        f"Select category for '{account_value}'",
-                        options=[''] + unique_mappings + ['REMOVE ROW'],
-                        key=f"select_{idx}_tab3_is"
-                    )
-                    if manual_selection_is:
-                        df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
+                    def get_best_match_is(account):
+                        best_score_is = float('inf')
+                        best_match_is = None
+                        for _, lookup_row in income_statement_lookup_df.iterrows():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            score_is = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score_is < best_score_is:
+                                best_score_is = score_is
+                                best_match_is = lookup_row
+                        return best_match_is, best_score_is
 
-                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])
-
-                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
-                    df_is['Final Mnemonic Selection'] = df_is.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
-                        axis=1
-                    )
-                    final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
-                    
-                    combined_df_is = create_combined_df_IS([final_output_df_is])
-                    combined_df_is = sort_by_sort_index(combined_df_is)
-
-                    def lookup_ciq_is(mnemonic):
-                        if mnemonic == 'Human Intervention Required':
-                            return 'CIQ ID Required'
-                        ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value_is.empty:
-                            return 'CIQ ID Required'
-                        return ciq_value_is.values[0]
-                    
-                    combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
-
-                    columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
-                    combined_df_is = combined_df_is[columns_order_is]
-
-                    # Update negative values just before generating the Excel file
-                    combined_df_is = update_negative_values(combined_df_is)
-
-                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_df_is = sort_by_sort_index(as_presented_df_is)
-                    as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
-                    as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
-                    as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
-
-                    excel_file_is = io.BytesIO()
-                    with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                        combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
-                        as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
-                        cover_df_is = pd.DataFrame({
-                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
-                            'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates.values())
-                        })
-                        cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
-                    excel_file_is.seek(0)
-                    st.download_button("Download Excel", excel_file_is, "Mappings_and_Data_Consolidation_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_is"):
-                    df_is['Final Mnemonic Selection'] = df_is.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
-                        axis=1
-                    )
-                    new_entries_is = []
+                    df_is['Mnemonic'] = ''
+                    df_is['Manual Selection'] = ''
                     for idx, row in df_is.iterrows():
-                        manual_selection_is = row['Manual Selection']
-                        final_mnemonic_is = row['Final Mnemonic Selection']
-                        if manual_selection_is == 'REMOVE ROW':
-                            continue
-                        ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].values[0] if not income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].empty else 'CIQ ID Required'
-                        
-                        if manual_selection_is not in ['REMOVE ROW', '']:
-                            if row['Account'] not in income_statement_lookup_df['Account'].values:
-                                new_entries_is.append({'Account': row['Account'], 'Mnemonic': final_mnemonic_is, 'CIQ': ciq_value_is})
+                        account_value = row['Account']
+                        if pd.notna(account_value):
+                            best_match_is, score_is = get_best_match_is(account_value)
+                            if best_match_is is not None and score_is < 0.25:
+                                df_is.at[idx, 'Mnemonic'] = best_match_is['Mnemonic']
                             else:
-                                income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic_is
-                                income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value_is
-                    if new_entries_is:
-                        income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
-                    income_statement_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
-                    st.success("Data Dictionary Updated Successfully")
+                                df_is.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+
+                        if df_is.at[idx, 'Mnemonic'] == 'Human Intervention Required':
+                            message_is = f"**Human Intervention Required for:** {account_value} - Index {idx}"
+                            st.markdown(message_is)
+
+                        unique_mappings = income_statement_lookup_df['Mnemonic'].drop_duplicates().tolist()
+                        manual_selection_is = st.selectbox(
+                            f"Select category for '{account_value}'",
+                            options=[''] + unique_mappings + ['REMOVE ROW'],
+                            key=f"select_{idx}_tab3_is"
+                        )
+                        if manual_selection_is:
+                            df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
+
+                    st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])
+
+                    if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
+                        df_is['Final Mnemonic Selection'] = df_is.apply(
+                            lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                            axis=1
+                        )
+                        final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+
+                        combined_df_is = create_combined_df_IS([final_output_df_is])
+                        combined_df_is = sort_by_sort_index(combined_df_is)
+
+                        def lookup_ciq_is(mnemonic):
+                            if mnemonic == 'Human Intervention Required':
+                                return 'CIQ ID Required'
+                            ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                            if ciq_value_is.empty:
+                                return 'CIQ ID Required'
+                            return ciq_value_is.values[0]
+
+                        combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
+
+                        columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
+                        combined_df_is = combined_df_is[columns_order_is]
+
+                        combined_df_is = update_negative_values(combined_df_is)
+
+                        as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                        as_presented_df_is = sort_by_sort_index(as_presented_df_is)
+                        as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
+                        as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
+                        as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
+
+                        excel_file_is = io.BytesIO()
+                        with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
+                            combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
+                            as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
+                            cover_df_is = pd.DataFrame({
+                                'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                                'Value': [selected_currency_is, selected_magnitude_is, company_name_is] + list(statement_dates.values())
+                            })
+                            cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
+                        excel_file_is.seek(0)
+                        st.download_button("Download Excel", excel_file_is, "Mappings_and_Data_Consolidation_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                    if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_is"):
+                        df_is['Final Mnemonic Selection'] = df_is.apply(
+                            lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                            axis=1
+                        )
+                        new_entries_is = []
+                        for idx, row in df_is.iterrows():
+                            manual_selection_is = row['Manual Selection']
+                            final_mnemonic_is = row['Final Mnemonic Selection']
+                            if manual_selection_is == 'REMOVE ROW':
+                                continue
+                            ciq_value_is = income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].values[0] if not income_statement_lookup_df.loc[income_statement_lookup_df['Mnemonic'] == final_mnemonic_is, 'CIQ'].empty else 'CIQ ID Required'
+
+                            if manual_selection_is not in ['REMOVE ROW', '']:
+                                if row['Account'] not in income_statement_lookup_df['Account'].values:
+                                    new_entries_is.append({'Account': row['Account'], 'Mnemonic': final_mnemonic_is, 'CIQ': ciq_value_is})
+                                else:
+                                    income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic_is
+                                    income_statement_lookup_df.loc[income_statement_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value_is
+                        if new_entries_is:
+                            income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
+                        income_statement_lookup_df.reset_index(drop=True, inplace=True)
+                        save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
+                        st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Income Statement Data Dictionary")
 
         if 'income_statement_data' not in st.session_state:
-            if os.path.exists(income_statement_data_dictionary_file):
-                st.session_state.income_statement_data = pd.read_excel(income_statement_data_dictionary_file)
-            else:
-                st.session_state.income_statement_data = pd.DataFrame()
+            st.session_state.income_statement_data = income_statement_lookup_df
 
         uploaded_dict_file_is = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_is')
         if uploaded_dict_file_is is not None:
@@ -1048,7 +1052,7 @@ def income_statement():
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                               
+      
 ####################################### Populate CIQ Template ###################################
 import streamlit as st
 import pandas as pd
