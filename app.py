@@ -13,84 +13,29 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
-import anthropic
-import random
-import time
-
-# Set up the Anthropic client with error handling
-try:
-    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-except KeyError:
-    st.error("Anthropic API key not found in secrets. Please check your configuration.")
-    st.stop()
-
-# Function to generate a response from Claude
-def generate_response(prompt):
-    try:
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=1000,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.content[0].text
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
-
-# Function to get AI-suggested mapping
-def get_ai_suggested_mapping(label, account, lookup_df):
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
-
-    And the following balance sheet lookup data:
-    {lookup_df.to_string()}
-
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
-
-    suggested_mnemonic = generate_response(prompt).strip()
-
-    # Check if the suggested_mnemonic is in the Mnemonic column
-    if suggested_mnemonic in lookup_df['Mnemonic'].values:
-        return suggested_mnemonic
-    else:
-        # If not, try to find a matching row based on Label and Account
-        matching_row = lookup_df[
-            (lookup_df['Label'].str.lower() == label.lower()) &
-            (lookup_df['Account'].str.lower() == account.lower())
-        ]
-        if not matching_row.empty:
-            return matching_row['Mnemonic'].values[0]
-        else:
-            # If still no match, find the closest match based on Levenshtein distance
-            best_match = None
-            best_score = float('inf')
-            for _, row in lookup_df.iterrows():
-                if row['Label'].strip().lower() == label.strip().lower():
-                    score = levenshtein_distance(account.lower(), row['Account'].lower())
-                    if score < best_score:
-                        best_score = score
-                        best_match = row['Mnemonic']
-            
-            if best_match:
-                return f"{best_match}"
-            else:
-                return "No matching Mnemonic found"
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
-    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
-    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
+    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
+                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
+                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
+    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
+            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
+}
+
+# Define the initial lookup data for Cash Flow
+initial_cash_flow_lookup_data = {
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
+    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
+    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
+    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
 }
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
+income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
@@ -106,7 +51,7 @@ def save_lookup_table_bs_cf(df, file_path):
 
 # Initialize lookup tables for Balance Sheet and Cash Flow
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_balance_sheet_lookup_data)  # Update this with the initial data for cash flow statement
+cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
 # General Utility Functions
 def process_file(file):
@@ -583,6 +528,7 @@ def balance_sheet():
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table_bs_cf(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
