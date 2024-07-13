@@ -604,7 +604,6 @@ def balance_sheet():
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-
 #############################INCOME STATEMENT#######################################################################
 import io
 import os
@@ -615,6 +614,9 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
+
+# Define the path for the income statement data dictionary file
+income_statement_data_dictionary_file = 'path/to/your/income_statement_data_dictionary.xlsx'
 
 # Ensure conversion_factors is defined
 conversion_factors = {
