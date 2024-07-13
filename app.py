@@ -13,29 +13,83 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
+import anthropic
+import random
+import time
+
+# Set up the Anthropic client with error handling
+try:
+    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+except KeyError:
+    st.error("Anthropic API key not found in secrets. Please check your configuration.")
+    st.stop()
+
+# Function to generate a response from Claude
+def generate_response(prompt):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
+
+# Function to get AI-suggested mapping
+def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
+    prompt = f"""Given the following account information:
+    Label: {label}
+    Account: {account}
+
+    And the following balance sheet lookup data:
+    {balance_sheet_lookup_df.to_string()}
+
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
+
+    suggested_mnemonic = generate_response(prompt).strip()
+
+    # Check if the suggested_mnemonic is in the Mnemonic column
+    if suggested_mnemonic in balance_sheet_lookup_df['Mnemonic'].values:
+        return suggested_mnemonic
+    else:
+        # If not, try to find a matching row based on Label and Account
+        matching_row = balance_sheet_lookup_df[
+            (balance_sheet_lookup_df['Label'].str.lower() == label.lower()) &
+            (balance_sheet_lookup_df['Account'].str.lower() == account.lower())
+        ]
+        if not matching_row.empty:
+            return matching_row['Mnemonic'].values[0]
+        else:
+            # If still no match, find the closest match based on Levenshtein distance
+            best_match = None
+            best_score = float('inf')
+            for _, row in balance_sheet_lookup_df.iterrows():
+                if row['Label'].strip().lower() == label.strip().lower():
+                    score = levenshtein_distance(account.lower(), row['Account'].lower())
+                    if score < best_score:
+                        best_score = score
+                        best_match = row['Mnemonic']
+            
+            if best_match:
+                return f"{best_match}"
+            else:
+                return "No matching Mnemonic found"
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
-    "Account": ["Cash and cash equivalents", "Line of credit", "Goodwill",
-                "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "Mnemonic": ["Cash & Cash Equivalents", "Short-Term Debt", "Goodwill",
-                 "Total Current Assets", "Total Assets", "Total Current Liabilities"],
-    "CIQ": ["IQ_CASH_EQUIV", "IQ_ST_INVEST", "IQ_GW",
-            "IQ_TOTAL_CA", "IQ_TOTAL_ASSETS", "IQ_TOTAL_CL"]
-}
-
-# Define the initial lookup data for Cash Flow
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities"],
-    "Account": ["Net Cash Provided by Operating Activities", "Net Cash Used in Investing Activities", "Net Cash Provided by Financing Activities"],
-    "Mnemonic": ["Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow"],
-    "CIQ": ["IQ_OPER_CASH_FLOW", "IQ_INVEST_CASH_FLOW", "IQ_FIN_CASH_FLOW"]
+    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
+    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
 }
 
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
-income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
@@ -49,9 +103,8 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table_bs_cf(df, file_path):
     df.to_csv(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet and Cash Flow
+# Initialize lookup tables for Balance Sheet
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
 # General Utility Functions
 def process_file(file):
@@ -420,12 +473,12 @@ def balance_sheet():
                     best_score = float('inf')
                     best_match = None
                     for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                        if 'Label' in lookup_row and lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
                             # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < best_score:
+                            if score < 0.25 and score < best_score:
                                 best_score = score
                                 best_match = lookup_row
                     return best_match, best_score
@@ -437,17 +490,19 @@ def balance_sheet():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.25:
+                        if best_match is not None:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-
-                    if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        if label_value:
-                            message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
-                        else:
-                            message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
-                        st.markdown(message)
+                            if f"ai_called_{idx}" not in st.session_state:
+                                ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, balance_sheet_lookup_df)
+                                st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            else:
+                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -472,18 +527,7 @@ def balance_sheet():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Add CIQ column based on lookup
-                    def lookup_ciq(mnemonic):
-                        if mnemonic == 'Human Intervention Required':
-                            return 'CIQ ID Required'
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value.empty:
-                            return 'CIQ ID Required'
-                        return ciq_value.values[0]
-
-                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
-
-                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    columns_order = ['Label', 'Final Mnemonic Selection'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection']]
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
@@ -514,15 +558,13 @@ def balance_sheet():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection not in ['REMOVE ROW', '']:
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'Label': row['Label']})
                             else:
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
                                 balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
