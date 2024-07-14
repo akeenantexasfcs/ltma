@@ -653,7 +653,7 @@ def cash_flow_statement_CF():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -983,7 +983,7 @@ def cash_flow_statement_CF():
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel", type=['xlsx'], key='dict_uploader_tab4_cfs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
@@ -1006,10 +1006,13 @@ def cash_flow_statement_CF():
             download_label = "Download Updated Data Dictionary"
         else:
             download_label = "Download Data Dictionary"
+        
         excel_file = io.BytesIO()
-        cash_flow_lookup_df.to_excel(excel_file, index=False)
+        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+            cash_flow_lookup_df.to_excel(writer, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 #############INCOME STATEMENT#######################################################################
