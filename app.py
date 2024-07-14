@@ -97,22 +97,22 @@ initial_cash_flow_lookup_data = {
 }
 
 # Define the file paths for the data dictionaries
-balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.csv'
+balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
+cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
     try:
-        lookup_df = pd.read_csv(file_path)
+        lookup_df = pd.read_excel(file_path)
         if lookup_df.empty:
             raise pd.errors.EmptyDataError
     except (FileNotFoundError, pd.errors.EmptyDataError):
         lookup_df = pd.DataFrame(initial_data)
-        lookup_df.to_csv(file_path, index=False)
+        lookup_df.to_excel(file_path, index=False)
     return lookup_df
 
 def save_lookup_table(df, file_path):
-    df.to_csv(file_path, index=False)
+    df.to_excel(file_path, index=False)
 
 # Initialize lookup tables for Balance Sheet and Cash Flow Statement
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
@@ -255,7 +255,7 @@ def balance_sheet_BS():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -586,9 +586,9 @@ def balance_sheet_BS():
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_bs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel", type=['xlsx'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
-            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
@@ -653,7 +653,7 @@ def cash_flow_statement_CF():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -983,9 +983,9 @@ def cash_flow_statement_CF():
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['csv'], key='dict_uploader_tab4_cfs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel", type=['xlsx'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
-            new_lookup_df = pd.read_csv(uploaded_dict_file)
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
@@ -1006,12 +1006,10 @@ def cash_flow_statement_CF():
             download_label = "Download Updated Data Dictionary"
         else:
             download_label = "Download Data Dictionary"
-        
-        csv_file = io.StringIO()
-        cash_flow_lookup_df.to_csv(csv_file, index=False)
-        csv_file.seek(0)
-        st.download_button(download_label, csv_file, "cash_flow_data_dictionary.csv", "text/csv")
-
+        excel_file = io.BytesIO()
+        cash_flow_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 #############INCOME STATEMENT#######################################################################
