@@ -190,7 +190,7 @@ def create_combined_df(dfs):
             combined_df = df_pivot
         else:
             combined_df = combined_df.join(df_pivot, how='outer')
-return combined_df.reset_index()
+    return combined_df.reset_index()
 
 def aggregate_data(df):
     if 'Label' not in df.columns or 'Account' not in df.columns:
@@ -666,6 +666,7 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 # Cash Flow Statement Functions#############################################################
