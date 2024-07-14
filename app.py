@@ -1690,9 +1690,9 @@ def main():
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
     if selection == "Balance Sheet":
-        balance_sheet()
+        balance_sheet_BS()
     elif selection == "Cash Flow Statement":
-        cash_flow_statement()
+        cash_flow_statement_CF()
     elif selection == "Income Statement":
         income_statement()
     elif selection == "Populate CIQ Template":
