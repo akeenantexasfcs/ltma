@@ -41,26 +41,26 @@ def generate_response(prompt):
         return "I'm sorry, but I encountered an error while processing your request."
 
 # Function to get AI-suggested mapping
-def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
+def get_ai_suggested_mapping(label, account, lookup_df):
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
 
-    And the following balance sheet lookup data:
-    {balance_sheet_lookup_df.to_string()}
+    And the following lookup data:
+    {lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the data dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
     # Check if the suggested_mnemonic is in the Mnemonic column
-    if suggested_mnemonic in balance_sheet_lookup_df['Mnemonic'].values:
+    if suggested_mnemonic in lookup_df['Mnemonic'].values:
         return suggested_mnemonic
     else:
         # If not, try to find a matching row based on Label and Account
-        matching_row = balance_sheet_lookup_df[
-            (balance_sheet_lookup_df['Label'].str.lower() == label.lower()) &
-            (balance_sheet_lookup_df['Account'].str.lower() == account.lower())
+        matching_row = lookup_df[
+            (lookup_df['Label'].str.lower() == label.lower()) &
+            (lookup_df['Account'].str.lower() == account.lower())
         ]
         if not matching_row.empty:
             return matching_row['Mnemonic'].values[0]
@@ -68,7 +68,7 @@ def get_ai_suggested_mapping(label, account, balance_sheet_lookup_df):
             # If still no match, find the closest match based on Levenshtein distance
             best_match = None
             best_score = float('inf')
-            for _, row in balance_sheet_lookup_df.iterrows():
+            for _, row in lookup_df.iterrows():
                 if row['Label'].strip().lower() == label.strip().lower():
                     score = levenshtein_distance(account.lower(), row['Account'].lower())
                     if score < best_score:
@@ -255,7 +255,7 @@ def balance_sheet_BS():
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -389,7 +389,8 @@ def balance_sheet_BS():
                 updated_table.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
-                updated_table.to_excel(excel_file, index=False)
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    updated_table.to_excel(writer, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -786,7 +787,8 @@ def cash_flow_statement_CF():
                 updated_table.replace('-', 0, inplace=True)
 
                 excel_file = io.BytesIO()
-                updated_table.to_excel(excel_file, index=False)
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    updated_table.to_excel(writer, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -892,13 +894,15 @@ def cash_flow_statement_CF():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-
-                    if df.at[idx, 'Mnemonic'] == 'Human Intervention Required':
-                        if label_value:
-                            message = f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]"
-                        else:
-                            message = f"**Human Intervention Required for:** {account_value} - Index {idx}"
-                        st.markdown(message)
+                            if f"ai_called_{idx}" not in st.session_state:
+                                ai_suggested_mnemonic = get_ai_suggested_mapping(label_value, account_value, cash_flow_lookup_df)
+                                st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            else:
+                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
+                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -983,7 +987,7 @@ def cash_flow_statement_CF():
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel", type=['xlsx'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
@@ -1008,11 +1012,9 @@ def cash_flow_statement_CF():
             download_label = "Download Data Dictionary"
         
         excel_file = io.BytesIO()
-        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-            cash_flow_lookup_df.to_excel(writer, index=False)
+        cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 #############INCOME STATEMENT#######################################################################
