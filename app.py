@@ -386,55 +386,38 @@ def balance_sheet_BS():
                 df['Manual Selection'] = ''
                 ai_mappings_generated = False
 
+                # Initial upload: show whether human intervention is required
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if pd.notna(account_value):
+                        best_match, score = get_best_match(label_value, account_value)
+                        if best_match is not None:
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                        else:
+                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+
+                    # Create a dropdown list of unique mnemonics based on the label
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection = st.selectbox(
+                        f"Select category for '{account_value}'",
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        key=f"select_{idx}_tab3_bs"
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+
                 if st.button("Generate AI Recommendations"):
                     ai_mappings_generated = True
                     for idx, row in df.iterrows():
                         account_value = row['Account']
                         label_value = row.get('Label', '')
-                        if pd.notna(account_value):
-                            best_match, score = get_best_match(label_value, account_value)
-                            if best_match is not None:
-                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                            else:
-                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-
-                        # Create a dropdown list of unique mnemonics based on the label
-                        label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                        manual_selection = st.selectbox(
-                            f"Select category for '{account_value}'",
-                            options=[''] + manual_selection_options + ['REMOVE ROW'],
-                            key=f"select_{idx}_tab3_bs"
-                        )
-                        if manual_selection:
-                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
-
-                if not ai_mappings_generated:
-                    for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if pd.notna(account_value):
-                            best_match, score = get_best_match(label_value, account_value)
-                            if best_match is not None:
-                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                            else:
-                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-
-                        # Create a dropdown list of unique mnemonics based on the label
-                        label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                        manual_selection = st.selectbox(
-                            f"Select category for '{account_value}'",
-                            options=[''] + manual_selection_options + ['REMOVE ROW'],
-                            key=f"select_{idx}_tab3_bs"
-                        )
-                        if manual_selection:
-                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
-
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+                        if row['Mnemonic'] == 'Human Intervention Required' and pd.notna(account_value):
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic} for {account_value} [{label_value} - Index {idx}]")
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
