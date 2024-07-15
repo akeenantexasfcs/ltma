@@ -910,7 +910,7 @@ def cash_flow_statement_CF():
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-                selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
         company_name_cfs = st.text_input("Enter Company Name", key='company_name_input_cfs')
 
