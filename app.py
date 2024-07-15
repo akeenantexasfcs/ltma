@@ -615,36 +615,103 @@ def balance_sheet_BS():
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                # ... (rest of the code remains the same, just replace 'cfs' with 'bs' in the keys and file names)    with tab4:
-            st.subheader("Balance Sheet Data Dictionary")
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
+                        axis=1
+                    )
+                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
 
-            uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
-            if uploaded_dict_file is not None:
-                new_lookup_df = pd.read_excel(uploaded_dict_file)
-                balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                st.success("Data Dictionary uploaded and updated successfully!")
+                    combined_df = create_combined_df([final_output_df])
+                    combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
+                    # Add CIQ column based on lookup
+                    def lookup_ciq(mnemonic):
+                        if mnemonic == 'Human Intervention Required':
+                            return 'CIQ ID Required'
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        if ciq_value.empty:
+                            return 'CIQ ID Required'
+                        return ciq_value.values[0]
+
+                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
+
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    combined_df = combined_df[columns_order]
+
+                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
+                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_df = as_presented_df[as_presented_columns_order]
+
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+                        as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
+                        cover_df = pd.DataFrame({
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
+                        })
+                        cover_df.to_excel(writer, sheet_name='Cover', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        axis=1
+                    )
+                    new_entries = []
+                    for idx, row in df.iterrows():
+                        manual_selection = row['Manual Selection']
+                        final_mnemonic = row['Final Mnemonic Selection']
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+
+                        if manual_selection not in ['REMOVE ROW', '']:
+                            if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                            else:
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                    if new_entries:
+                        balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                    st.success("Data Dictionary Updated Successfully")
+
+    with tab4:
+        st.subheader("Balance Sheet Data Dictionary")
+
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
+            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
+
+        st.dataframe(balance_sheet_lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        rows_removed = False
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            rows_removed = True
+            st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
 
-            remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
-            rows_removed = False
-            if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-                balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                rows_removed = True
-                st.success("Selected rows removed successfully!")
-                st.dataframe(balance_sheet_lookup_df)
-
-            st.subheader("Download Data Dictionary")
-            if rows_removed:
-                download_label = "Download Updated Data Dictionary"
-            else:
-                download_label = "Download Data Dictionary"
-            excel_file = io.BytesIO()
-            balance_sheet_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.subheader("Download Data Dictionary")
+        if rows_removed:
+            download_label = "Download Updated Data Dictionary"
+        else:
+            download_label = "Download Data Dictionary"
+        excel_file = io.BytesIO()
+        balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
