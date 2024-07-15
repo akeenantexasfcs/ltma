@@ -15,6 +15,7 @@ import re
 import anthropic
 import random
 import time
+import io
 
 # Set up the Anthropic client with error handling
 try:
@@ -675,6 +676,7 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 ############################Cash Flow Statement Functions################################################################
 def cash_flow_statement_CF():
