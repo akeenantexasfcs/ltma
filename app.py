@@ -89,15 +89,18 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
     And the following cash flow lookup data:
     {cash_flow_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on the following criteria:
-    1. The suggested Mnemonic must match the given Label (e.g., Investing Activities).
-    2. The Account description should closely match the nature of the activity (e.g., marketable securities).
-    3. If there's no exact match, suggest the closest appropriate Mnemonic within the correct Label category.
-    4. Do not suggest mnemonics from other categories (e.g., don't suggest an Operating Activity Mnemonic for an Investing Activity).
+    Provide the most appropriate Mnemonic mapping for this account based on the following criteria:
+    1. The Mnemonic must be from the same category as the given Label (e.g., Investing Activities).
+    2. The Mnemonic should closely match the specific nature of the Account (e.g., for marketable securities, choose a Mnemonic related to investments or securities, not property or equipment).
+    3. Pay close attention to keywords in the Account description (e.g., "receivable", "securities", "compensation") and match them to similar terms in the Mnemonic options.
+    4. If there's no exact match, suggest the closest appropriate Mnemonic within the correct Label category that reflects the nature of the transaction.
+    5. For unusual items, prefer broader category Mnemonics over very specific ones that don't match.
 
-    Ensure that the suggested Mnemonic is appropriate for the given Label and accurately reflects the nature of the Account."""
+    Return only the Mnemonic value, with no additional explanation."""
 
     suggested_mnemonic = generate_response(prompt).strip()
+
+
 
     # Check if the suggested_mnemonic is in the Mnemonic column
     if suggested_mnemonic in cash_flow_lookup_df['Mnemonic'].values:
