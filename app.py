@@ -308,7 +308,9 @@ def balance_sheet_BS():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            def get_unique_options(series):
+
+
+def get_unique_options(series):
                 counts = series.value_counts()
                 unique_options = []
                 occurrence_counts = {}
@@ -546,15 +548,6 @@ def balance_sheet_BS():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            if f"ai_called_{idx}" not in st.session_state:
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                                st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                            else:
-                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -569,13 +562,14 @@ def balance_sheet_BS():
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations"):
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_bs"):
                     for idx, row in df.iterrows():
                         if row['Mnemonic'] == 'Human Intervention Required':
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(row.get('Label', ''), row['Account'], balance_sheet_lookup_df)
-                            st.markdown(f"**Human Intervention Required for:** {row['Account']} [{row.get('Label', '')} - Index {idx}]")
+                            account_value = row['Account']
+                            label_value = row.get('Label', '')
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
                             st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
-                            st.markdown(f"Select category for '{row['Account']}'")
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -598,6 +592,7 @@ def balance_sheet_BS():
 
                     combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
