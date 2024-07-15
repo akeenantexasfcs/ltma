@@ -558,14 +558,14 @@ def balance_sheet_BS():
                             account_value = row['Account']
                             ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
                             st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
-                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
                             st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
                             df.at[idx, 'Mnemonic'] = ai_suggested_mnemonic
 
                 for idx, row in df.iterrows():
-                    if row['Mnemonic'] == 'Human Intervention Required' and f"ai_called_{idx}" in st.session_state:
+                    if row['Mnemonic'] == 'Human Intervention Required':
                         st.markdown(f"**Human Intervention Required for:** {row['Account']} [{row['Label']} - Index {idx}]")
-                        st.markdown(f"**AI Suggested Mapping:** {st.session_state[f'ai_called_{idx}']}")
+                        if f"ai_called_{idx}" in st.session_state:
+                            st.markdown(f"**AI Suggested Mapping:** {st.session_state[f'ai_called_{idx}']}")
 
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == row['Label']]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
@@ -676,8 +676,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
 
 ############################Cash Flow Statement Functions################################################################
 def cash_flow_statement_CF():
