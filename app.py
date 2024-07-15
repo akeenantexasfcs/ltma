@@ -443,7 +443,7 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
-
+    
     with tab2:
         st.subheader("Aggregate My Data")
 
@@ -674,8 +674,7 @@ def balance_sheet_BS():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
-# Cash Flow Statement Functions
+############################Cash Flow Statement Functions################################################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
 
@@ -710,7 +709,7 @@ def cash_flow_statement_CF():
                                                 if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
-                                                        if word_block and word_block['BlockType'] == 'WORD']:
+                                                        if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
@@ -894,7 +893,7 @@ def cash_flow_statement_CF():
                 download_label = "Download Updated Aggregated Excel"
             else:
                 download_label = "Download Aggregated Excel"
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -1051,8 +1050,7 @@ def cash_flow_statement_CF():
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_u
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
