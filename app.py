@@ -575,16 +575,27 @@ def balance_sheet_BS():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            if f"ai_called_{idx}_bs" not in st.session_state:
-                                nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
-                                st.session_state[f"ai_called_{idx}_bs"] = ai_suggested_mnemonic
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                            else:
-                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}_bs"]
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+
+                if 'ai_suggestions_bs' not in st.session_state:
+                    st.session_state.ai_suggestions_bs = {}
+
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
+                    for idx, row in df.iterrows():
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            label_value = row.get('Label', '')
+                            account_value = row['Account']
+                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
+                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if row['Mnemonic'] == 'Human Intervention Required':
+                        if idx in st.session_state.ai_suggestions_bs:
+                            ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
