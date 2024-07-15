@@ -81,10 +81,6 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df):
                 return "No matching Mnemonic found"
 
 # Function to get AI-suggested mapping for Cash Flow Statement
-import pandas as pd
-from Levenshtein import distance as levenshtein_distance
-
-# Function to get AI-suggested mapping for Cash Flow Statement
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
     prompt = f"""Given the following account information:
     Label: {label}
@@ -682,7 +678,8 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-# Cash Flow Statement Functions#############################################################
+
+# Cash Flow Statement Functions
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
 
@@ -901,7 +898,7 @@ def cash_flow_statement_CF():
                 download_label = "Download Updated Aggregated Excel"
             else:
                 download_label = "Download Aggregated Excel"
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -1084,7 +1081,6 @@ def cash_flow_statement_CF():
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 #############INCOME STATEMENT#######################################################################
 import io
