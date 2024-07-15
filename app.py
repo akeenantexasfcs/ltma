@@ -81,6 +81,10 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df):
                 return "No matching Mnemonic found"
 
 # Function to get AI-suggested mapping for Cash Flow Statement
+import pandas as pd
+from Levenshtein import distance as levenshtein_distance
+
+# Function to get AI-suggested mapping for Cash Flow Statement
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
     prompt = f"""Given the following account information:
     Label: {label}
@@ -99,8 +103,6 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
     Return only the Mnemonic value, with no additional explanation."""
 
     suggested_mnemonic = generate_response(prompt).strip()
-
-
 
     # Check if the suggested_mnemonic is in the Mnemonic column
     if suggested_mnemonic in cash_flow_lookup_df['Mnemonic'].values:
@@ -128,6 +130,7 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
                 return f"{best_match}"
             else:
                 return "No matching Mnemonic found"
+
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
