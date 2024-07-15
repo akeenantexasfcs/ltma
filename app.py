@@ -80,6 +80,66 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df):
             else:
                 return "No matching Mnemonic found"
 
+# Function to get AI-suggested mapping for Cash Flow Statement
+def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
+    prompt = f"""Given the following account information:
+    Label: {label}
+    Account: {account}
+
+    And the following cash flow lookup data:
+    {cash_flow_lookup_df.to_string()}
+
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
+
+    suggested_mnemonic = generate_response(prompt).strip()
+
+    # Check if the suggested_mnemonic is in the Mnemonic column
+    if suggested_mnemonic in cash_flow_lookup_df['Mnemonic'].values:
+        return suggested_mnemonic
+    else:
+        # If not, try to find a matching row based on Label and Account
+        matching_row = cash_flow_lookup_df[
+            (cash_flow_lookup_df['Label'].str.lower() == label.lower()) &
+            (cash_flow_lookup_df['Account'].str.lower() == account.lower())
+        ]
+        if not matching_row.empty:
+            return matching_row['Mnemonic'].values[0]
+        else:
+            # If still no match, find the closest match based on Levenshtein distance
+            best_match = None
+            best_score = float('inf')
+            for _, row in cash_flow_lookup_df.iterrows():
+                if row['Label'].strip().lower() == label.strip().lower():
+                    score = levenshtein_distance(account.lower(), row['Account'].lower())
+                    if score < best_score:
+                        best_score = score
+                        best_match = row['Mnemonic']
+            
+            if best_match:
+                return f"{best_match}"
+            else:
+                return "No matching Mnemonic found"
+
+# Define the initial lookup data for Balance Sheet
+initial_balance_sheet_lookup_data = {
+    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
+    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
+    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
+}
+
+# Define the initial lookup data for Cash Flow Statement
+initial_cash_flow_lookup_data = {
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"],
+    "Account": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
+    "Mnemonic": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
+    "CIQ": ["IQ_NI", "IQ_DA", "IQ_CWC", "IQ_CAPEX", "IQ_DIVPAID"]
+}
+
+# Define the file paths for the data dictionaries
+balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
+cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
+
 # Load or initialize the lookup table
 def load_or_initialize_lookup(file_path, initial_data):
     try:
@@ -94,14 +154,107 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet
-initial_balance_sheet_lookup_data = {
-    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
-    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
-}
-balance_sheet_lookup_df = load_or_initialize_lookup('balance_sheet_data_dictionary.xlsx', initial_balance_sheet_lookup_data)
+# Initialize lookup tables for Balance Sheet and Cash Flow Statement
+balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
+cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
+
+# General Utility Functions
+def process_file(file):
+    try:
+        df = pd.read_excel(file, sheet_name=None)
+        first_sheet_name = list(df.keys())[0]
+        df = df[first_sheet_name]
+        return df
+    except Exception as e:
+        st.error(f"Error processing file {file.name}: {e}")
+        return None
+
+def create_combined_df(dfs):
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+        
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
+
+        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+        
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
+def aggregate_data(df):
+    if 'Label' not in df.columns or 'Account' not in df.columns:
+        st.error("'Label' and/or 'Account' columns not found in the data.")
+        return df
+    
+    pivot_table = df.pivot_table(index=['Label', 'Account'], 
+                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
+                                 aggfunc='sum').reset_index()
+    return pivot_table
+
+def clean_numeric_value(value):
+    value_str = str(value).strip()
+    if value_str.startswith('(') and value_str.endswith(')'):
+        value_str = '-' + value_str[1:-1]
+    cleaned_value = re.sub(r'[$,]', '', value_str)
+    try:
+        return float(cleaned_value)
+    except ValueError:
+        return 0
+
+def sort_by_label_and_account(df):
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
+    
+    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def sort_by_label_and_final_mnemonic(df):
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+    
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
+    
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def apply_unit_conversion(df, columns, factor):
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
+
+# Function to check if all values in columns past the first 2 columns are 0
+def check_all_zeroes(df):
+    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
+    return zeroes
 
 # Balance Sheet Functions
 def balance_sheet_BS():
@@ -384,9 +537,6 @@ def balance_sheet_BS():
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
-                ai_mappings_generated = False
-
-                # Initial upload: show whether human intervention is required
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -396,13 +546,14 @@ def balance_sheet_BS():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + manual_selection_options,
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
@@ -410,21 +561,15 @@ def balance_sheet_BS():
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate AI Recommendations"):
-                    ai_mappings_generated = True
-                    for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if row['Mnemonic'] == 'Human Intervention Required' and pd.notna(account_value):
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic} for {account_value} [{label_value} - Index {idx}]")
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_bs"):
+                    st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'],
                         axis=1
                     )
-                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+                    final_output_df = df.copy()
 
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
@@ -462,18 +607,16 @@ def balance_sheet_BS():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'],
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'REMOVE ROW':
-                            continue
                         ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                        if manual_selection not in ['REMOVE ROW', '']:
+                        if manual_selection != '':
                             if row['Account'] not in balance_sheet_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
@@ -483,7 +626,7 @@ def balance_sheet_BS():
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(balance_sheet_lookup_df, 'balance_sheet_data_dictionary.xlsx')
+                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
@@ -493,7 +636,7 @@ def balance_sheet_BS():
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(balance_sheet_lookup_df, 'balance_sheet_data_dictionary.xlsx')
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(balance_sheet_lookup_df)
@@ -502,7 +645,7 @@ def balance_sheet_BS():
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
             balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(balance_sheet_lookup_df, 'balance_sheet_data_dictionary.xlsx')
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
@@ -516,103 +659,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-def clean_numeric_value(value):
-    value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    cleaned_value = re.sub(r'[$,]', '', value_str)
-    try:
-        return float(cleaned_value)
-    except ValueError:
-        return 0
-
-def apply_unit_conversion(df, columns, factor):
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
-    return df
-
-def process_file(file):
-    try:
-        df = pd.read_excel(file, sheet_name=None)
-        first_sheet_name = list(df.keys())[0]
-        df = df[first_sheet_name]
-        return df
-    except Exception as e:
-        st.error(f"Error processing file {file.name}: {e}")
-        return None
-
-def create_combined_df(dfs):
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            continue
-        
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-        
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
-
-def aggregate_data(df):
-    if 'Label' not in df.columns or 'Account' not in df.columns:
-        st.error("'Label' and/or 'Account' columns not found in the data.")
-        return df
-    
-    pivot_table = df.pivot_table(index=['Label', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
-                                 aggfunc='sum').reset_index()
-    return pivot_table
-
-def check_all_zeroes(df):
-    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
-    return zeroes
-
-def sort_by_label_and_account(df):
-    sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def sort_by_label_and_final_mnemonic(df):
-    sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
-    }
-    
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
 
 #############INCOME STATEMENT#######################################################################
 import io
