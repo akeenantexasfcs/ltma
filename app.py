@@ -443,8 +443,7 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
-    
-    with tab2:
+        with tab2:
         st.subheader("Aggregate My Data")
 
         uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
