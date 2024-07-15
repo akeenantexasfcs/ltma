@@ -735,7 +735,7 @@ def cash_flow_statement_CF():
                 occurrence_counts = {}
                 for item in series:
                     if counts[item] > 1:
-                        if item not in occurrence counts:
+                        if item not in occurrence_counts:
                             occurrence_counts[item] = 1
                         else:
                             occurrence_counts[item] += 1
