@@ -547,6 +547,9 @@ def balance_sheet_BS():
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
 
+                st.markdown("### Mnemonics after automatic lookup:")
+                st.dataframe(df[['Label', 'Account', 'Mnemonic']])
+
                 generate_ai_recommendations = st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs")
                 if generate_ai_recommendations:
                     for idx, row in df.iterrows():
@@ -712,8 +715,8 @@ def cash_flow_statement_CF():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -907,7 +910,7 @@ def cash_flow_statement_CF():
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
+                selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
         company_name_cfs = st.text_input("Enter Company Name", key='company_name_input_cfs')
 
@@ -950,6 +953,9 @@ def cash_flow_statement_CF():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+
+                st.markdown("### Mnemonics after automatic lookup:")
+                st.dataframe(df[['Label', 'Account', 'Mnemonic']])
 
                 generate_ai_recommendations = st.button("Generate AI Recommendations", key="generate_ai_recommendations_cfs")
                 if generate_ai_recommendations:
