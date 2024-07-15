@@ -444,55 +444,55 @@ def balance_sheet_BS():
                 else:
                     st.success("No duplicates identified")
         with tab2:
-        st.subheader("Aggregate My Data")
+            st.subheader("Aggregate My Data")
 
-        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
+            uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
 
-        dfs = []
-        if uploaded_files:
-            dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
+            dfs = []
+            if uploaded_files:
+                dfs = [process_file(file) for file in uploaded_files if process_file(file) is not None]
 
-        if dfs:
-            combined_df = pd.concat(dfs, ignore_index=True)
-            st.dataframe(combined_df)
+            if dfs:
+                combined_df = pd.concat(dfs, ignore_index=True)
+                st.dataframe(combined_df)
 
-            aggregated_table = aggregate_data(combined_df)
-            aggregated_table = sort_by_label_and_account(aggregated_table)
+                aggregated_table = aggregate_data(combined_df)
+                aggregated_table = sort_by_label_and_account(aggregated_table)
 
-            st.subheader("Aggregated Data")
-            st.dataframe(aggregated_table)
-
-            st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
-            zero_rows_indices = aggregated_table.index[zero_rows].tolist()
-            st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
-
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
-
-            # Highlight rows with all zeros for potential removal
-            st.write("Highlighted rows with all zero values for potential removal:")
-            for index in zero_rows_indices:
-                st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
-
-            rows_removed = False  # Flag to check if rows are removed
-            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
-                rows_removed = True
-                st.success("Highlighted rows removed successfully")
+                st.subheader("Aggregated Data")
                 st.dataframe(aggregated_table)
 
-            st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
+                st.subheader("Preview Data and Edit Rows")
+                zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+                zero_rows_indices = aggregated_table.index[zero_rows].tolist()
+                st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
+
+                edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+
+                # Highlight rows with all zeros for potential removal
+                st.write("Highlighted rows with all zero values for potential removal:")
+                for index in zero_rows_indices:
+                    st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
+
+                rows_removed = False  # Flag to check if rows are removed
+                if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
+                    aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                    rows_removed = True
+                    st.success("Highlighted rows removed successfully")
+                    st.dataframe(aggregated_table)
+
+                st.subheader("Download Aggregated Data")
+                if rows_removed:
+                    download_label = "Download Updated Aggregated Excel"
+                else:
+                    download_label = "Download Aggregated Excel"
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
+                excel_file.seek(0)
+                st.download_button(download_label, excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
-                download_label = "Download Aggregated Excel"
-            excel_file = io.BytesIO()
-            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "Aggregate_My_Data_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        else:
-            st.warning("Please upload valid Excel files for aggregation.")
+                st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
         st.subheader("Mappings and Data Consolidation")
