@@ -265,7 +265,7 @@ def balance_sheet_BS():
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
-        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader_tab1')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
@@ -330,8 +330,8 @@ def balance_sheet_BS():
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
                 options = [''] + get_unique_options(all_tables[column_a].dropna())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}_tab1")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}_tab1")
                 selections.append((label, start_label, end_label))
 
             new_column_names = {col: col for col in all_tables.columns}
@@ -363,7 +363,7 @@ def balance_sheet_BS():
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
 
-            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds_tab1"):
                 preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
@@ -375,8 +375,8 @@ def balance_sheet_BS():
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
-                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_tab1")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_tab1")
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
 
             all_tables.rename(columns=new_column_names, inplace=True)
@@ -386,13 +386,13 @@ def balance_sheet_BS():
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
             for col in all_tables.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}_tab1"):
                     columns_to_keep.append(col)
 
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}_tab1"):
                     numerical_columns.append(col)
 
             if 'Label' not in columns_to_keep:
@@ -402,8 +402,8 @@ def balance_sheet_BS():
                 columns_to_keep.insert(1, 'Account')
 
             st.subheader("Label Units")
-            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection_tab1")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value_tab1")
 
             conversion_factors = {
                 "Actuals": 1,
@@ -476,7 +476,7 @@ def balance_sheet_BS():
                 st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
 
             rows_removed = False  # Flag to check if rows are removed
-            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
+            if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_tab2"):
                 aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
@@ -498,21 +498,21 @@ def balance_sheet_BS():
     with tab3:
         st.subheader("Mappings and Data Consolidation")
 
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
-        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3')
+        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_tab3')
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
 
             statement_dates = {}
             for col in df.columns[2:]:
-                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_tab3")
                 statement_dates[col] = statement_date
 
             st.write("Columns in the uploaded file:", df.columns.tolist())
@@ -554,14 +554,14 @@ def balance_sheet_BS():
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options + ['REMOVE ROW'],
-                        key=f"select_{idx}_tab3_bs"
+                        key=f"select_{idx}_tab3"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'],
                         axis=1
@@ -602,7 +602,7 @@ def balance_sheet_BS():
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
                         axis=1
@@ -631,7 +631,7 @@ def balance_sheet_BS():
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
@@ -640,9 +640,9 @@ def balance_sheet_BS():
 
         st.dataframe(balance_sheet_lookup_df)
 
-        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4')
         rows_removed = False
-        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4"):
             balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
