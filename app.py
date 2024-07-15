@@ -294,8 +294,8 @@ def balance_sheet_BS():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
+                    table_df = table_df.sortindex(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -372,7 +372,7 @@ def balance_sheet_BS():
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+            dropdown_options = [''] + ['Account'] + fiscal year options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
@@ -735,7 +735,7 @@ def cash_flow_statement_CF():
                 occurrence_counts = {}
                 for item in series:
                     if counts[item] > 1:
-                        if item not in occurrence_counts:
+                        if item not in occurrence counts:
                             occurrence_counts[item] = 1
                         else:
                             occurrence_counts[item] += 1
@@ -792,7 +792,7 @@ def cash_flow_statement_CF():
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2017, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2017, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+            dropdown_options = [''] + ['Account'] + fiscal year options + ytd options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_cfs")
@@ -856,7 +856,7 @@ def cash_flow_statement_CF():
     with tab2:
         st.subheader("Aggregate My Data")
         
-        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2_cfs')
+        uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple files=True, key='xlsx_uploader_tab2_cfs')
 
         dfs = []
         if uploaded_files:
@@ -910,8 +910,8 @@ def cash_flow_statement_CF():
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_cfs')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_cfs')
+        selected_currency = st.selectbox("Select Currency", currency options, key='currency_selection_tab3_cfs')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude options, key='magnitude_selection_tab3_cfs')
         company_name_cfs = st.text_input("Enter Company Name", key='company_name_input_cfs')
 
         if uploaded_excel is not None:
@@ -978,7 +978,7 @@ def cash_flow_statement_CF():
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{row['Account']}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + manual selection_options + ['REMOVE ROW'],
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
@@ -1012,13 +1012,13 @@ def cash_flow_statement_CF():
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
-                    as_presented_df = as_presented_df[as_presented_columns_order]
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_df = as presented_df[as presented_columns_order]
 
                     excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         combined_df.to_excel(writer, sheet_name='Standardized - Cash Flow', index=False)
-                        as_presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
+                        as presented_df.to_excel(writer, sheet_name='As Presented - Cash Flow', index=False)
                         cover_df = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
                             'Value': [selected_currency, selected_magnitude, company_name_cfs] + list(statement_dates.values())
@@ -1027,64 +1027,63 @@ def cash_flow_statement_CF():
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Cash_Flow_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
-                    df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
-                        axis=1
-                    )
-                    new_entries = []
-                    for idx, row in df.iterrows():
-                        manual_selection = row['Manual Selection']
-                        final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'REMOVE ROW':
-                            continue
-                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+            if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
+                df['Final Mnemonic Selection'] = df.apply(
+                    lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'],
+                    axis=1
+                )
+                new_entries = []
+                for idx, row in df.iterrows():
+                    manual_selection = row['Manual Selection']
+                    final_mnemonic = row['Final Mnemonic Selection']
+                    if manual_selection == 'REMOVE ROW':
+                        continue
+                    ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                        if manual_selection not in ['REMOVE ROW', '']:
-                            if row['Account'] not in cash_flow_lookup_df['Account'].values:
-                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
-                            else:
-                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
-                    if new_entries:
-                        cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    cash_flow_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-                    st.success("Data Dictionary Updated Successfully")
+                    if manual_selection not in ['REMOVE ROW', '']:
+                        if row['Account'] not in cash_flow_lookup_df['Account'].values:
+                            new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                        else:
+                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                if new_entries:
+                    cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                cash_flow_lookup_df.reset_index(drop=True, inplace=True)
+                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                st.success("Data Dictionary Updated Successfully")
 
-    with tab4:
-        st.subheader("Cash Flow Data Dictionary")
+        with tab4:
+            st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_cfs')
-        if uploaded_dict_file is not None:
-            new_lookup_df = pd.read_excel(uploaded_dict_file)
-            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-            st.success("Data Dictionary uploaded and updated successfully!")
+            uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_cfs')
+            if uploaded_dict_file is not None:
+                new_lookup_df = pd.read_excel(uploaded_dict_file)
+                cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(cash_flow_lookup_df)
-
-        remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
-        rows_removed = False
-        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
-            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-            rows_removed = True
-            st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
-        st.subheader("Download Data Dictionary")
-        if rows_removed:
-            download_label = "Download Updated Data Dictionary"
-        else:
-            download_label = "Download Data Dictionary"
-        
-        excel_file = io.BytesIO()
-        cash_flow_lookup_df.to_excel(excel_file, index=False)
-        excel_file.seek(0)
-        st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
+            rows_removed = False
+            if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
+                cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
+                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                rows_removed = True
+                st.success("Selected rows removed successfully!")
+                st.dataframe(cash_flow_lookup_df)
 
+            st.subheader("Download Data Dictionary")
+            if rows_removed:
+                download_label = "Download Updated Data Dictionary"
+            else:
+                download_label = "Download Data Dictionary"
+
+            excel_file = io.BytesIO()
+            cash_flow_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 #############INCOME STATEMENT#######################################################################
 import io
