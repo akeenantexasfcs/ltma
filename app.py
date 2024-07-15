@@ -524,140 +524,147 @@ def balance_sheet_BS():
         else:
             st.warning("Please upload valid Excel files for aggregation.")
 
-    with tab3:
-        st.subheader("Mappings and Data Consolidation")
+with tab3:
+    st.subheader("Mappings and Data Consolidation")
 
-        if 'show_ai_recommendations' not in st.session_state:
-            st.session_state.show_ai_recommendations = False
-        if 'ai_suggestions' not in st.session_state:
-            st.session_state.ai_suggestions = {}
+    uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+    currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+    magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+    selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
+    selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
+    company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
-        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
+    if uploaded_excel is not None:
+        df = pd.read_excel(uploaded_excel)
+        
+        statement_dates = {}
+        for col in df.columns[2:]:
+            statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_bs")
+            statement_dates[col] = statement_date
 
-        if uploaded_excel is not None:
-            df = pd.read_excel(uploaded_excel)
+        st.write("Columns in the uploaded file:", df.columns.tolist())
 
-            statement_dates = {}
-            for col in df.columns[2:]:
-                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}")
-                statement_dates[col] = statement_date
+        if 'Account' not in df.columns:
+            st.error("The uploaded file does not contain an 'Account' column.")
+        else:
+            # Function to get the best match based on Label first, then Levenshtein distance on Account
+            def get_best_match(label, account):
+                best_score = float('inf')
+                best_match = None
+                for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                    if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                        lookup_account = lookup_row['Account']
+                        account_str = str(account)
+                        # Levenshtein distance for Account
+                        score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                        if score < best_score:
+                            best_score = score
+                            best_match = lookup_row
+                return best_match, best_score
 
-            st.write("Columns in the uploaded file:", df.columns.tolist())
-
-            if 'Account' not in df.columns:
-                st.error("The uploaded file does not contain an 'Account' column.")
-            else:
-                # Function to get the best match based on Label first, then Levenshtein distance on Account
-                def get_best_match(label, account):
-                    best_score = float('inf')
-                    best_match = None
-                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                        if 'Label' in lookup_row and lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                            lookup_account = lookup_row['Account']
-                            account_str = str(account)
-                            # Levenshtein distance for Account
-                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < 0.25 and score < best_score:
-                                best_score = score
-                                best_match = lookup_row
-                    return best_match, best_score
-
-                df['Mnemonic'] = ''
-                df['Manual Selection'] = ''
-                for idx, row in df.iterrows():
-                    account_value = row['Account']
-                    label_value = row.get('Label', '')
-                    if pd.notna(account_value):
-                        best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None:
-                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+            df['Mnemonic'] = ''
+            df['Manual Selection'] = ''
+            for idx, row in df.iterrows():
+                account_value = row['Account']
+                label_value = row.get('Label', '')
+                if pd.notna(account_value):
+                    best_match, score = get_best_match(label_value, account_value)
+                    if best_match is not None and score < 0.25:
+                        df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                    else:
+                        df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+                        if f"ai_called_{idx}_bs" not in st.session_state:
+                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
+                            st.session_state[f"ai_called_{idx}_bs"] = ai_suggested_mnemonic
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
                         else:
-                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value}]")
+                            ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}_bs"]
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
-                st.subheader("Auto-mapped Data Preview")
-                st.dataframe(df)
+                # Create a dropdown list of unique mnemonics based on the label
+                label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                manual_selection = st.selectbox(
+                    f"Select category for '{account_value}'",
+                    options=[''] + manual_selection_options + ['REMOVE ROW'],
+                    key=f"select_{idx}_tab3_bs"
+                )
+                if manual_selection:
+                    df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                def get_nearby_rows(dataframe, index, num_rows=5):
-                    start = max(0, index - num_rows)
-                    end = min(len(dataframe), index + num_rows + 1)
-                    nearby_rows = dataframe.iloc[start:end].drop(index).to_string(index=False)
-                    return nearby_rows
+            st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
 
-                # Allow manual selection for Mnemonics
+            if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                df['Final Mnemonic Selection'] = df.apply(
+                    lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
+                    axis=1
+                )
+                final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+
+                combined_df = create_combined_df([final_output_df])
+                combined_df = sort_by_label_and_final_mnemonic(combined_df)
+
+                # Add CIQ column based on lookup
+                def lookup_ciq(mnemonic):
+                    if mnemonic == 'Human Intervention Required':
+                        return 'CIQ ID Required'
+                    ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                    if ciq_value.empty:
+                        return 'CIQ ID Required'
+                    return ciq_value.values[0]
+
+                combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
+
+                columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                combined_df = combined_df[columns_order]
+
+                # Include the "As Presented" sheet without the CIQ column, and with the specified column order
+                as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                as_presented_df = as_presented_df[as_presented_columns_order]
+
+                excel_file = io.BytesIO()
+                with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                    combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+                    as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
+                    cover_df = pd.DataFrame({
+                        'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                        'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
+                    })
+                    cover_df.to_excel(writer, sheet_name='Cover', index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                df['Final Mnemonic Selection'] = df.apply(
+                    lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                    axis=1
+                )
+                new_entries = []
                 for idx, row in df.iterrows():
-                    account_value = row['Account']
-                    label_value = row.get('Label', '')
-                    mnemonic_value = row['Mnemonic']
-                    if mnemonic_value == 'Human Intervention Required':
-                        st.markdown(f"**Manual Selection for:** {account_value} [{label_value}]")
-                        filtered_lookup = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'].str.lower() == label_value.lower()]
-                        if filtered_lookup.empty:
-                            st.warning(f"No matching data dictionary entries found for Label '{label_value}'.")
+                    manual_selection = row['Manual Selection']
+                    final_mnemonic = row['Final Mnemonic Selection']
+                    if manual_selection == 'REMOVE ROW':
+                        continue
+                    ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+
+                    if manual_selection not in ['REMOVE ROW', '']:
+                        if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                            new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                         else:
-                            nearby_rows = get_nearby_rows(df, idx)
-                            filtered_lookup = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'].str.lower() == label_value.lower()]
-                            filtered_lookup = filtered_lookup.drop_duplicates(subset=['Mnemonic'])
-                            if not filtered_lookup.empty:
-                                options = [''] + filtered_lookup['Mnemonic'].tolist()
-                                default_index = options.index('') if '' in options else 0
-                                df.at[idx, 'Manual Selection'] = st.selectbox(f"Select Mnemonic for '{account_value}'", options, index=default_index, key=f"manual_select_{idx}")
-
-                # Define a button to generate AI recommendations
-                if st.button("Generate AI Mappings", key="generate_ai_mappings_bs"):
-                    for idx, row in df.iterrows():
-                        if row['Mnemonic'] == 'Human Intervention Required':
-                            label_value = row.get('Label', '')
-                            account_value = row['Account']
-                            nearby_rows = get_nearby_rows(df, idx)
-                            if (label_value, account_value) not in st.session_state.ai_suggestions:
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
-                                st.session_state.ai_suggestions[(label_value, account_value)] = ai_suggested_mnemonic
-
-                # Display AI recommendations and allow manual override
-                for idx, row in df.iterrows():
-                    account_value = row['Account']
-                    label_value = row.get('Label', '')
-                    mnemonic_value = row['Mnemonic']
-                    if mnemonic_value == 'Human Intervention Required' and (label_value, account_value) in st.session_state.ai_suggestions:
-                        ai_suggested_mnemonic = st.session_state.ai_suggestions[(label_value, account_value)]
-                        st.markdown(f"**AI Suggested Mapping for:** {account_value} [{label_value}] - **{ai_suggested_mnemonic}**")
-                        filtered_lookup = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'].str.lower() == label_value.lower()]
-                        options = [''] + filtered_lookup['Mnemonic'].tolist()
-                        default_index = options.index(ai_suggested_mnemonic) if ai_suggested_mnemonic in options else 0
-                        df.at[idx, 'Manual Selection'] = st.selectbox(f"Select Mnemonic for '{account_value}'", options, index=default_index, key=f"manual_select_{idx}")
-
-                # Define Final Mnemonic Selection based on AI or Manual Selection
-                df['Final Mnemonic Selection'] = df.apply(lambda row: row['Manual Selection'] if row['Manual Selection'] else row['Mnemonic'], axis=1)
-                df = sort_by_label_and_final_mnemonic(df)
-
-                st.subheader("Final Mnemonic Mapping Preview")
-                st.dataframe(df)
-
-                st.subheader("Generate Final Excel")
-                if st.button("Generate Final Excel", key="generate_final_excel_tab3_bs"):
-                    excel_file = io.BytesIO()
-                    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
-                        df.to_excel(writer, sheet_name='Sheet1', index=False)
-                        workbook = writer.book
-                        worksheet = writer.sheets['Sheet1']
-                        worksheet.cell(row=1, column=1, value=f"Company Name: {company_name_bs}")
-                        worksheet.cell(row=2, column=1, value=f"Currency: {selected_currency}")
-                        worksheet.cell(row=3, column=1, value=f"Magnitude: {selected_magnitude}")
-                        for col_idx, col in enumerate(df.columns, 1):
-                            if col in statement_dates:
-                                worksheet.cell(row=4, column=col_idx, value=f"Statement Date: {statement_dates[col]}")
-
-                    excel_file.seek(0)
-                    st.download_button("Download Final Excel", excel_file, "Final_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+                            balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                            balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                            balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                if new_entries:
+                    balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                st.success("Data Dictionary Updated Successfully")
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
