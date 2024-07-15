@@ -294,8 +294,8 @@ def balance_sheet_BS():
                                                         if word_block and word_block['BlockType'] == 'WORD':
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sortindex()
-                    table_df = table_df.sortindex(axis=1)
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -372,7 +372,7 @@ def balance_sheet_BS():
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal year options + ytd_options
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
