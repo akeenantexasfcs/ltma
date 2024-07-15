@@ -546,15 +546,7 @@ def balance_sheet_BS():
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            if f"ai_called_{idx}" not in st.session_state:
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                                st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                            else:
-                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -667,9 +659,23 @@ def balance_sheet_BS():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# Add regenerate button and state to handle AI suggestions
+if "ai_suggestions" not in st.session_state:
+    st.session_state["ai_suggestions"] = False
+
+def regenerate_ai_suggestions():
+    st.session_state["ai_suggestions"] = True
+
+st.button("Regenerate with AI Suggested Mappings", on_click=regenerate_ai_suggestions)
+
+if st.session_state["ai_suggestions"]:
+    balance_sheet_BS()
+else:
+    st.write("AI suggestions will be regenerated upon clicking the button.")
 
 
-# Cash Flow Statement Functions#############################################################
+
+###############################Cash Flow Statement Functions#############################################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
 
