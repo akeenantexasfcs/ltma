@@ -30,7 +30,7 @@ def generate_response(prompt):
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=1000,
-            temperature=1.0,
+            temperature=0.0,
             messages=[
                 {"role": "user", "content": prompt}
             ]
