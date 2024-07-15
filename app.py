@@ -498,6 +498,9 @@ def balance_sheet_BS():
     with tab3:
         st.subheader("Mappings and Data Consolidation")
 
+        if 'show_ai_recommendations' not in st.session_state:
+            st.session_state.show_ai_recommendations = False
+
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
@@ -547,6 +550,9 @@ def balance_sheet_BS():
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                             st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            if st.session_state.show_ai_recommendations:
+                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
+                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -562,6 +568,7 @@ def balance_sheet_BS():
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_bs"):
+                    st.session_state.show_ai_recommendations = True
                     st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
@@ -628,7 +635,6 @@ def balance_sheet_BS():
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
-
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
