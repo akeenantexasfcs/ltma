@@ -500,6 +500,8 @@ def balance_sheet_BS():
 
         if 'show_ai_recommendations' not in st.session_state:
             st.session_state.show_ai_recommendations = False
+        if 'ai_suggestions' not in st.session_state:
+            st.session_state.ai_suggestions = {}
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
@@ -551,8 +553,10 @@ def balance_sheet_BS():
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
                             st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
                             if st.session_state.show_ai_recommendations:
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                                if idx not in st.session_state.ai_suggestions:
+                                    ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
+                                    st.session_state.ai_suggestions[idx] = ai_suggested_mnemonic
+                                st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions[idx]}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
@@ -569,6 +573,7 @@ def balance_sheet_BS():
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_bs"):
                     st.session_state.show_ai_recommendations = True
+                    st.session_state.ai_suggestions = {}  # Clear previous suggestions
                     st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
