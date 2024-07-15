@@ -898,6 +898,11 @@ def cash_flow_statement_CF():
     with tab3:
         st.subheader("Mappings and Data Consolidation")
 
+        if 'show_ai_recommendations_cf' not in st.session_state:
+            st.session_state.show_ai_recommendations_cf = False
+        if 'ai_suggestions_cf' not in st.session_state:
+            st.session_state.ai_suggestions_cf = {}
+
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_cfs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
@@ -909,7 +914,7 @@ def cash_flow_statement_CF():
 
         if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
-            
+
             statement_dates = {}
             for col in df.columns[2:]:
                 statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_cfs")
@@ -930,7 +935,7 @@ def cash_flow_statement_CF():
                             account_str = str(account)
                             # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < best_score:
+                            if score < 0.25 and score < best_score:
                                 best_score = score
                                 best_match = lookup_row
                     return best_match, best_score
@@ -942,39 +947,41 @@ def cash_flow_statement_CF():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.25:
+                        if best_match is not None:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                            if f"ai_called_{idx}_cf" not in st.session_state:
-                                ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df)
-                                st.session_state[f"ai_called_{idx}_cf"] = ai_suggested_mnemonic
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                            else:
-                                ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}_cf"]
-                                st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            if st.session_state.show_ai_recommendations_cf:
+                                if idx not in st.session_state.ai_suggestions_cf:
+                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df)
+                                    st.session_state.ai_suggestions_cf[idx] = ai_suggested_mnemonic
+                                st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
                     # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + manual_selection_options,
                         key=f"select_{idx}_tab3_cfs"
                     )
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
+                    st.session_state.show_ai_recommendations_cf = True
+                    st.session_state.ai_suggestions_cf = {}  # Clear previous suggestions
+                    st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
                         axis=1
                     )
-                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+                    final_output_df = df.copy()
 
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
@@ -994,7 +1001,7 @@ def cash_flow_statement_CF():
                     combined_df = combined_df[columns_order]
 
                     # Include the "As Presented" sheet without the CIQ column, and with the specified column order
-                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_df = final_output_df.drop(columns=['Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
 
@@ -1012,18 +1019,16 @@ def cash_flow_statement_CF():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'REMOVE ROW':
-                            continue
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                        if manual_selection not in ['REMOVE ROW', '']:
+                        if manual_selection != '':
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
