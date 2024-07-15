@@ -677,8 +677,6 @@ def balance_sheet_BS():
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Run the balance sheet function
-balance_sheet_BS()
 
 
 ############################Cash Flow Statement Functions################################################################
