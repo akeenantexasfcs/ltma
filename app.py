@@ -288,7 +288,7 @@ def balance_sheet_BS():
                                         cell_text = ''
                                         if 'Relationships' in cell_block:
                                             for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD']:
+                                                if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
@@ -696,7 +696,7 @@ def cash_flow_statement_CF():
                     table = {}
                     if 'Relationships' in block:
                         for relationship in block['Relationships']:
-                            if relationship['Type'] == 'CHILD']:
+                            if relationship['Type'] == 'CHILD':
                                 for cell_id in relationship['Ids']:
                                     cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
                                     if cell_block:
@@ -707,14 +707,14 @@ def cash_flow_statement_CF():
                                         cell_text = ''
                                         if 'Relationships' in cell_block:
                                             for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD']:
+                                                if rel['Type'] == 'CHILD':
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD']:
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort.index(axis=1)
+                    table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -884,7 +884,7 @@ def cash_flow_statement_CF():
             
             rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset.index(drop=True)
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
@@ -894,7 +894,7 @@ def cash_flow_statement_CF():
                 download_label = "Download Updated Aggregated Excel"
             else:
                 download_label = "Download Aggregated Excel"
-            excel_file = io.BytesIO()
+            excel_file = io.Bytes.IO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -1044,42 +1044,42 @@ def cash_flow_statement_CF():
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    cash_flow_lookup_df.reset.index(drop=True, inplace=True)
+                    cash_flow_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
-        with tab4:
-            st.subheader("Cash Flow Data Dictionary")
+    with tab4:
+        st.subheader("Cash Flow Data Dictionary")
 
-            uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
-            if uploaded_dict_file is not None:
-                new_lookup_df = pd.read_excel(uploaded_dict_file)
-                cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-                st.success("Data Dictionary uploaded and updated successfully!")
+        uploaded_dict_file = st.file_u
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
+            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
 
+        st.dataframe(cash_flow_lookup_df)
+
+        remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
+        rows_removed = False
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
+            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+            rows_removed = True
+            st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
-            remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
-            rows_removed = False
-            if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
-                cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-                rows_removed = True
-                st.success("Selected rows removed successfully!")
-                st.dataframe(cash_flow_lookup_df)
-
-            st.subheader("Download Data Dictionary")
-            if rows_removed:
-                download_label = "Download Updated Data Dictionary"
-            else:
-                download_label = "Download Data Dictionary"
-            
-            excel_file = io.BytesIO()
-            cash_flow_lookup_df.to_excel(excel_file, index=False)
-            excel_file.seek(0)
-            st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+        st.subheader("Download Data Dictionary")
+        if rows_removed:
+            download_label = "Download Updated Data Dictionary"
+        else:
+            download_label = "Download Data Dictionary"
+        
+        excel_file = io.BytesIO()
+        cash_flow_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 #############INCOME STATEMENT#######################################################################
