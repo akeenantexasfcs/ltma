@@ -1049,24 +1049,24 @@ def cash_flow_statement_CF():
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
-                    manual_selection = row['Manual Selection']
-                    final_mnemonic = row['Final Mnemonic Selection']
-                    if manual_selection == 'REMOVE ROW':
-                        continue
-                    ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                        manual_selection = row['Manual Selection']
+                        final_mnemonic = row['Final Mnemonic Selection']
+                        if manual_selection == 'REMOVE ROW':
+                            continue
+                        ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                    if manual_selection not in ['REMOVE ROW', '']:
-                        if row['Account'] not in cash_flow_lookup_df['Account'].values:
-                            new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
-                        else:
-                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                            cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
-                if new_entries:
-                    cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                cash_flow_lookup_df.reset_index(drop=True, inplace=True)
-                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-                st.success("Data Dictionary Updated Successfully")
+                        if manual_selection not in ['REMOVE ROW', '']:
+                            if row['Account'] not in cash_flow_lookup_df['Account'].values:
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                            else:
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                    if new_entries:
+                        cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    cash_flow_lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                    st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Cash Flow Data Dictionary")
