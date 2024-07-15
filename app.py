@@ -288,7 +288,7 @@ def balance_sheet_BS():
                                         cell_text = ''
                                         if 'Relationships' in cell_block:
                                             for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD':
+                                                if rel['Type'] == 'CHILD']:
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
                                                         if word_block and word_block['BlockType'] == 'WORD':
@@ -520,56 +520,61 @@ def balance_sheet_BS():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Automatically perform the Levenshtein distance-based lookup
+                def get_best_match(label, account):
+                    best_score = float('inf')
+                    best_match = None
+                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                        if 'Label' in lookup_row and lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            # Levenshtein distance for Account
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < 0.25 and score < best_score:
+                                best_score = score
+                                best_match = lookup_row
+                    return best_match, best_score
+
+                df['Mnemonic'] = ''
+                df['Manual Selection'] = ''
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if pd.notna(account_value):
+                        best_match, score = get_best_match(label_value, account_value)
+                        if best_match is not None:
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                        else:
+                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+
                 generate_ai_recommendations = st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs")
                 if generate_ai_recommendations:
-                    # Function to get the best match based on Label first, then Levenshtein distance on Account
-                    def get_best_match(label, account):
-                        best_score = float('inf')
-                        best_match = None
-                        for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                            if 'Label' in lookup_row and lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                                lookup_account = lookup_row['Account']
-                                account_str = str(account)
-                                # Levenshtein distance for Account
-                                score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                                if score < 0.25 and score < best_score:
-                                    best_score = score
-                                    best_match = lookup_row
-                        return best_match, best_score
-
-                    df['Mnemonic'] = ''
-                    df['Manual Selection'] = ''
                     for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if pd.notna(account_value):
-                            best_match, score = get_best_match(label_value, account_value)
-                            if best_match is not None:
-                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                            else:
-                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                                if f"ai_called_{idx}" not in st.session_state:
-                                    ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
-                                    st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
-                                    st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                    st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                                else:
-                                    ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}"]
-                                    st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                    st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            label_value = row['Label']
+                            account_value = row['Account']
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df)
+                            st.session_state[f"ai_called_{idx}"] = ai_suggested_mnemonic
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            df.at[idx, 'Mnemonic'] = ai_suggested_mnemonic
 
-                        # Create a dropdown list of unique mnemonics based on the label
-                        label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                        manual_selection = st.selectbox(
-                            f"Select category for '{account_value}'",
-                            options=[''] + manual_selection_options + ['REMOVE ROW'],
-                            key=f"select_{idx}_tab3_bs"
-                        )
-                        if manual_selection:
-                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
+                for idx, row in df.iterrows():
+                    if row['Mnemonic'] == 'Human Intervention Required' and f"ai_called_{idx}" in st.session_state:
+                        st.markdown(f"**Human Intervention Required for:** {row['Account']} [{row['Label']} - Index {idx}]")
+                        st.markdown(f"**AI Suggested Mapping:** {st.session_state[f'ai_called_{idx}']}")
 
-                    st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == row['Label']]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection = st.selectbox(
+                        f"Select category for '{row['Account']}'",
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        key=f"select_{idx}_tab3_bs"
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -691,7 +696,7 @@ def cash_flow_statement_CF():
                     table = {}
                     if 'Relationships' in block:
                         for relationship in block['Relationships']:
-                            if relationship['Type'] == 'CHILD':
+                            if relationship['Type'] == 'CHILD']:
                                 for cell_id in relationship['Ids']:
                                     cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
                                     if cell_block:
@@ -702,14 +707,14 @@ def cash_flow_statement_CF():
                                         cell_text = ''
                                         if 'Relationships' in cell_block:
                                             for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD':
+                                                if rel['Type'] == 'CHILD']:
                                                     for word_id in rel['Ids']:
                                                         word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
-                                                        if word_block and word_block['BlockType'] == 'WORD':
+                                                        if word_block and word_block['BlockType'] == 'WORD']:
                                                             cell_text += ' ' + word_block.get('Text', '')
                                         table[row_index][col_index] = cell_text.strip()
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
+                    table_df = table_df.sort.index(axis=1)
                     tables.append(table_df)
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
@@ -879,7 +884,7 @@ def cash_flow_statement_CF():
             
             rows_removed = False  # Flag to check if rows are removed
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
-                aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
+                aggregated_table = aggregated_table.drop(zero_rows_indices).reset.index(drop=True)
                 rows_removed = True
                 st.success("Highlighted rows removed successfully")
                 st.dataframe(aggregated_table)
@@ -920,56 +925,61 @@ def cash_flow_statement_CF():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
+                # Automatically perform the Levenshtein distance-based lookup
+                def get_best_match(label, account):
+                    best_score = float('inf')
+                    best_match = None
+                    for _, lookup_row in cash_flow_lookup_df.iterrows():
+                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            # Levenshtein distance for Account
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < best_score:
+                                best_score = score
+                                best_match = lookup_row
+                    return best_match, best_score
+
+                df['Mnemonic'] = ''
+                df['Manual Selection'] = ''
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if pd.notna(account_value):
+                        best_match, score = get_best_match(label_value, account_value)
+                        if best_match is not None and score < 0.25:
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                        else:
+                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+
                 generate_ai_recommendations = st.button("Generate AI Recommendations", key="generate_ai_recommendations_cfs")
                 if generate_ai_recommendations:
-                    # Function to get the best match based on Label first, then Levenshtein distance on Account
-                    def get_best_match(label, account):
-                        best_score = float('inf')
-                        best_match = None
-                        for _, lookup_row in cash_flow_lookup_df.iterrows():
-                            if lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                                lookup_account = lookup_row['Account']
-                                account_str = str(account)
-                                # Levenshtein distance for Account
-                                score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                                if score < best_score:
-                                    best_score = score
-                                    best_match = lookup_row
-                        return best_match, best_score
-
-                    df['Mnemonic'] = ''
-                    df['Manual Selection'] = ''
                     for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if pd.notna(account_value):
-                            best_match, score = get_best_match(label_value, account_value)
-                            if best_match is not None and score < 0.25:
-                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                            else:
-                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
-                                if f"ai_called_{idx}_cf" not in st.session_state:
-                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df)
-                                    st.session_state[f"ai_called_{idx}_cf"] = ai_suggested_mnemonic
-                                    st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                    st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
-                                else:
-                                    ai_suggested_mnemonic = st.session_state[f"ai_called_{idx}_cf"]
-                                    st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                                    st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            label_value = row['Label']
+                            account_value = row['Account']
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df)
+                            st.session_state[f"ai_called_{idx}_cf"] = ai_suggested_mnemonic
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            st.markdown(f"**AI Suggested Mapping:** {ai_suggested_mnemonic}")
+                            df.at[idx, 'Mnemonic'] = ai_suggested_mnemonic
 
-                        # Create a dropdown list of unique mnemonics based on the label
-                        label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                        manual_selection = st.selectbox(
-                            f"Select category for '{account_value}'",
-                            options=[''] + manual_selection_options + ['REMOVE ROW'],
-                            key=f"select_{idx}_tab3_cfs"
-                        )
-                        if manual_selection:
-                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
+                for idx, row in df.iterrows():
+                    if row['Mnemonic'] == 'Human Intervention Required' and f"ai_called_{idx}_cf" in st.session_state:
+                        st.markdown(f"**Human Intervention Required for:** {row['Account']} [{row['Label']} - Index {idx}]")
+                        st.markdown(f"**AI Suggested Mapping:** {st.session_state[f'ai_called_{idx}_cf']}")
 
-                    st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
+                    label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == row['Label']]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection = st.selectbox(
+                        f"Select category for '{row['Account']}'",
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        key=f"select_{idx}_tab3_cfs"
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -1034,41 +1044,42 @@ def cash_flow_statement_CF():
                                 cash_flow_lookup_df.loc[cash_flow_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
                         cash_flow_lookup_df = pd.concat([cash_flow_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    cash_flow_lookup_df.reset_index(drop=True, inplace=True)
+                    cash_flow_lookup_df.reset.index(drop=True, inplace=True)
                     save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
-    with tab4:
-        st.subheader("Cash Flow Data Dictionary")
+        with tab4:
+            st.subheader("Cash Flow Data Dictionary")
 
-        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
-        if uploaded_dict_file is not None:
-            new_lookup_df = pd.read_excel(uploaded_dict_file)
-            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-            st.success("Data Dictionary uploaded and updated successfully!")
+            uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary CSV", type=['xlsx'], key='dict_uploader_tab4_cfs')
+            if uploaded_dict_file is not None:
+                new_lookup_df = pd.read_excel(uploaded_dict_file)
+                cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(cash_flow_lookup_df)
-
-        remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
-        rows_removed = False
-        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
-            cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
-            rows_removed = True
-            st.success("Selected rows removed successfully!")
             st.dataframe(cash_flow_lookup_df)
 
-        st.subheader("Download Data Dictionary")
-        if rows_removed:
-            download_label = "Download Updated Data Dictionary"
-        else:
-            download_label = "Download Data Dictionary"
-        
-        excel_file = io.BytesIO()
-        cash_flow_lookup_df.to_excel(excel_file, index=False)
-        excel_file.seek(0)
-        st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            remove_indices = st.multiselect("Select rows to remove", cash_flow_lookup_df.index, key='remove_indices_tab4_cfs')
+            rows_removed = False
+            if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_cfs"):
+                cash_flow_lookup_df = cash_flow_lookup_df.drop(remove_indices).reset_index(drop=True)
+                save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
+                rows_removed = True
+                st.success("Selected rows removed successfully!")
+                st.dataframe(cash_flow_lookup_df)
+
+            st.subheader("Download Data Dictionary")
+            if rows_removed:
+                download_label = "Download Updated Data Dictionary"
+            else:
+                download_label = "Download Data Dictionary"
+            
+            excel_file = io.BytesIO()
+            cash_flow_lookup_df.to_excel(excel_file, index=False)
+            excel_file.seek(0)
+            st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 #############INCOME STATEMENT#######################################################################
