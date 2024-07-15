@@ -89,7 +89,13 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df):
     And the following cash flow lookup data:
     {cash_flow_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on business logic first then similarity. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. The determination should be based on the following criteria:
+    1. The suggested Mnemonic must match the given Label (e.g., Investing Activities).
+    2. The Account description should closely match the nature of the activity (e.g., marketable securities).
+    3. If there's no exact match, suggest the closest appropriate Mnemonic within the correct Label category.
+    4. Do not suggest mnemonics from other categories (e.g., don't suggest an Operating Activity Mnemonic for an Investing Activity).
+
+    Ensure that the suggested Mnemonic is appropriate for the given Label and accurately reflects the nature of the Account."""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
