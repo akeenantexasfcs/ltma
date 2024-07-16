@@ -6,63 +6,52 @@
 
 import io
 import json
+import os
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import httpx
-import asyncio
+import random
+import time
 
 # Load a pre-trained sentence transformer model
-@st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-model = load_model()
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Set up the Anthropic client with error handling
-@st.cache_resource
-def setup_anthropic_client():
+try:
+    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+except KeyError:
+    st.error("Anthropic API key not found in secrets. Please check your configuration.")
+    st.stop()
+
+# Function to generate a response from Claude
+def generate_response(prompt):
     try:
-        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-    except KeyError:
-        st.error("Anthropic API key not found in secrets. Please check your configuration.")
-        st.stop()
-
-client = setup_anthropic_client()
-
-# Function to generate a response from Claude asynchronously
-async def generate_response_async(client, prompt):
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.post(
-            "https://api.anthropic.com/v1/complete",
-            headers={"Authorization": f"Bearer {st.secrets['ANTHROPIC_API_KEY']}"},
-            json={
-                "model": "claude-3-sonnet-20240229",
-                "prompt": prompt,
-                "max_tokens": 10000,
-                "temperature": 0.2,
-            }
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
         )
-    response_data = response.json()
-    return response_data['choices'][0]['text']
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
 
-@st.cache_data(ttl=3600)
 def get_embedding(text):
-    return model.encode(text).tolist()  # Ensure the return value is serializable
+    return model.encode(text)
 
 def cosine_similarity(a, b):
-    a = np.array(a)
-    b = np.array(b)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-@st.cache_data
-async def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, nearby_rows):
-    balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
+def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
@@ -81,7 +70,7 @@ async def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_js
 
     Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
-    suggested_mnemonic = await generate_response_async(client, prompt).strip()
+    suggested_mnemonic = generate_response(prompt).strip()
 
     # Calculate embedding similarities
     account_embedding = get_embedding(f"{label} {account}")
@@ -111,6 +100,54 @@ async def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_js
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
+def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
+    prompt = f"""Given the following account information:
+    Label: {label}
+    Account: {account}
+
+    Nearby rows:
+    {nearby_rows}
+
+    And the following cash flow lookup data:
+    {cash_flow_lookup_df.to_string()}
+
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
+    1. The account's position in the cash flow statement structure (e.g., Operating Activities, Investing Activities, Financing Activities)
+    2. The semantic meaning of the account name and its relationship to standard cash flow statement line items
+    3. The nearby rows to understand the context of this account
+    4. Common financial reporting standards and practices for cash flow statements
+
+    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
+
+    suggested_mnemonic = generate_response(prompt).strip()
+
+    # Calculate embedding similarities
+    account_embedding = get_embedding(f"{label} {account}")
+    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
+
+    # Get top 3 most similar entries
+    top_3_similar = similarities.nlargest(3)
+
+    # Scoring system
+    scores = {}
+    for idx in top_3_similar.index:
+        row = cash_flow_lookup_df.loc[idx]
+        score = 0
+        if row['Label'].lower() == label.lower():
+            score += 2
+        if row['Mnemonic'] == suggested_mnemonic:
+            score += 3
+        score += top_3_similar[idx] * 5  # Weight similarity score
+        scores[row['Mnemonic']] = score
+
+    # Apply domain-specific rules
+    if "depreciation" in account.lower() and "amortization" in account.lower():
+        depreciation_amortization = cash_flow_lookup_df[cash_flow_lookup_df['Mnemonic'].str.contains('Depreciation & Amortization', case=False)]['Mnemonic']
+        if not depreciation_amortization.empty:
+            scores[depreciation_amortization.iloc[0]] = max(scores.values()) + 1
+
+    best_mnemonic = max(scores, key=scores.get)
+    return best_mnemonic
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -120,11 +157,19 @@ initial_balance_sheet_lookup_data = {
     "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
 }
 
+# Define the initial lookup data for Cash Flow Statement
+initial_cash_flow_lookup_data = {
+    "Label": ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"],
+    "Account": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
+    "Mnemonic": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
+    "CIQ": ["IQ_NI", "IQ_DA", "IQ_CWC", "IQ_CAPEX", "IQ_DIVPAID"]
+}
+
 # Define the file paths for the data dictionaries
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
+cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
-@st.cache_data
 def load_or_initialize_lookup(file_path, initial_data):
     try:
         lookup_df = pd.read_excel(file_path)
@@ -138,12 +183,11 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet
-if 'balance_sheet_lookup_df' not in st.session_state:
-    st.session_state.balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
+# Initialize lookup tables for Balance Sheet and Cash Flow Statement
+balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
+cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
 # General Utility Functions
-@st.cache_data
 def process_file(file):
     try:
         df = pd.read_excel(file, sheet_name=None)
@@ -243,189 +287,191 @@ def check_all_zeroes(df):
 
 # Balance Sheet Functions
 def balance_sheet_BS():
+    global balance_sheet_lookup_df
+
     st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
-            uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
-            if uploaded_file is not None:
-                data = json.load(uploaded_file)
-                st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns.")
-                st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
+        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+        if uploaded_file is not None:
+            data = json.load(uploaded_file)
+            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
+            st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
 
-                tables = []
-                for block in data['Blocks']:
-                    if block['BlockType'] == 'TABLE':
-                        table = {}
-                        if 'Relationships' in block:
-                            for relationship in block['Relationships']:
-                                if relationship['Type'] == 'CHILD':
-                                    for cell_id in relationship['Ids']:
-                                        cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
-                                        if cell_block:
-                                            row_index = cell_block.get('RowIndex', 0)
-                                            col_index = cell_block.get('ColumnIndex', 0)
-                                            if row_index not in table:
-                                                table[row_index] = {}
-                                            cell_text = ''
-                                            if 'Relationships' in cell_block:
-                                                for rel in cell_block['Relationships']:
-                                                    if rel['Type'] == 'CHILD':
-                                                        for word_id in rel['Ids']:
-                                                            word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
-                                                            if word_block and word_block['BlockType'] == 'WORD':
-                                                                cell_text += ' ' + word_block.get('Text', '')
-                                            table[row_index][col_index] = cell_text.strip()
-                        table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                        table_df = table_df.sort_index(axis=1)
-                        tables.append(table_df)
-                all_tables = pd.concat(tables, axis=0, ignore_index=True)
-                if len(all_tables.columns) == 0:
-                    st.error("No columns found in the uploaded JSON file.")
-                    return
+            tables = []
+            for block in data['Blocks']:
+                if block['BlockType'] == 'TABLE':
+                    table = {}
+                    if 'Relationships' in block:
+                        for relationship in block['Relationships']:
+                            if relationship['Type'] == 'CHILD':
+                                for cell_id in relationship['Ids']:
+                                    cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                    if cell_block:
+                                        row_index = cell_block.get('RowIndex', 0)
+                                        col_index = cell_block.get('ColumnIndex', 0)
+                                        if row_index not in table:
+                                            table[row_index] = {}
+                                        cell_text = ''
+                                        if 'Relationships' in cell_block:
+                                            for rel in cell_block['Relationships']:
+                                                if rel['Type'] == 'CHILD':
+                                                    for word_id in rel['Ids']:
+                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                        if word_block and word_block['BlockType'] == 'WORD':
+                                                            cell_text += ' ' + word_block.get('Text', '')
+                                        table[row_index][col_index] = cell_text.strip()
+                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                    table_df = table_df.sort_index(axis=1)
+                    tables.append(table_df)
+            all_tables = pd.concat(tables, axis=0, ignore_index=True)
+            if len(all_tables.columns) == 0:
+                st.error("No columns found in the uploaded JSON file.")
+                return
 
-                column_a = all_tables.columns[0]
-                all_tables.insert(0, 'Label', '')
+            column_a = all_tables.columns[0]
+            all_tables.insert(0, 'Label', '')
 
-                st.subheader("Data Preview")
-                st.dataframe(all_tables)
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
 
-                def get_unique_options(series):
-                    counts = series.value_counts()
-                    unique_options = []
-                    occurrence_counts = {}
-                    for item in series:
-                        if counts[item] > 1:
-                            if item not in occurrence_counts:
-                                occurrence_counts[item] = 1
-                            else:
-                                occurrence_counts[item] += 1
-                            unique_options.append(f"{item} {occurrence_counts[item]}")
+            def get_unique_options(series):
+                counts = series.value_counts()
+                unique_options = []
+                occurrence_counts = {}
+                for item in series:
+                    if counts[item] > 1:
+                        if item not in occurrence_counts:
+                            occurrence_counts[item] = 1
                         else:
-                            unique_options.append(item)
-                    return unique_options
-
-                labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
-                          "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
-                selections = []
-
-                for label in labels:
-                    st.subheader(f"Setting bounds for {label}")
-                    options = [''] + get_unique_options(all_tables[column_a].dropna())
-                    start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                    end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
-                    selections.append((label, start_label, end_label))
-
-                new_column_names = {col: col for col in all_tables.columns}
-
-                def update_labels(df):
-                    df['Label'] = ''
-                    account_column = new_column_names.get(column_a, column_a)
-                    for label, start_label, end_label in selections:
-                        if start_label and end_label:
-                            try:
-                                start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                                end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-
-                                start_index = df[df[account_column] == start_label_base].index.min()
-                                end_index = df[df[account_column] == end_label_base].index.max()
-
-                                if pd.isna(start_index):
-                                    start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
-                                if pd.isna(end_index):
-                                    end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
-
-                                if pd.notna(start_index) and pd.notna(end_index):
-                                    df.loc[start_index:end_index, 'Label'] = label
-                                else:
-                                    st.error(f"Invalid label bounds for {label}. Skipping...")
-                            except KeyError as e:
-                                st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
-                        else:
-                            st.info(f"No selections made for {label}. Skipping...")
-                    return df
-
-                if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
-                    preview_table = update_labels(all_tables.copy())
-                    st.subheader("Preview of Setting Bounds")
-                    st.dataframe(preview_table)
-
-                st.subheader("Rename Columns")
-                new_column_names = {}
-                fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-                ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-                dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
-
-                for col in all_tables.columns:
-                    new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                    new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
-                    new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-
-                all_tables.rename(columns=new_column_names, inplace=True)
-                st.write("Updated Columns:", all_tables.columns.tolist())
-                st.dataframe(all_tables)
-
-                st.subheader("Select columns to keep before export")
-                columns_to_keep = []
-                for col in all_tables.columns:
-                    if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
-                        columns_to_keep.append(col)
-
-                st.subheader("Select numerical columns")
-                numerical_columns = []
-                for col in all_tables.columns:
-                    if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
-                        numerical_columns.append(col)
-
-                if 'Label' not in columns_to_keep:
-                    columns_to_keep.insert(0, 'Label')
-
-                if 'Account' not in columns_to_keep:
-                    columns_to_keep.insert(1, 'Account')
-
-                st.subheader("Label Units")
-                selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-                selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
-
-                conversion_factors = {
-                    "Actuals": 1,
-                    "Thousands": 1000,
-                    "Millions": 1000000,
-                    "Billions": 1000000000
-                }
-
-                if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                    updated_table = update_labels(all_tables.copy())
-                    updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
-
-                    updated_table = updated_table[updated_table['Label'].str.strip() != '']
-                    updated_table = updated_table[updated_table['Account'].str.strip() != '']
-
-                    for col in numerical_columns:
-                        if col in updated_table.columns:
-                            updated_table[col] = updated_table[col].apply(clean_numeric_value)
-
-                    if selected_value != "Actuals":
-                        updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
-
-                    updated_table.replace('-', 0, inplace=True)
-
-                    excel_file = io.BytesIO()
-                    updated_table.to_excel(excel_file, index=False)
-                    excel_file.seek(0)
-                    st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                st.subheader("Check for Duplicate Accounts")
-                if 'Account' not in all_tables.columns:
-                    st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
-                else:
-                    duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
-                    if not duplicated_accounts.empty:
-                        st.warning("Duplicates identified:")
-                        st.dataframe(duplicated_accounts)
+                            occurrence_counts[item] += 1
+                        unique_options.append(f"{item} {occurrence_counts[item]}")
                     else:
-                        st.success("No duplicates identified")
+                        unique_options.append(item)
+                return unique_options
+
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
+            selections = []
+
+            for label in labels:
+                st.subheader(f"Setting bounds for {label}")
+                options = [''] + get_unique_options(all_tables[column_a].dropna())
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                selections.append((label, start_label, end_label))
+
+            new_column_names = {col: col for col in all_tables.columns}
+
+            def update_labels(df):
+                df['Label'] = ''
+                account_column = new_column_names.get(column_a, column_a)
+                for label, start_label, end_label in selections:
+                    if start_label and end_label:
+                        try:
+                            start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
+                            end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
+
+                            start_index = df[df[account_column] == start_label_base].index.min()
+                            end_index = df[df[account_column] == end_label_base].index.max()
+
+                            if pd.isna(start_index):
+                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
+                            if pd.isna(end_index):
+                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
+
+                            if pd.notna(start_index) and pd.notna(end_index):
+                                df.loc[start_index:end_index, 'Label'] = label
+                            else:
+                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                        except KeyError as e:
+                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
+                    else:
+                        st.info(f"No selections made for {label}. Skipping...")
+                return df
+
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+                preview_table = update_labels(all_tables.copy())
+                st.subheader("Preview of Setting Bounds")
+                st.dataframe(preview_table)
+
+            st.subheader("Rename Columns")
+            new_column_names = {}
+            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+
+            for col in all_tables.columns:
+                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
+                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+
+            all_tables.rename(columns=new_column_names, inplace=True)
+            st.write("Updated Columns:", all_tables.columns.tolist())
+            st.dataframe(all_tables)
+
+            st.subheader("Select columns to keep before export")
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
+
+            st.subheader("Select numerical columns")
+            numerical_columns = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                    numerical_columns.append(col)
+
+            if 'Label' not in columns_to_keep:
+                columns_to_keep.insert(0, 'Label')
+
+            if 'Account' not in columns_to_keep:
+                columns_to_keep.insert(1, 'Account')
+
+            st.subheader("Label Units")
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
+
+            conversion_factors = {
+                "Actuals": 1,
+                "Thousands": 1000,
+                "Millions": 1000000,
+                "Billions": 1000000000
+            }
+
+            if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
+                updated_table = update_labels(all_tables.copy())
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
+
+                updated_table = updated_table[updated_table['Label'].str.strip() != '']
+                updated_table = updated_table[updated_table['Account'].str.strip() != '']
+
+                for col in numerical_columns:
+                    if col in updated_table.columns:
+                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
+
+                if selected_value != "Actuals":
+                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
+
+                updated_table.replace('-', 0, inplace=True)
+
+                excel_file = io.BytesIO()
+                updated_table.to_excel(excel_file, index=False)
+                excel_file.seek(0)
+                st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            st.subheader("Check for Duplicate Accounts")
+            if 'Account' not in all_tables.columns:
+                st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
+            else:
+                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                if not duplicated_accounts.empty:
+                    st.warning("Duplicates identified:")
+                    st.dataframe(duplicated_accounts)
+                else:
+                    st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
@@ -504,9 +550,7 @@ def balance_sheet_BS():
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
                 # Function to get the best match based on Label first, then Levenshtein distance on Account
-                @st.cache_data
-                def get_best_match(label, account, balance_sheet_lookup_df_json):
-                    balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
+                def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
                     for _, lookup_row in balance_sheet_lookup_df.iterrows():
@@ -520,15 +564,13 @@ def balance_sheet_BS():
                                 best_match = lookup_row
                     return best_match, best_score
 
-                balance_sheet_lookup_df_json = st.session_state.balance_sheet_lookup_df.to_json()
-                
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
-                        best_match, score = get_best_match(label_value, account_value, balance_sheet_lookup_df_json)
+                        best_match, score = get_best_match(label_value, account_value)
                         if best_match is not None and score < 0.25:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
@@ -540,20 +582,14 @@ def balance_sheet_BS():
                 if 'ai_recommendations_generated' not in st.session_state:
                     st.session_state.ai_recommendations_generated = False
 
-                async def generate_ai_recommendations():
-                    tasks = []
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
                     for idx, row in df.iterrows():
                         if row['Mnemonic'] == 'Human Intervention Required':
                             label_value = row.get('Label', '')
                             account_value = row['Account']
                             nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                            tasks.append(get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows))
-                    ai_suggestions = await asyncio.gather(*tasks)
-                    for idx, suggestion in enumerate(ai_suggestions):
-                        st.session_state.ai_suggestions_bs[idx] = suggestion
-
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    asyncio.run(generate_ai_recommendations())
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
+                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
@@ -567,7 +603,7 @@ def balance_sheet_BS():
                             st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
                     # Create a dropdown list of unique mnemonics based on the label
-                    label_mnemonics = st.session_state.balance_sheet_lookup_df[st.session_state.balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
@@ -593,7 +629,7 @@ def balance_sheet_BS():
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
-                        ciq_value = st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value.empty:
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
@@ -631,21 +667,20 @@ def balance_sheet_BS():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection not in ['REMOVE ROW', '']:
-                            if row['Account'] not in st.session_state.balance_sheet_lookup_df['Account'].values:
+                            if row['Account'] not in balance_sheet_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                st.session_state.balance_sheet_lookup_df.loc[st.session_state.balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
-                        st.session_state.balance_sheet_lookup_df = pd.concat([st.session_state.balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    st.session_state.balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(st.session_state.balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                        balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
-
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
@@ -653,20 +688,20 @@ def balance_sheet_BS():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
-            st.session_state.balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
-            save_lookup_table(st.session_state.balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(st.session_state.balance_sheet_lookup_df)
+        st.dataframe(balance_sheet_lookup_df)
 
-        remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            st.session_state.balance_sheet_lookup_df = st.session_state.balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-            save_lookup_table(st.session_state.balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
-            st.dataframe(st.session_state.balance_sheet_lookup_df)
+            st.dataframe(balance_sheet_lookup_df)
 
         st.subheader("Download Data Dictionary")
         if rows_removed:
@@ -674,10 +709,10 @@ def balance_sheet_BS():
         else:
             download_label = "Download Data Dictionary"
         excel_file = io.BytesIO()
-        st.session_state.balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                 
+
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
