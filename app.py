@@ -6,7 +6,6 @@
 
 import io
 import json
-import os
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
@@ -16,8 +15,6 @@ import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import random
-import time
 
 # Load a pre-trained sentence transformer model
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -30,6 +27,7 @@ except KeyError:
     st.stop()
 
 # Function to generate a response from Claude
+@st.cache_data
 def generate_response(prompt):
     try:
         response = client.messages.create(
@@ -45,109 +43,12 @@ def generate_response(prompt):
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
 
+@st.cache_data
 def get_embedding(text):
     return model.encode(text)
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
-
-    Nearby rows:
-    {nearby_rows}
-
-    And the following balance sheet lookup data:
-    {balance_sheet_lookup_df.to_string()}
-
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-    1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
-    2. The semantic meaning of the account name and its relationship to standard financial statement line items
-    3. The nearby rows to understand the context of this account
-    4. Common financial reporting standards and practices
-
-    Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
-
-    suggested_mnemonic = generate_response(prompt).strip()
-
-    # Calculate embedding similarities
-    account_embedding = get_embedding(f"{label} {account}")
-    similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-
-    # Get top 3 most similar entries
-    top_3_similar = similarities.nlargest(3)
-
-    # Scoring system
-    scores = {}
-    for idx in top_3_similar.index:
-        row = balance_sheet_lookup_df.loc[idx]
-        score = 0
-        if row['Label'].lower() == label.lower():
-            score += 2
-        if row['Mnemonic'] == suggested_mnemonic:
-            score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
-        scores[row['Mnemonic']] = score
-
-    # Apply domain-specific rules
-    if "total" in account.lower() and not any("total" in mnemonic.lower() for mnemonic in scores):
-        total_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Mnemonic'].str.contains('Total', case=False)]['Mnemonic']
-        if not total_mnemonics.empty:
-            scores[total_mnemonics.iloc[0]] = max(scores.values()) + 1
-
-    best_mnemonic = max(scores, key=scores.get)
-    return best_mnemonic
-
-def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
-
-    Nearby rows:
-    {nearby_rows}
-
-    And the following cash flow lookup data:
-    {cash_flow_lookup_df.to_string()}
-
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-    1. The account's position in the cash flow statement structure (e.g., Operating Activities, Investing Activities, Financing Activities)
-    2. The semantic meaning of the account name and its relationship to standard cash flow statement line items
-    3. The nearby rows to understand the context of this account
-    4. Common financial reporting standards and practices for cash flow statements
-
-    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
-
-    suggested_mnemonic = generate_response(prompt).strip()
-
-    # Calculate embedding similarities
-    account_embedding = get_embedding(f"{label} {account}")
-    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-
-    # Get top 3 most similar entries
-    top_3_similar = similarities.nlargest(3)
-
-    # Scoring system
-    scores = {}
-    for idx in top_3_similar.index:
-        row = cash_flow_lookup_df.loc[idx]
-        score = 0
-        if row['Label'].lower() == label.lower():
-            score += 2
-        if row['Mnemonic'] == suggested_mnemonic:
-            score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
-        scores[row['Mnemonic']] = score
-
-    # Apply domain-specific rules
-    if "depreciation" in account.lower() and "amortization" in account.lower():
-        depreciation_amortization = cash_flow_lookup_df[cash_flow_lookup_df['Mnemonic'].str.contains('Depreciation & Amortization', case=False)]['Mnemonic']
-        if not depreciation_amortization.empty:
-            scores[depreciation_amortization.iloc[0]] = max(scores.values()) + 1
-
-    best_mnemonic = max(scores, key=scores.get)
-    return best_mnemonic
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -170,6 +71,7 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
+@st.cache_data
 def load_or_initialize_lookup(file_path, initial_data):
     try:
         lookup_df = pd.read_excel(file_path)
@@ -285,13 +187,10 @@ def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
-# Balance Sheet Functions
-def balance_sheet_BS():
-    global balance_sheet_lookup_df
+# Streamlit App Layout
+st.title("BALANCE SHEET LTMA")
 
-    st.title("BALANCE SHEET LTMA")
-
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
+tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
