@@ -903,18 +903,17 @@ def cash_flow_statement_CF():
             st.dataframe(aggregated_table)
 
             st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            zero_rows = check_all_zeroes(aggregated_table)
             zero_rows_indices = aggregated_table.index[zero_rows].tolist()
             st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
             
             edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
             
-            # Highlight rows with all zeros for potential removal
             st.write("Highlighted rows with all zero values for potential removal:")
             for index in zero_rows_indices:
                 st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
             
-            rows_removed = False  # Flag to check if rows are removed
+            rows_removed = False
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows_cfs"):
                 aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
@@ -922,11 +921,8 @@ def cash_flow_statement_CF():
                 st.dataframe(aggregated_table)
 
             st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
-            else:
-                download_label = "Download Aggregated Excel"
-            excel_file = io.Bytes.IO()
+            download_label = "Download Updated Aggregated Excel" if rows_removed else "Download Aggregated Excel"
+            excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -962,7 +958,6 @@ def cash_flow_statement_CF():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                # Function to get the best match based on Label first, then Levenshtein distance on Account
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
@@ -970,7 +965,6 @@ def cash_flow_statement_CF():
                         if lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
-                            # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                             if score < best_score:
                                 best_score = score
@@ -996,7 +990,6 @@ def cash_flow_statement_CF():
                                     st.session_state.ai_suggestions_cf[idx] = ai_suggested_mnemonic
                                 st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
-                    # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
@@ -1007,11 +1000,11 @@ def cash_flow_statement_CF():
                     if manual_selection:
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])  # Include 'Label' as the first column
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
                     st.session_state.show_ai_recommendations_cf = True
-                    st.session_state.ai_suggestions_cf = {}  # Clear previous suggestions
+                    st.session_state.ai_suggestions_cf = {}
                     st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
@@ -1024,7 +1017,6 @@ def cash_flow_statement_CF():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
@@ -1038,7 +1030,6 @@ def cash_flow_statement_CF():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
-                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
@@ -1085,7 +1076,7 @@ def cash_flow_statement_CF():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_cfs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
-            cash_flow_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            cash_flow_lookup_df = new_lookup_df
             save_lookup_table(cash_flow_lookup_df, cash_flow_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
@@ -1101,11 +1092,7 @@ def cash_flow_statement_CF():
             st.dataframe(cash_flow_lookup_df)
 
         st.subheader("Download Data Dictionary")
-        if rows_removed:
-            download_label = "Download Updated Data Dictionary"
-        else:
-            download_label = "Download Data Dictionary"
-        
+        download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
         excel_file = io.BytesIO()
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
