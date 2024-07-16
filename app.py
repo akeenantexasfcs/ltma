@@ -188,9 +188,9 @@ def check_all_zeroes(df):
     return zeroes
 
 # Streamlit App Layout
-st.title("BALANCE SHEET LTMA")
+    st.title("BALANCE SHEET LTMA")
 
-tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
