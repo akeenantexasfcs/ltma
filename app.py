@@ -16,21 +16,30 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 # Load a pre-trained sentence transformer model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+@st.cache_resource
+def load_model():
+    return SentenceTransformer('all-MiniLM-L6-v2')
+
+model = load_model()
 
 # Set up the Anthropic client with error handling
-try:
-    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-except KeyError:
-    st.error("Anthropic API key not found in secrets. Please check your configuration.")
-    st.stop()
+@st.cache_resource
+def setup_anthropic_client():
+    try:
+        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    except KeyError:
+        st.error("Anthropic API key not found in secrets. Please check your configuration.")
+        st.stop()
+
+client = setup_anthropic_client()
 
 # Function to generate a response from Claude
-def generate_response(prompt):
+@st.cache_data
+def generate_response(prompt, max_tokens=1000):
     try:
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
-            max_tokens=1000,
+            max_tokens=max_tokens,
             temperature=0.2,
             messages=[
                 {"role": "user", "content": prompt}
@@ -41,6 +50,7 @@ def generate_response(prompt):
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
 
+@st.cache_data
 def get_embedding(text):
     return model.encode(text)
 
@@ -156,6 +166,7 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
+@st.cache_data
 def load_or_initialize_lookup(file_path, initial_data):
     try:
         lookup_df = pd.read_excel(file_path)
@@ -684,7 +695,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
