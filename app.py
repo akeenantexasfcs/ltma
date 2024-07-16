@@ -323,9 +323,7 @@ def balance_sheet_BS():
             if uploaded_file is not None:
                 data = json.load(uploaded_file)
                 st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
-                st.warning("PLEASE ALSO NOTE: An Account column
-
-st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
+                st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
 
                 tables = []
                 for block in data['Blocks']:
