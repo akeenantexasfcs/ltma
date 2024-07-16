@@ -823,7 +823,7 @@ def cash_flow_statement_CF():
                 download_label = "Download Updated Aggregated Excel"
             else:
                 download_label = "Download Aggregated Excel"
-            excel_file = io.Bytes.IO()
+            excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
             excel_file.seek(0)
@@ -891,7 +891,7 @@ def cash_flow_statement_CF():
                         if row['Mnemonic'] == 'Human Intervention Required':
                             account_value = row['Account']
                             nearby_rows = df_is.iloc[max(0, idx-2):min(len(df_is), idx+3)][['Account']].to_string()
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_IS(account_value, cash_flow_lookup_df, nearby_rows)
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_CF(account_value, cash_flow_lookup_df, nearby_rows)
                             st.session_state.ai_suggestions_is[idx] = ai_suggested_mnemonic
                     st.session_state.ai_recommendations_generated_is = True
                     st.experimental_rerun()
@@ -950,7 +950,7 @@ def cash_flow_statement_CF():
                     as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
-                    excel_file = io.Bytes.IO()
+                    excel_file = io.BytesIO()
                     with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                         combined_df_is.to_excel(writer, sheet_name='Standardized - Cash Flow Statement', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Cash Flow Statement', index=False)
@@ -1018,6 +1018,7 @@ def cash_flow_statement_CF():
         excel_file.seek(0)
         st.download_button(download_label_is, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+##################################INCOME STATEMENT######################################        
 def income_statement():
     global income_statement_lookup_df
 
