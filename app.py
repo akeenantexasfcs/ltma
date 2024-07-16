@@ -44,7 +44,7 @@ async def generate_response_async(client, prompt):
             json={
                 "model": "claude-3-sonnet-20240229",
                 "prompt": prompt,
-                "max_tokens": 1000,
+                "max_tokens": 10000,
                 "temperature": 0.2,
             }
         )
@@ -540,19 +540,20 @@ def balance_sheet_BS():
                 if 'ai_recommendations_generated' not in st.session_state:
                     st.session_state.ai_recommendations_generated = False
 
+                async def generate_ai_recommendations():
+                    tasks = []
+                    for idx, row in df.iterrows():
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            label_value = row.get('Label', '')
+                            account_value = row['Account']
+                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                            tasks.append(get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows))
+                    ai_suggestions = await asyncio.gather(*tasks)
+                    for idx, suggestion in enumerate(ai_suggestions):
+                        st.session_state.ai_suggestions_bs[idx] = suggestion
+
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    async def generate_ai_recommendations():
-                        tasks = []
-                        for idx, row in df.iterrows():
-                            if row['Mnemonic'] == 'Human Intervention Required':
-                                label_value = row.get('Label', '')
-                                account_value = row['Account']
-                                nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                tasks.append(get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows))
-                        ai_suggestions = await asyncio.gather(*tasks)
-                        for idx, suggestion in enumerate(ai_suggestions):
-                            st.session_state.ai_suggestions_bs[idx] = suggestion
-                    await generate_ai_recommendations()
+                    asyncio.run(generate_ai_recommendations())
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
@@ -644,6 +645,7 @@ def balance_sheet_BS():
                     st.session_state.balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
                     save_lookup_table(st.session_state.balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
+
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
