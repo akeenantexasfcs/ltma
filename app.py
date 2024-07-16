@@ -36,7 +36,7 @@ client = setup_anthropic_client()
 
 # Function to generate a response from Claude
 @st.cache_data
-def generate_response(prompt, max_tokens=1000):
+def generate_response(prompt, max_tokens=10000):
     try:
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
@@ -1125,25 +1125,33 @@ from Levenshtein import distance as levenshtein_distance
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import random
-import time
+from concurrent.futures import ThreadPoolExecutor
 
 # Load a pre-trained sentence transformer model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+@st.cache_resource
+def load_model():
+    return SentenceTransformer('all-MiniLM-L6-v2')
+
+model = load_model()
 
 # Set up the Anthropic client with error handling
-try:
-    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-except KeyError:
-    st.error("Anthropic API key not found in secrets. Please check your configuration.")
-    st.stop()
+@st.cache_resource
+def setup_anthropic_client():
+    try:
+        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    except KeyError:
+        st.error("Anthropic API key not found in secrets. Please check your configuration.")
+        st.stop()
+
+client = setup_anthropic_client()
 
 # Function to generate a response from Claude
-def generate_response(prompt):
+@st.cache_data
+def generate_response(prompt, max_tokens=1000):
     try:
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
-            max_tokens=1000,
+            max_tokens=max_tokens,
             temperature=0.2,
             messages=[
                 {"role": "user", "content": prompt}
@@ -1154,6 +1162,7 @@ def generate_response(prompt):
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
 
+@st.cache_data
 def get_embedding(text):
     return model.encode(text)
 
@@ -1532,12 +1541,22 @@ def income_statement():
                     st.session_state.ai_recommendations_generated_is = False
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_is"):
-                    for idx, row in df_is.iterrows():
-                        if row['Mnemonic'] == 'Human Intervention Required':
-                            account_value = row['Account']
-                            nearby_rows = df_is.iloc[max(0, idx-2):min(len(df_is), idx+3)][['Account']].to_string()
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_IS(account_value, income_statement_lookup_df, nearby_rows)
-                            st.session_state.ai_suggestions_is[idx] = ai_suggested_mnemonic
+                    with ThreadPoolExecutor() as executor:
+                        futures = {}
+                        for idx, row in df_is.iterrows():
+                            if row['Mnemonic'] == 'Human Intervention Required':
+                                account_value = row['Account']
+                                nearby_rows = df_is.iloc[max(0, idx-2):min(len(df_is), idx+3)][['Account']].to_string()
+                                futures[executor.submit(get_ai_suggested_mapping_IS, account_value, income_statement_lookup_df, nearby_rows)] = idx
+
+                        for future in futures:
+                            idx = futures[future]
+                            try:
+                                ai_suggested_mnemonic = future.result()
+                                st.session_state.ai_suggestions_is[idx] = ai_suggested_mnemonic
+                            except Exception as e:
+                                st.error(f"An error occurred for row {idx}: {e}")
+
                     st.session_state.ai_recommendations_generated_is = True
                     st.experimental_rerun()
 
@@ -1656,6 +1675,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
       
 ####################################### Populate CIQ Template ###################################
