@@ -6,18 +6,14 @@
 
 import io
 import json
-import os
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import random
-import time
 
 # Load a pre-trained sentence transformer model
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -72,14 +68,10 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
 
     suggested_mnemonic = generate_response(prompt).strip()
 
-    # Calculate embedding similarities
     account_embedding = get_embedding(f"{label} {account}")
     similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
 
-    # Get top 3 most similar entries
     top_3_similar = similarities.nlargest(3)
-
-    # Scoring system
     scores = {}
     for idx in top_3_similar.index:
         row = balance_sheet_lookup_df.loc[idx]
@@ -88,10 +80,9 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
             score += 2
         if row['Mnemonic'] == suggested_mnemonic:
             score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
+        score += top_3_similar[idx] * 5
         scores[row['Mnemonic']] = score
 
-    # Apply domain-specific rules
     if "total" in account.lower() and not any("total" in mnemonic.lower() for mnemonic in scores):
         total_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Mnemonic'].str.contains('Total', case=False)]['Mnemonic']
         if not total_mnemonics.empty:
@@ -121,14 +112,10 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows
 
     suggested_mnemonic = generate_response(prompt).strip()
 
-    # Calculate embedding similarities
     account_embedding = get_embedding(f"{label} {account}")
     similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
 
-    # Get top 3 most similar entries
     top_3_similar = similarities.nlargest(3)
-
-    # Scoring system
     scores = {}
     for idx in top_3_similar.index:
         row = cash_flow_lookup_df.loc[idx]
@@ -137,10 +124,9 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows
             score += 2
         if row['Mnemonic'] == suggested_mnemonic:
             score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
+        score += top_3_similar[idx] * 5
         scores[row['Mnemonic']] = score
 
-    # Apply domain-specific rules
     if "depreciation" in account.lower() and "amortization" in account.lower():
         depreciation_amortization = cash_flow_lookup_df[cash_flow_lookup_df['Mnemonic'].str.contains('Depreciation & Amortization', case=False)]['Mnemonic']
         if not depreciation_amortization.empty:
@@ -280,12 +266,10 @@ def apply_unit_conversion(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-# Function to check if all values in columns past the first 2 columns are 0
 def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
-# Balance Sheet Functions
 def balance_sheet_BS():
     global balance_sheet_lookup_df
 
@@ -493,18 +477,17 @@ def balance_sheet_BS():
             st.dataframe(aggregated_table)
 
             st.subheader("Preview Data and Edit Rows")
-            zero_rows = check_all_zeroes(aggregated_table)  # Check for rows with all zero values
+            zero_rows = check_all_zeroes(aggregated_table)
             zero_rows_indices = aggregated_table.index[zero_rows].tolist()
             st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
 
             edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
 
-            # Highlight rows with all zeros for potential removal
             st.write("Highlighted rows with all zero values for potential removal:")
             for index in zero_rows_indices:
                 st.write(f"Row {index}: {aggregated_table.loc[index].to_dict()}")
 
-            rows_removed = False  # Flag to check if rows are removed
+            rows_removed = False
             if st.button("Remove Highlighted Rows", key="remove_highlighted_rows"):
                 aggregated_table = aggregated_table.drop(zero_rows_indices).reset_index(drop=True)
                 rows_removed = True
@@ -512,10 +495,7 @@ def balance_sheet_BS():
                 st.dataframe(aggregated_table)
 
             st.subheader("Download Aggregated Data")
-            if rows_removed:
-                download_label = "Download Updated Aggregated Excel"
-            else:
-                download_label = "Download Aggregated Excel"
+            download_label = "Download Updated Aggregated Excel" if rows_removed else "Download Aggregated Excel"
             excel_file = io.BytesIO()
             with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
                 aggregated_table.to_excel(writer, sheet_name='Aggregated Data', index=False)
@@ -549,7 +529,6 @@ def balance_sheet_BS():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                # Function to get the best match based on Label first, then Levenshtein distance on Account
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
@@ -557,7 +536,6 @@ def balance_sheet_BS():
                         if lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
-                            # Levenshtein distance for Account
                             score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
                             if score < best_score:
                                 best_score = score
@@ -602,7 +580,6 @@ def balance_sheet_BS():
                             ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
                             st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
-                    # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
@@ -625,7 +602,6 @@ def balance_sheet_BS():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
@@ -639,7 +615,6 @@ def balance_sheet_BS():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
-                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
@@ -658,7 +633,7 @@ def balance_sheet_BS():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] not in ['REMOVE ROW', ''] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
@@ -688,7 +663,7 @@ def balance_sheet_BS():
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
-            balance_sheet_lookup_df = new_lookup_df  # Overwrite the entire DataFrame
+            balance_sheet_lookup_df = new_lookup_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
@@ -704,14 +679,12 @@ def balance_sheet_BS():
             st.dataframe(balance_sheet_lookup_df)
 
         st.subheader("Download Data Dictionary")
-        if rows_removed:
-            download_label = "Download Updated Data Dictionary"
-        else:
-            download_label = "Download Data Dictionary"
+        download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
         excel_file = io.BytesIO()
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
