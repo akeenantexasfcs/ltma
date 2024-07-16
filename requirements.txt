@@ -1,4 +1,4 @@
-streamlit
+streamlit==1.36.0
 pandas
 python-Levenshtein
 openpyxl
@@ -8,4 +8,3 @@ anthropic>=0.3.0
 numpy
 sentence-transformers
 requests_cache
-httpx
