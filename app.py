@@ -15,6 +15,7 @@ import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import httpx
+import concurrent.futures
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -58,57 +59,51 @@ def cosine_similarity(a, b):
     b = np.array(b)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-@st.cache_data
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, nearby_rows):
-    balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
+@st.cache_data(ttl=3600)
+def get_ai_suggested_mappings_BS(batch):
+    results = []
+    for item in batch:
+        label, account, balance_sheet_lookup_df_json, nearby_rows = item
+        suggested_mnemonic = generate_response(f"""Given the following account information:
+        Label: {label}
+        Account: {account}
+        Nearby rows:
+        {nearby_rows}
+        And the following balance sheet lookup data:
+        {balance_sheet_lookup_df_json}
+        What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
+        1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
+        2. The semantic meaning of the account name and its relationship to standard financial statement line items
+        3. The nearby rows to understand the context of this account
+        4. Common financial reporting standards and practices
+        Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label.""").strip()
+        results.append(suggested_mnemonic)
+    return results
 
-    Nearby rows:
-    {nearby_rows}
+# Optimized version of the Generate AI Recommendations function
+def generate_ai_recommendations(df, balance_sheet_lookup_df_json):
+    batch_size = 10  # Adjust batch size according to your API rate limits
+    batches = []
 
-    And the following balance sheet lookup data:
-    {balance_sheet_lookup_df.to_string()}
+    for idx, row in df.iterrows():
+        if row['Mnemonic'] == 'Human Intervention Required':
+            label_value = row.get('Label', '')
+            account_value = row['Account']
+            nearby_rows = df.iloc[max(0, idx - 2):min(len(df), idx + 3)][['Label', 'Account']].to_string()
+            batches.append((label_value, account_value, balance_sheet_lookup_df_json, nearby_rows))
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-    1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
-    2. The semantic meaning of the account name and its relationship to standard financial statement line items
-    3. The nearby rows to understand the context of this account
-    4. Common financial reporting standards and practices
+    # Use ThreadPoolExecutor for parallel processing
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(get_ai_suggested_mappings_BS, [batches[i:i + batch_size] for i in range(0, len(batches), batch_size)]))
 
-    Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
+    # Flatten the list of results
+    results = [item for sublist in results for item in sublist]
 
-    suggested_mnemonic = generate_response(prompt).strip()
+    for idx, row in df.iterrows():
+        if row['Mnemonic'] == 'Human Intervention Required':
+            df.at[idx, 'Mnemonic'] = results.pop(0)
 
-    # Calculate embedding similarities
-    account_embedding = get_embedding(f"{label} {account}")
-    similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-
-    # Get top 3 most similar entries
-    top_3_similar = similarities.nlargest(3)
-
-    # Scoring system
-    scores = {}
-    for idx in top_3_similar.index:
-        row = balance_sheet_lookup_df.loc[idx]
-        score = 0
-        if row['Label'].lower() == label.lower():
-            score += 2
-        if row['Mnemonic'] == suggested_mnemonic:
-            score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
-        scores[row['Mnemonic']] = score
-
-    # Apply domain-specific rules
-    if "total" in account.lower() and not any("total" in mnemonic.lower() for mnemonic in scores):
-        total_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Mnemonic'].str.contains('Total', case=False)]['Mnemonic']
-        if not total_mnemonics.empty:
-            scores[total_mnemonics.iloc[0]] = max(scores.values()) + 1
-
-    best_mnemonic = max(scores, key=scores.get)
-    return best_mnemonic
-
+    return df
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -501,25 +496,8 @@ def balance_sheet_BS():
             if 'Account' not in df.columns:
                 st.error("The uploaded file does not contain an 'Account' column.")
             else:
-                # Function to get the best match based on Label first, then Levenshtein distance on Account
-                @st.cache_data
-                def get_best_match(label, account, balance_sheet_lookup_df_json):
-                    balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
-                    best_score = float('inf')
-                    best_match = None
-                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                            lookup_account = lookup_row['Account']
-                            account_str = str(account)
-                            # Levenshtein distance for Account
-                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < best_score:
-                                best_score = score
-                                best_match = lookup_row
-                    return best_match, best_score
-
                 balance_sheet_lookup_df_json = st.session_state.balance_sheet_lookup_df.to_json()
-                
+
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
                 for idx, row in df.iterrows():
@@ -539,13 +517,7 @@ def balance_sheet_BS():
                     st.session_state.ai_recommendations_generated = False
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    for idx, row in df.iterrows():
-                        if row['Mnemonic'] == 'Human Intervention Required':
-                            label_value = row.get('Label', '')
-                            account_value = row['Account']
-                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows)
-                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+                    df = generate_ai_recommendations(df, balance_sheet_lookup_df_json)
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
@@ -558,7 +530,6 @@ def balance_sheet_BS():
                             ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
                             st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
-                    # Create a dropdown list of unique mnemonics based on the label
                     label_mnemonics = st.session_state.balance_sheet_lookup_df[st.session_state.balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
@@ -581,7 +552,6 @@ def balance_sheet_BS():
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    # Add CIQ column based on lookup
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
@@ -595,7 +565,6 @@ def balance_sheet_BS():
                     columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
                     combined_df = combined_df[columns_order]
 
-                    # Include the "As Presented" sheet without the CIQ column, and with the specified column order
                     as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
                     as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
                     as_presented_df = as_presented_df[as_presented_columns_order]
@@ -667,8 +636,7 @@ def balance_sheet_BS():
         excel_file = io.BytesIO()
         st.session_state.balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
-        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                       
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")                    
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
