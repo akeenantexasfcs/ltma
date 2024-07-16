@@ -175,6 +175,7 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
+@st.cache_data(ttl=3600, show_spinner=False)
 def load_or_initialize_lookup(file_path, initial_data):
     try:
         lookup_df = pd.read_excel(file_path)
