@@ -8,3 +8,4 @@ anthropic>=0.3.0
 numpy
 sentence-transformers
 requests_cache
+functools
