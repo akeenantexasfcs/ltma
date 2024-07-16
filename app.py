@@ -15,8 +15,6 @@ import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import httpx
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -50,25 +48,6 @@ def generate_response(prompt):
     )
     response_data = response.json()
     return response_data['choices'][0]['text']
-
-# Modify the generate_response function to handle batches
-async def generate_response_batch(prompts):
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for prompt in prompts:
-            task = client.post(
-                "https://api.anthropic.com/v1/complete",
-                headers={"Authorization": f"Bearer {st.secrets['ANTHROPIC_API_KEY']}"},
-                json={
-                    "model": "claude-3-sonnet-20240229",
-                    "prompt": prompt,
-                    "max_tokens": 1000,
-                    "temperature": 0.2,
-                }
-            )
-            tasks.append(task)
-        responses = await asyncio.gather(*tasks)
-    return [response.json()['choices'][0]['text'].strip() for response in responses]
 
 @st.cache_data(ttl=3600)
 def get_embedding(text):
@@ -130,58 +109,6 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, ne
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
-# Modify the get_ai_suggested_mapping_BS function to handle batches
-async def get_ai_suggested_mapping_BS_batch(labels, accounts, balance_sheet_lookup_df_json, nearby_rows_list):
-    balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
-    prompts = []
-    for label, account, nearby_rows in zip(labels, accounts, nearby_rows_list):
-        prompt = f"""Given the following account information:
-        Label: {label}
-        Account: {account}
-
-        Nearby rows:
-        {nearby_rows}
-
-        And the following balance sheet lookup data:
-        {balance_sheet_lookup_df.to_string()}
-
-        What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-        1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
-        2. The semantic meaning of the account name and its relationship to standard financial statement line items
-        3. The nearby rows to understand the context of this account
-        4. Common financial reporting standards and practices
-
-        Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
-        prompts.append(prompt)
-
-    suggested_mnemonics = await generate_response_batch(prompts)
-
-    results = []
-    for label, account, suggested_mnemonic in zip(labels, accounts, suggested_mnemonics):
-        account_embedding = get_embedding(f"{label} {account}")
-        similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-        top_3_similar = similarities.nlargest(3)
-
-        scores = {}
-        for idx in top_3_similar.index:
-            row = balance_sheet_lookup_df.loc[idx]
-            score = 0
-            if row['Label'].lower() == label.lower():
-                score += 2
-            if row['Mnemonic'] == suggested_mnemonic:
-                score += 3
-            score += top_3_similar[idx] * 5
-            scores[row['Mnemonic']] = score
-
-        if "total" in account.lower() and not any("total" in mnemonic.lower() for mnemonic in scores):
-            total_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Mnemonic'].str.contains('Total', case=False)]['Mnemonic']
-            if not total_mnemonics.empty:
-                scores[total_mnemonics.iloc[0]] = max(scores.values()) + 1
-
-        best_mnemonic = max(scores, key=scores.get)
-        results.append(best_mnemonic)
-
-    return results
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -260,7 +187,7 @@ def aggregate_data(df):
 
 def clean_numeric_value(value):
     value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endsWith(')'):
+    if value_str.startswith('(') and value_str.endswith(')'):
         value_str = '-' + value_str[1:-1]
     cleaned_value = re.sub(r'[$,]', '', value_str)
     try:
@@ -612,26 +539,14 @@ def balance_sheet_BS():
                     st.session_state.ai_recommendations_generated = False
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    with st.spinner("Generating AI recommendations..."):
-                        rows_needing_intervention = df[df['Mnemonic'] == 'Human Intervention Required']
-                        labels = rows_needing_intervention['Label'].tolist()
-                        accounts = rows_needing_intervention['Account'].tolist()
-                        nearby_rows_list = [df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string() for idx in rows_needing_intervention.index]
-
-                        # Use ThreadPoolExecutor to run the async function
-                        with ThreadPoolExecutor() as executor:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            ai_suggested_mnemonics = loop.run_until_complete(
-                                get_ai_suggested_mapping_BS_batch(labels, accounts, balance_sheet_lookup_df_json, nearby_rows_list)
-                            )
-
-                        # Update the session state with AI suggestions
-                        for idx, mnemonic in zip(rows_needing_intervention.index, ai_suggested_mnemonics):
-                            st.session_state.ai_suggestions_bs[idx] = mnemonic
-
+                    for idx, row in df.iterrows():
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            label_value = row.get('Label', '')
+                            account_value = row['Account']
+                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows)
+                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
                     st.session_state.ai_recommendations_generated = True
-                    st.success("AI recommendations generated successfully!")
                     st.experimental_rerun()
 
                 for idx, row in df.iterrows():
@@ -753,7 +668,7 @@ def balance_sheet_BS():
         st.session_state.balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            
+                       
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
