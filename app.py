@@ -18,6 +18,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import random
 import time
+from functools import lru_cache
 
 # Load a pre-trained sentence transformer model
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -30,6 +31,7 @@ except KeyError:
     st.stop()
 
 # Function to generate a response from Claude
+@lru_cache(maxsize=100)
 def generate_response(prompt):
     try:
         response = client.messages.create(
@@ -45,12 +47,14 @@ def generate_response(prompt):
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
 
+@lru_cache(maxsize=100)
 def get_embedding(text):
     return model.encode(text)
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
+@lru_cache(maxsize=100)
 def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
@@ -100,6 +104,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
+@lru_cache(maxsize=100)
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
