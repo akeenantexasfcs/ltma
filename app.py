@@ -188,6 +188,10 @@ def check_all_zeroes(df):
     return zeroes
 
 # Streamlit App Layout
+    # Balance Sheet Functions
+def balance_sheet_BS():
+    global balance_sheet_lookup_df
+
     st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
