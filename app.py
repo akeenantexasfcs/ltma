@@ -310,185 +310,185 @@ def balance_sheet_BS():
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
-with tab1:
-        uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
-        if uploaded_file is not None:
-            data = json.load(uploaded_file)
-            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
-            st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
+    with tab1:
+            uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+            if uploaded_file is not None:
+                data = json.load(uploaded_file)
+                st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
+                st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
 
-            tables = []
-            for block in data['Blocks']:
-                if block['BlockType'] == 'TABLE':
-                    table = {}
-                    if 'Relationships' in block:
-                        for relationship in block['Relationships']:
-                            if relationship['Type'] == 'CHILD':
-                                for cell_id in relationship['Ids']:
-                                    cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
-                                    if cell_block:
-                                        row_index = cell_block.get('RowIndex', 0)
-                                        col_index = cell_block.get('ColumnIndex', 0)
-                                        if row_index not in table:
-                                            table[row_index] = {}
-                                        cell_text = ''
-                                        if 'Relationships' in cell_block:
-                                            for rel in cell_block['Relationships']:
-                                                if rel['Type'] == 'CHILD':
-                                                    for word_id in rel['Ids']:
-                                                        word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
-                                                        if word_block and word_block['BlockType'] == 'WORD':
-                                                            cell_text += ' ' + word_block.get('Text', '')
-                                        table[row_index][col_index] = cell_text.strip()
-                    table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
-                    table_df = table_df.sort_index(axis=1)
-                    tables.append(table_df)
-            all_tables = pd.concat(tables, axis=0, ignore_index=True)
-            if len(all_tables.columns) == 0:
-                st.error("No columns found in the uploaded JSON file.")
-                return
+                tables = []
+                for block in data['Blocks']:
+                    if block['BlockType'] == 'TABLE':
+                        table = {}
+                        if 'Relationships' in block:
+                            for relationship in block['Relationships']:
+                                if relationship['Type'] == 'CHILD':
+                                    for cell_id in relationship['Ids']:
+                                        cell_block = next((b for b in data['Blocks'] if b['Id'] == cell_id), None)
+                                        if cell_block:
+                                            row_index = cell_block.get('RowIndex', 0)
+                                            col_index = cell_block.get('ColumnIndex', 0)
+                                            if row_index not in table:
+                                                table[row_index] = {}
+                                            cell_text = ''
+                                            if 'Relationships' in cell_block:
+                                                for rel in cell_block['Relationships']:
+                                                    if rel['Type'] == 'CHILD':
+                                                        for word_id in rel['Ids']:
+                                                            word_block = next((w for w in data['Blocks'] if w['Id'] == word_id), None)
+                                                            if word_block and word_block['BlockType'] == 'WORD':
+                                                                cell_text += ' ' + word_block.get('Text', '')
+                                            table[row_index][col_index] = cell_text.strip()
+                        table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
+                        table_df = table_df.sort_index(axis=1)
+                        tables.append(table_df)
+                all_tables = pd.concat(tables, axis=0, ignore_index=True)
+                if len(all_tables.columns) == 0:
+                    st.error("No columns found in the uploaded JSON file.")
+                    return
 
-            column_a = all_tables.columns[0]
-            all_tables.insert(0, 'Label', '')
+                column_a = all_tables.columns[0]
+                all_tables.insert(0, 'Label', '')
 
-            st.subheader("Data Preview")
-            st.dataframe(all_tables)
+                st.subheader("Data Preview")
+                st.dataframe(all_tables)
 
-            def get_unique_options(series):
-                counts = series.value_counts()
-                unique_options = []
-                occurrence_counts = {}
-                for item in series:
-                    if counts[item] > 1:
-                        if item not in occurrence_counts:
-                            occurrence_counts[item] = 1
-                        else:
-                            occurrence_counts[item] += 1
-                        unique_options.append(f"{item} {occurrence_counts[item]}")
-                    else:
-                        unique_options.append(item)
-                return unique_options
-
-            labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
-                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
-            selections = []
-
-            for label in labels:
-                st.subheader(f"Setting bounds for {label}")
-                options = [''] + get_unique_options(all_tables[column_a].dropna())
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
-                selections.append((label, start_label, end_label))
-
-            new_column_names = {col: col for col in all_tables.columns}
-
-            def update_labels(df):
-                df['Label'] = ''
-                account_column = new_column_names.get(column_a, column_a)
-                for label, start_label, end_label in selections:
-                    if start_label and end_label:
-                        try:
-                            start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
-
-                            start_index = df[df[account_column] == start_label_base].index.min()
-                            end_index = df[df[account_column] == end_label_base].index.max()
-
-                            if pd.isna(start_index):
-                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
-                            if pd.isna(end_index):
-                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
-
-                            if pd.notna(start_index) and pd.notna(end_index):
-                                df.loc[start_index:end_index, 'Label'] = label
+                def get_unique_options(series):
+                    counts = series.value_counts()
+                    unique_options = []
+                    occurrence_counts = {}
+                    for item in series:
+                        if counts[item] > 1:
+                            if item not in occurrence_counts:
+                                occurrence_counts[item] = 1
                             else:
-                                st.error(f"Invalid label bounds for {label}. Skipping...")
-                        except KeyError as e:
-                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
-                    else:
-                        st.info(f"No selections made for {label}. Skipping...")
-                return df
+                                occurrence_counts[item] += 1
+                            unique_options.append(f"{item} {occurrence_counts[item]}")
+                        else:
+                            unique_options.append(item)
+                    return unique_options
 
-            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
-                preview_table = update_labels(all_tables.copy())
-                st.subheader("Preview of Setting Bounds")
-                st.dataframe(preview_table)
+                labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
+                          "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
+                selections = []
 
-            st.subheader("Rename Columns")
-            new_column_names = {}
-            fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
-            dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+                for label in labels:
+                    st.subheader(f"Setting bounds for {label}")
+                    options = [''] + get_unique_options(all_tables[column_a].dropna())
+                    start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                    end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                    selections.append((label, start_label, end_label))
 
-            for col in all_tables.columns:
-                new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
-                new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
-                new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
+                new_column_names = {col: col for col in all_tables.columns}
 
-            all_tables.rename(columns=new_column_names, inplace=True)
-            st.write("Updated Columns:", all_tables.columns.tolist())
-            st.dataframe(all_tables)
+                def update_labels(df):
+                    df['Label'] = ''
+                    account_column = new_column_names.get(column_a, column_a)
+                    for label, start_label, end_label in selections:
+                        if start_label and end_label:
+                            try:
+                                start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
+                                end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
 
-            st.subheader("Select columns to keep before export")
-            columns_to_keep = []
-            for col in all_tables.columns:
-                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
-                    columns_to_keep.append(col)
+                                start_index = df[df[account_column] == start_label_base].index.min()
+                                end_index = df[df[account_column] == end_label_base].index.max()
 
-            st.subheader("Select numerical columns")
-            numerical_columns = []
-            for col in all_tables.columns:
-                if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
-                    numerical_columns.append(col)
+                                if pd.isna(start_index):
+                                    start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
+                                if pd.isna(end_index):
+                                    end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
 
-            if 'Label' not in columns_to_keep:
-                columns_to_keep.insert(0, 'Label')
+                                if pd.notna(start_index) and pd.notna(end_index):
+                                    df.loc[start_index:end_index, 'Label'] = label
+                                else:
+                                    st.error(f"Invalid label bounds for {label}. Skipping...")
+                            except KeyError as e:
+                                st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
+                        else:
+                            st.info(f"No selections made for {label}. Skipping...")
+                    return df
 
-            if 'Account' not in columns_to_keep:
-                columns_to_keep.insert(1, 'Account')
+                if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+                    preview_table = update_labels(all_tables.copy())
+                    st.subheader("Preview of Setting Bounds")
+                    st.dataframe(preview_table)
 
-            st.subheader("Label Units")
-            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
-            selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
+                st.subheader("Rename Columns")
+                new_column_names = {}
+                fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
+                ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
+                dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
-            conversion_factors = {
-                "Actuals": 1,
-                "Thousands": 1000,
-                "Millions": 1000000,
-                "Billions": 1000000000
-            }
+                for col in all_tables.columns:
+                    new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
+                    new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
+                    new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
 
-            if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = update_labels(all_tables.copy())
-                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
+                all_tables.rename(columns=new_column_names, inplace=True)
+                st.write("Updated Columns:", all_tables.columns.tolist())
+                st.dataframe(all_tables)
 
-                updated_table = updated_table[updated_table['Label'].str.strip() != '']
-                updated_table = updated_table[updated_table['Account'].str.strip() != '']
+                st.subheader("Select columns to keep before export")
+                columns_to_keep = []
+                for col in all_tables.columns:
+                    if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                        columns_to_keep.append(col)
 
-                for col in numerical_columns:
-                    if col in updated_table.columns:
-                        updated_table[col] = updated_table[col].apply(clean_numeric_value)
+                st.subheader("Select numerical columns")
+                numerical_columns = []
+                for col in all_tables.columns:
+                    if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
+                        numerical_columns.append(col)
 
-                if selected_value != "Actuals":
-                    updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
+                if 'Label' not in columns_to_keep:
+                    columns_to_keep.insert(0, 'Label')
 
-                updated_table.replace('-', 0, inplace=True)
+                if 'Account' not in columns_to_keep:
+                    columns_to_keep.insert(1, 'Account')
 
-                excel_file = io.BytesIO()
-                updated_table.to_excel(excel_file, index=False)
-                excel_file.seek(0)
-                st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.subheader("Label Units")
+                selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+                selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
-            st.subheader("Check for Duplicate Accounts")
-            if 'Account' not in all_tables.columns:
-                st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
-            else:
-                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
-                if not duplicated_accounts.empty:
-                    st.warning("Duplicates identified:")
-                    st.dataframe(duplicated_accounts)
+                conversion_factors = {
+                    "Actuals": 1,
+                    "Thousands": 1000,
+                    "Millions": 1000000,
+                    "Billions": 1000000000
+                }
+
+                if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
+                    updated_table = update_labels(all_tables.copy())
+                    updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
+
+                    updated_table = updated_table[updated_table['Label'].str.strip() != '']
+                    updated_table = updated_table[updated_table['Account'].str.strip() != '']
+
+                    for col in numerical_columns:
+                        if col in updated_table.columns:
+                            updated_table[col] = updated_table[col].apply(clean_numeric_value)
+
+                    if selected_value != "Actuals":
+                        updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factors[selected_value])
+
+                    updated_table.replace('-', 0, inplace=True)
+
+                    excel_file = io.BytesIO()
+                    updated_table.to_excel(excel_file, index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                st.subheader("Check for Duplicate Accounts")
+                if 'Account' not in all_tables.columns:
+                    st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
                 else:
-                    st.success("No duplicates identified")
+                    duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                    if not duplicated_accounts.empty:
+                        st.warning("Duplicates identified:")
+                        st.dataframe(duplicated_accounts)
+                    else:
+                        st.success("No duplicates identified")
 
     with tab2:
         st.subheader("Aggregate My Data")
