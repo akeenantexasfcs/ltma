@@ -14,7 +14,6 @@ import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import time
 import httpx
 
 # Load a pre-trained sentence transformer model
@@ -35,24 +34,24 @@ def setup_anthropic_client():
 
 client = setup_anthropic_client()
 
-# Function to generate a response from Claude
-@st.cache_data(ttl=3600)
+# Function to generate a response from Claude synchronously
 def generate_response(prompt):
-    try:
-        response = client.completions.create(
-            model="claude-1",
-            prompt=prompt,
-            max_tokens=1000,
-            temperature=0.2
-        )
-        return response.choices[0].text
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
+    response = httpx.post(
+        "https://api.anthropic.com/v1/complete",
+        headers={"Authorization": f"Bearer {st.secrets['ANTHROPIC_API_KEY']}"},
+        json={
+            "model": "claude-3-sonnet-20240229",
+            "prompt": prompt,
+            "max_tokens": 1000,
+            "temperature": 0.2,
+        }
+    )
+    response_data = response.json()
+    return response_data['choices'][0]['text']
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_embedding(text):
-    return model.encode(text).tolist()  # Convert to list to make it serializable
+    return model.encode(text).tolist()  # Ensure the return value is serializable
 
 def cosine_similarity(a, b):
     a = np.array(a)
@@ -109,6 +108,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, ne
 
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
+
 
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
@@ -539,42 +539,13 @@ def balance_sheet_BS():
                     st.session_state.ai_recommendations_generated = False
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    prompts = []
                     for idx, row in df.iterrows():
                         if row['Mnemonic'] == 'Human Intervention Required':
                             label_value = row.get('Label', '')
                             account_value = row['Account']
                             nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                            prompt = f"""Given the following account information:
-                            Label: {label_value}
-                            Account: {account_value}
-
-                            Nearby rows:
-                            {nearby_rows}
-
-                            And the following balance sheet lookup data:
-                            {st.session_state.balance_sheet_lookup_df.to_string()}
-
-                            What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-                            1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
-                            2. The semantic meaning of the account name and its relationship to standard financial statement line items
-                            3. The nearby rows to understand the context of this account
-                            4. Common financial reporting standards and practices
-
-                            Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
-                            prompts.append(prompt)
-
-                    async def generate_responses(prompts):
-                        tasks = [generate_response(prompt) for prompt in prompts]
-                        return await asyncio.gather(*tasks)
-
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    responses = loop.run_until_complete(generate_responses(prompts))
-
-                    for idx, response in zip([i for i, row in df.iterrows() if row['Mnemonic'] == 'Human Intervention Required'], responses):
-                        st.session_state.ai_suggestions_bs[idx] = response.strip()
-
+                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df_json, nearby_rows)
+                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
@@ -697,7 +668,6 @@ def balance_sheet_BS():
         st.session_state.balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
                        
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
