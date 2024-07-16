@@ -6,18 +6,17 @@
 
 import io
 import json
-import os
 import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
 import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import random
 import time
+import asyncio
+import httpx
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -37,24 +36,29 @@ def setup_anthropic_client():
 
 client = setup_anthropic_client()
 
-# Function to generate a response from Claude
-@st.cache_data(ttl=3600)
-def generate_response(prompt):
-    try:
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=1000,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+# Function to generate a response from Claude asynchronously
+async def generate_response(prompt):
+    async with httpx.AsyncClient() as async_client:
+        response = await async_client.post(
+            "https://api.anthropic.com/v1/complete",
+            headers={"Authorization": f"Bearer {st.secrets['ANTHROPIC_API_KEY']}"},
+            json={
+                "model": "claude-3-sonnet-20240229",
+                "prompt": prompt,
+                "max_tokens": 1000,
+                "temperature": 0.2,
+            }
         )
-        return response.content[0].text
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
+        response_data = response.json()
+        return response_data['choices'][0]['text']
 
-@st.cache_data
+# Function to generate responses in batch
+async def generate_responses(prompts):
+    tasks = [generate_response(prompt) for prompt in prompts]
+    responses = await asyncio.gather(*tasks)
+    return responses
+
+@st.cache_data(ttl=3600)
 def get_embedding(text):
     return model.encode(text)
 
@@ -62,7 +66,7 @@ def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 @st.cache_data
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, nearby_rows):
+async def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, nearby_rows):
     balance_sheet_lookup_df = pd.read_json(balance_sheet_lookup_df_json)
     prompt = f"""Given the following account information:
     Label: {label}
@@ -82,7 +86,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, ne
 
     Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
-    suggested_mnemonic = generate_response(prompt).strip()
+    suggested_mnemonic = (await generate_response(prompt)).strip()
 
     # Calculate embedding similarities
     account_embedding = get_embedding(f"{label} {account}")
@@ -111,6 +115,60 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df_json, ne
 
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
+
+@st.cache_data
+async def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df_json, nearby_rows):
+    cash_flow_lookup_df = pd.read_json(cash_flow_lookup_df_json)
+    prompt = f"""Given the following account information:
+    Label: {label}
+    Account: {account}
+
+    Nearby rows:
+    {nearby_rows}
+
+    And the following cash flow lookup data:
+    {cash_flow_lookup_df.to_string()}
+
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
+    1. The account's position in the cash flow statement structure (e.g., Operating Activities, Investing Activities, Financing Activities)
+    2. The semantic meaning of the account name and its relationship to standard cash flow statement line items
+    3. The nearby rows to understand the context of this account
+    4. Common financial reporting standards and practices for cash flow statements
+
+    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
+
+    suggested_mnemonic = (await generate_response(prompt)).strip()
+
+    # Calculate embedding similarities
+    account_embedding = get_embedding(f"{label} {account}")
+    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
+
+    # Get top 3 most similar entries
+    top_3_similar = similarities.nlargest(3)
+
+    # Scoring system
+    scores = {}
+    for idx in top_3_similar.index:
+        row = cash_flow_lookup_df.loc[idx]
+        score = 0
+        if row['Label'].lower() == label.lower():
+            score += 2
+        if row['Mnemonic'] == suggested_mnemonic:
+            score += 3
+        score += top_3_similar[idx] * 5  # Weight similarity score
+        scores[row['Mnemonic']] = score
+
+    # Apply domain-specific rules
+    if "depreciation" in account.lower() and "amortization" in account.lower():
+        depreciation_amortization = cash_flow_lookup_df[cash_flow_lookup_df['Mnemonic'].str.contains('Depreciation & Amortization', case=False)]['Mnemonic']
+        if not depreciation_amortization.empty:
+            scores[depreciation_amortization.iloc[0]] = max(scores.values()) + 1
+
+    best_mnemonic = max(scores, key=scores.get)
+    return best_mnemonic
+
+# Remaining implementation ...
+
 
 @st.cache_data
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df_json, nearby_rows):
