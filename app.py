@@ -14,6 +14,7 @@ import re
 import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from concurrent.futures import ThreadPoolExecutor
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -572,13 +573,23 @@ def balance_sheet_BS():
                     st.session_state.ai_recommendations_generated = False
 
                 if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    for idx, row in df.iterrows():
-                        if row['Mnemonic'] == 'Human Intervention Required':
-                            label_value = row.get('Label', '')
-                            account_value = row['Account']
-                            nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                            ai_suggested_mnemonic = get_ai_suggested_mapping_BS(label_value, account_value, balance_sheet_lookup_df, nearby_rows)
-                            st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+                    with ThreadPoolExecutor() as executor:
+                        futures = {}
+                        for idx, row in df.iterrows():
+                            if row['Mnemonic'] == 'Human Intervention Required':
+                                label_value = row.get('Label', '')
+                                account_value = row['Account']
+                                nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                                futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
+
+                        for future in futures:
+                            idx = futures[future]
+                            try:
+                                ai_suggested_mnemonic = future.result()
+                                st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+                            except Exception as e:
+                                st.error(f"An error occurred for row {idx}: {e}")
+
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
