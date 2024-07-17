@@ -115,21 +115,21 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 @st.cache_data
-def load_or_initialize_lookup(file_path, initial_data):
+def load_balance_sheet_data():
     try:
-        lookup_df = pd.read_excel(file_path)
-        if lookup_df.empty:
-            raise pd.errors.EmptyDataError
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        lookup_df = pd.DataFrame(initial_data)
-        lookup_df.to_excel(file_path, index=False)
-    return lookup_df
+        return pd.read_excel(balance_sheet_data_dictionary_file)
+    except FileNotFoundError:
+        return pd.DataFrame(initial_balance_sheet_lookup_data)
+
+if 'balance_sheet_data' not in st.session_state:
+    st.session_state.balance_sheet_data = load_balance_sheet_data()
+
+def save_and_update_balance_sheet_data(df):
+    st.session_state.balance_sheet_data = df
+    save_lookup_table(df, balance_sheet_data_dictionary_file)
 
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
-
-# Initialize lookup table for Balance Sheet
-balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
 
 # General Utility Functions
 def process_file(file):
@@ -229,8 +229,6 @@ def check_all_zeroes(df):
     return zeroes
 
 def balance_sheet_BS():
-    global balance_sheet_lookup_df
-
     st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
@@ -490,7 +488,7 @@ def balance_sheet_BS():
                 def get_best_match(label, account):
                     best_score = float('inf')
                     best_match = None
-                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                    for _, lookup_row in st.session_state.balance_sheet_data.iterrows():
                         if lookup_row['Label'].strip().lower() == str(label).strip().lower():
                             lookup_account = lookup_row['Account']
                             account_str = str(account)
@@ -526,7 +524,7 @@ def balance_sheet_BS():
                                 label_value = row.get('Label', '')
                                 account_value = row['Account']
                                 nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
+                                futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, st.session_state.balance_sheet_data, nearby_rows)] = idx
 
                         for future in futures:
                             idx = futures[future]
@@ -548,7 +546,7 @@ def balance_sheet_BS():
                             ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
                             st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
-                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    label_mnemonics = st.session_state.balance_sheet_data[st.session_state.balance_sheet_data['Label'] == label_value]['Mnemonic'].unique()
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
@@ -573,7 +571,7 @@ def balance_sheet_BS():
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        ciq_value = st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == mnemonic, 'CIQ']
                         if ciq_value.empty:
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
@@ -610,34 +608,28 @@ def balance_sheet_BS():
                         final_mnemonic = row['Final Mnemonic Selection']
                         if manual_selection == 'REMOVE ROW':
                             continue
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                        ciq_value = st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection not in ['REMOVE ROW', '']:
-                            if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                            if row['Account'] not in st.session_state.balance_sheet_data['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Label'] = row['Label']
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
-                        balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                    st.session_state.balance_sheet_lookup_df = balance_sheet_lookup_df
-                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                        st.session_state.balance_sheet_data = pd.concat([st.session_state.balance_sheet_data, pd.DataFrame(new_entries)], ignore_index=True)
+                    st.session_state.balance_sheet_data.reset_index(drop=True, inplace=True)
+                    save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
-        if 'balance_sheet_data' not in st.session_state:
-            st.session_state.balance_sheet_data = balance_sheet_lookup_df
-
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
-            balance_sheet_lookup_df = new_lookup_df
-            st.session_state.balance_sheet_data = balance_sheet_lookup_df
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            save_and_update_balance_sheet_data(new_lookup_df)
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(st.session_state.balance_sheet_data)
@@ -645,9 +637,8 @@ def balance_sheet_BS():
         remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_data.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            balance_sheet_lookup_df = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
-            st.session_state.balance_sheet_data = balance_sheet_lookup_df
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            updated_df = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
+            save_and_update_balance_sheet_data(updated_df)
             rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(st.session_state.balance_sheet_data)
