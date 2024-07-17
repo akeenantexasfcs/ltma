@@ -102,50 +102,6 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
-def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
-
-    Nearby rows:
-    {nearby_rows}
-
-    And the following cash flow lookup data:
-    {cash_flow_lookup_df.to_string()}
-
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-    1. The account's position in the cash flow statement structure (e.g., Operating Activities, Investing Activities, Financing Activities)
-    2. The semantic meaning of the account name and its relationship to standard cash flow statement line items
-    3. The nearby rows to understand the context of this account
-    4. Common financial reporting standards and practices for cash flow statements
-
-    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest an Operating Activity Mnemonic for a Financing Activity Label."""
-
-    suggested_mnemonic = generate_response(prompt).strip()
-
-    account_embedding = get_embedding(f"{label} {account}")
-    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-
-    top_3_similar = similarities.nlargest(3)
-    scores = {}
-    for idx in top_3_similar.index:
-        row = cash_flow_lookup_df.loc[idx]
-        score = 0
-        if row['Label'].lower() == label.lower():
-            score += 2
-        if row['Mnemonic'] == suggested_mnemonic:
-            score += 3
-        score += top_3_similar[idx] * 5
-        scores[row['Mnemonic']] = score
-
-    if "depreciation" in account.lower() and "amortization" in account.lower():
-        depreciation_amortization = cash_flow_lookup_df[cash_flow_lookup_df['Mnemonic'].str.contains('Depreciation & Amortization', case=False)]['Mnemonic']
-        if not depreciation_amortization.empty:
-            scores[depreciation_amortization.iloc[0]] = max(scores.values()) + 1
-
-    best_mnemonic = max(scores, key=scores.get)
-    return best_mnemonic
-
 # Define the initial lookup data for Balance Sheet
 initial_balance_sheet_lookup_data = {
     "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
@@ -154,17 +110,8 @@ initial_balance_sheet_lookup_data = {
     "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
 }
 
-# Define the initial lookup data for Cash Flow Statement
-initial_cash_flow_lookup_data = {
-    "Label": ["Operating Activities", "Investing Activities", "Financing Activities", "Cash Flow from Other", "Supplemental Cash Flow"],
-    "Account": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
-    "Mnemonic": ["Net Income", "Depreciation & Amortization", "Changes in Working Capital", "Capital Expenditures", "Dividends Paid"],
-    "CIQ": ["IQ_NI", "IQ_DA", "IQ_CWC", "IQ_CAPEX", "IQ_DIVPAID"]
-}
-
-# Define the file paths for the data dictionaries
+# Define the file path for the Balance Sheet data dictionary
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
-cash_flow_data_dictionary_file = 'cash_flow_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
 @st.cache_data
@@ -181,9 +128,8 @@ def load_or_initialize_lookup(file_path, initial_data):
 def save_lookup_table(df, file_path):
     df.to_excel(file_path, index=False)
 
-# Initialize lookup tables for Balance Sheet and Cash Flow Statement
+# Initialize lookup table for Balance Sheet
 balance_sheet_lookup_df = load_or_initialize_lookup(balance_sheet_data_dictionary_file, initial_balance_sheet_lookup_data)
-cash_flow_lookup_df = load_or_initialize_lookup(cash_flow_data_dictionary_file, initial_cash_flow_lookup_data)
 
 # General Utility Functions
 def process_file(file):
@@ -616,7 +562,7 @@ def balance_sheet_BS():
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'].strip() if row['Manual Selection'].strip() != '' else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
@@ -655,7 +601,7 @@ def balance_sheet_BS():
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] not in ['REMOVE ROW', ''] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
@@ -676,34 +622,40 @@ def balance_sheet_BS():
                     if new_entries:
                         balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
                     balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    st.session_state.balance_sheet_lookup_df = balance_sheet_lookup_df
                     save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
+        if 'balance_sheet_data' not in st.session_state:
+            st.session_state.balance_sheet_data = balance_sheet_lookup_df
+
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
         if uploaded_dict_file is not None:
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df
+            st.session_state.balance_sheet_data = balance_sheet_lookup_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             st.success("Data Dictionary uploaded and updated successfully!")
 
-        st.dataframe(balance_sheet_lookup_df)
+        st.dataframe(st.session_state.balance_sheet_data)
 
-        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_data.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            balance_sheet_lookup_df = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
+            st.session_state.balance_sheet_data = balance_sheet_lookup_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
             rows_removed = True
             st.success("Selected rows removed successfully!")
-            st.dataframe(balance_sheet_lookup_df)
+            st.dataframe(st.session_state.balance_sheet_data)
 
         st.subheader("Download Data Dictionary")
         download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
         excel_file = io.BytesIO()
-        balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
