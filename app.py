@@ -1232,7 +1232,7 @@ def clean_numeric_value_IS(value):
 
 def apply_unit_conversion_IS(df, columns, factor):
     for selected_column in columns:
-        if selected_column in df.columns:
+        if (selected_column in df.columns) and (not df[selected_column].isnull().all()):
             df[selected_column] = df[selected_column].apply(
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
@@ -1347,11 +1347,15 @@ def update_negative_values(df):
 def income_statement():
     global income_statement_lookup_df
 
-    if 'income_statement_lookup_df' not in globals():
+    if 'income_statement_lookup_df' not in st.session_state:
         if os.path.exists(income_statement_data_dictionary_file):
             income_statement_lookup_df = pd.read_excel(income_statement_data_dictionary_file)
+            st.session_state.income_statement_lookup_df = income_statement_lookup_df
         else:
             income_statement_lookup_df = pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ'])
+            st.session_state.income_statement_lookup_df = income_statement_lookup_df
+    else:
+        income_statement_lookup_df = st.session_state.income_statement_lookup_df
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Income Statement Data Dictionary"])
@@ -1646,6 +1650,7 @@ def income_statement():
                     if new_entries_is:
                         income_statement_lookup_df = pd.concat([income_statement_lookup_df, pd.DataFrame(new_entries_is)], ignore_index=True)
                     income_statement_lookup_df.reset_index(drop=True, inplace=True)
+                    st.session_state.income_statement_lookup_df = income_statement_lookup_df
                     save_lookup_table(income_statement_lookup_df, income_statement_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
