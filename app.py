@@ -710,6 +710,18 @@ def balance_sheet_BS():
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
     global cash_flow_lookup_df
+    cash_flow_data_dictionary_file = "cash_flow_data_dictionary.xlsx"  # Define the file to store the data dictionary
+
+    def save_lookup_table(df, filename):
+        df.to_excel(filename, index=False)
+
+    def load_lookup_table(filename):
+        try:
+            return pd.read_excel(filename)
+        except FileNotFoundError:
+            return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ', 'Label'])
+
+    cash_flow_lookup_df = load_lookup_table(cash_flow_data_dictionary_file)
 
     st.title("CASH FLOW STATEMENT LTMA")
 
@@ -991,7 +1003,7 @@ def cash_flow_statement_CF():
                                 st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
                     label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics] + ['REMOVE ROW']
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options,
@@ -1057,7 +1069,9 @@ def cash_flow_statement_CF():
                         final_mnemonic = row['Final Mnemonic Selection']
                         ciq_value = cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not cash_flow_lookup_df.loc[cash_flow_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                        if manual_selection != '':
+                        if manual_selection == 'REMOVE ROW':
+                            cash_flow_lookup_df = cash_flow_lookup_df.drop(idx)
+                        elif manual_selection != '':
                             if row['Account'] not in cash_flow_lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
