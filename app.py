@@ -1071,9 +1071,7 @@ def cash_flow_statement_CF():
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
- 
-
+      
 #############INCOME STATEMENT#######################################################################
 import io
 import os
