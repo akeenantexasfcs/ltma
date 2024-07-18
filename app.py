@@ -723,9 +723,7 @@ def cash_flow_statement_CF():
                 st.error("No columns found in the uploaded JSON file.")
                 return
 
-            column_options = list(all_tables.columns)
-            selected_column = st.selectbox("Select the column for setting bounds:", options=column_options, key="column_selector_cfs")
-
+            column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
             st.subheader("Data Preview")
@@ -751,7 +749,7 @@ def cash_flow_statement_CF():
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + get_unique_options(all_tables[selected_column].dropna())
+                options = [''] + get_unique_options(all_tables[column_a].dropna())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}_cfs")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}_cfs")
                 selections.append((label, start_label, end_label))
@@ -760,7 +758,7 @@ def cash_flow_statement_CF():
 
             def update_labels(df):
                 df['Label'] = ''
-                account_column = new_column_names.get(selected_column, selected_column)
+                account_column = new_column_names.get(column_a, column_a)
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
@@ -1071,7 +1069,8 @@ def cash_flow_statement_CF():
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-      
+        
+
 #############INCOME STATEMENT#######################################################################
 import io
 import os
