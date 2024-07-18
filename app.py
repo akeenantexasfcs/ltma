@@ -606,21 +606,21 @@ def balance_sheet_BS():
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        ciq_value = lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                        ciq_value = st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
                         if manual_selection == 'REMOVE ROW':
-                            lookup_df = lookup_df.drop(idx)
+                            st.session_state.balance_sheet_data = st.session_state.balance_sheet_data.drop(idx)
                         elif manual_selection != '':
-                            if row['Account'] not in lookup_df['Account'].values:
+                            if row['Account'] not in st.session_state.balance_sheet_data['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Label'] = row['Label']
+                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
-                        lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                    lookup_df.reset_index(drop=True, inplace=True)
-                    save_lookup_table(lookup_df, data_dictionary_file)
+                        st.session_state.balance_sheet_data = pd.concat([st.session_state.balance_sheet_data, pd.DataFrame(new_entries)], ignore_index=True)
+                    st.session_state.balance_sheet_data.reset_index(drop=True, inplace=True)
+                    save_lookup_table(st.session_state.balance_sheet_data, balance_sheet_data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
