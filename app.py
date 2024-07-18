@@ -114,15 +114,13 @@ initial_balance_sheet_lookup_data = {
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
-@st.cache_data
 def load_balance_sheet_data():
-    try:
-        return pd.read_excel(balance_sheet_data_dictionary_file)
-    except FileNotFoundError:
-        return pd.DataFrame(initial_balance_sheet_lookup_data)
-
-if 'balance_sheet_data' not in st.session_state:
-    st.session_state.balance_sheet_data = load_balance_sheet_data()
+    if 'balance_sheet_data' not in st.session_state:
+        try:
+            st.session_state.balance_sheet_data = pd.read_excel(balance_sheet_data_dictionary_file)
+        except FileNotFoundError:
+            st.session_state.balance_sheet_data = pd.DataFrame(initial_balance_sheet_lookup_data)
+    return st.session_state.balance_sheet_data
 
 def save_and_update_balance_sheet_data(df):
     st.session_state.balance_sheet_data = df
@@ -469,7 +467,9 @@ def balance_sheet_BS():
         st.session_state.active_tab = 'Mappings and Data Consolidation'
         st.subheader("Mappings and Data Consolidation")
 
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+        with st.form("file_upload_form"):
+            uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+            submit_button = st.form_submit_button("Upload")
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
@@ -478,7 +478,7 @@ def balance_sheet_BS():
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
         company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
-        if uploaded_excel is not None:
+        if submit_button and uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
 
             statement_dates = {}
