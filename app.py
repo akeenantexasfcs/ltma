@@ -111,13 +111,13 @@ initial_balance_sheet_lookup_data = {
 }
 
 # Define the file path for the Balance Sheet data dictionary
-balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
+balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.csv'
 
 # Load or initialize the lookup table
 @st.cache_data
 def load_balance_sheet_data():
     try:
-        return pd.read_excel(balance_sheet_data_dictionary_file)
+        return pd.read_csv(balance_sheet_data_dictionary_file)
     except FileNotFoundError:
         return pd.DataFrame(initial_balance_sheet_lookup_data)
 
@@ -129,7 +129,7 @@ def save_and_update_balance_sheet_data(df):
     save_lookup_table(df, balance_sheet_data_dictionary_file)
 
 def save_lookup_table(df, file_path):
-    df.to_excel(file_path, index=False)
+    df.to_csv(file_path, index=False)
 
 # General Utility Functions
 def process_file(file):
@@ -646,9 +646,9 @@ def balance_sheet_BS():
         st.subheader("Download Data Dictionary")
         download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
         excel_file = io.BytesIO()
-        st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
+        st.session_state.balance_sheet_data.to_csv(excel_file, index=False)
         excel_file.seek(0)
-        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.csv", "text/csv")
 
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
