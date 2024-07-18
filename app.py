@@ -297,7 +297,7 @@ def balance_sheet_BS():
                 for item in series:
                     if counts[item] > 1:
                         if item not in occurrence_counts:
-                            occurrence_counts[item] += 1
+                            occurrence_counts[item] = 1
                         else:
                             occurrence_counts[item] += 1
                         unique_options.append(f"{item} {occurrence_counts[item]}")
@@ -477,9 +477,6 @@ def balance_sheet_BS():
         st.subheader("Mappings and Data Consolidation")
 
         uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
-
-        if uploaded_excel is not None:
-            st.experimental_rerun()
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
