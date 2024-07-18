@@ -114,13 +114,15 @@ initial_balance_sheet_lookup_data = {
 balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 
 # Load or initialize the lookup table
+@st.cache_data
 def load_balance_sheet_data():
-    if 'balance_sheet_data' not in st.session_state:
-        try:
-            st.session_state.balance_sheet_data = pd.read_excel(balance_sheet_data_dictionary_file)
-        except FileNotFoundError:
-            st.session_state.balance_sheet_data = pd.DataFrame(initial_balance_sheet_lookup_data)
-    return st.session_state.balance_sheet_data
+    try:
+        return pd.read_excel(balance_sheet_data_dictionary_file)
+    except FileNotFoundError:
+        return pd.DataFrame(initial_balance_sheet_lookup_data)
+
+if 'balance_sheet_data' not in st.session_state:
+    st.session_state.balance_sheet_data = load_balance_sheet_data()
 
 def save_and_update_balance_sheet_data(df):
     st.session_state.balance_sheet_data = df
@@ -231,11 +233,7 @@ def balance_sheet_BS():
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
 
-    if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = 'Table Extractor'
-
     with tab1:
-        st.session_state.active_tab = 'Table Extractor'
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
             data = json.load(uploaded_file)
@@ -416,7 +414,6 @@ def balance_sheet_BS():
                     st.success("No duplicates identified")
 
     with tab2:
-        st.session_state.active_tab = 'Aggregate My Data'
         st.subheader("Aggregate My Data")
 
         uploaded_files = st.file_uploader("Upload your Excel files from Tab 1", type=['xlsx'], accept_multiple_files=True, key='xlsx_uploader_tab2')
@@ -464,12 +461,9 @@ def balance_sheet_BS():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.session_state.active_tab = 'Mappings and Data Consolidation'
         st.subheader("Mappings and Data Consolidation")
 
-        with st.form("file_upload_form"):
-            uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
-            submit_button = st.form_submit_button("Upload")
+        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
         currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
         magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
@@ -478,7 +472,7 @@ def balance_sheet_BS():
         selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
         company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
-        if submit_button and uploaded_excel is not None:
+        if uploaded_excel is not None:
             df = pd.read_excel(uploaded_excel)
 
             statement_dates = {}
@@ -630,7 +624,6 @@ def balance_sheet_BS():
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
-        st.session_state.active_tab = 'Balance Sheet Data Dictionary'
         st.subheader("Balance Sheet Data Dictionary")
 
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
@@ -656,7 +649,6 @@ def balance_sheet_BS():
         st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 ######################################Cash Flow Statement Functions#################################
 def cash_flow_statement_CF():
