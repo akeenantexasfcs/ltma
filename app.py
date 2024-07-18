@@ -597,30 +597,30 @@ def balance_sheet_BS():
                     excel_file.seek(0)
                     st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3"):
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
                     for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
-                        if manual_selection == 'REMOVE ROW':
-                            continue
-                        ciq_value = st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                        ciq_value = lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not lookup_df.loc[lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
 
-                        if manual_selection not in ['REMOVE ROW', '']:
-                            if row['Account'] not in st.session_state.balance_sheet_data['Account'].values:
+                        if manual_selection == 'REMOVE ROW':
+                            lookup_df = lookup_df.drop(idx)
+                        elif manual_selection != '':
+                            if row['Account'] not in lookup_df['Account'].values:
                                 new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
                             else:
-                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'Label'] = row['Label']
-                                st.session_state.balance_sheet_data.loc[st.session_state.balance_sheet_data['Account'] == row['Account'], 'CIQ'] = ciq_value
+                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                lookup_df.loc[lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
                     if new_entries:
-                        st.session_state.balance_sheet_data = pd.concat([st.session_state.balance_sheet_data, pd.DataFrame(new_entries)], ignore_index=True)
-                    st.session_state.balance_sheet_data.reset_index(drop=True, inplace=True)
-                    save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
+                        lookup_df = pd.concat([lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(lookup_df, data_dictionary_file)
                     st.success("Data Dictionary Updated Successfully")
 
     with tab4:
