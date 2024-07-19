@@ -1337,7 +1337,7 @@ def update_negative_values(df):
         "IQ_RD_EXP",
         "IQ_DA_SUPPL",
         "IQ_STOCK_BASED",
-        "IQ_OTHER_OPER",
+        "IQ_OTHER_OPERR",
         "IQ_INC_TAX"
     ]
     
@@ -1345,7 +1345,7 @@ def update_negative_values(df):
         if row['CIQ'] in criteria:
             for col in df.columns[2:]:  # Start from column index 2 (skip 'Final Mnemonic Selection' and 'CIQ')
                 if isinstance(row[col], (int, float)) and row[col] < 0:
-                    df.at[index, col] = row[col] * 1
+                    df.at[index, col] = row[col] * -1
     return df
 
 def income_statement():
