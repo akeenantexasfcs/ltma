@@ -550,16 +550,33 @@ def balance_sheet_BS():
                     st.session_state.ai_recommendations_generated = True
                     st.experimental_rerun()
 
-                edited_df = st.experimental_data_editor(df, num_rows="dynamic")
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if row['Mnemonic'] == 'Human Intervention Required':
+                        st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                        if st.session_state.ai_recommendations_generated and idx in st.session_state.ai_suggestions_bs:
+                            ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
+                            st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
-                st.dataframe(edited_df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection = st.selectbox(
+                        f"Select category for '{account_value}'",
+                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        key=f"select_{idx}_tab3_bs"
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
-                    edited_df['Final Mnemonic Selection'] = edited_df.apply(
+                    df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
                         axis=1
                     )
-                    final_output_df = edited_df[edited_df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
 
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
@@ -594,12 +611,12 @@ def balance_sheet_BS():
                     st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
-                    edited_df['Final Mnemonic Selection'] = edited_df.apply(
+                    df['Final Mnemonic Selection'] = df.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
                         axis=1
                     )
                     new_entries = []
-                    for idx, row in edited_df.iterrows():
+                    for idx, row in df.iterrows():
                         manual_selection = row['Manual Selection']
                         final_mnemonic = row['Final Mnemonic Selection']
                         ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
