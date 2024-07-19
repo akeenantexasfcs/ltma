@@ -571,12 +571,13 @@ def balance_sheet_BS():
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):  # or _cfs for Cash Flow
                     df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
                         axis=1
                     )
-                    final_output_df = df[df['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
+                    # Filter out rows where Manual Selection is "REMOVE ROW"
+                    final_output_df = df[df['Manual Selection'] != 'REMOVE ROW'].copy()
 
                     combined_df = create_combined_df([final_output_df])
                     combined_df = sort_by_label_and_final_mnemonic(combined_df)
@@ -584,7 +585,7 @@ def balance_sheet_BS():
                     def lookup_ciq(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']  # Use cash_flow_lookup_df for Cash Flow
                         if ciq_value.empty:
                             return 'CIQ ID Required'
                         return ciq_value.values[0]
