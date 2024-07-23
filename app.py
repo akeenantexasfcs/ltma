@@ -1883,15 +1883,32 @@ import io
 
 def check_aws_credentials():
     try:
+        # Print the keys in st.secrets (don't print values in production!)
+        st.write("Available secret keys:", list(st.secrets.keys()))
+        
+        if "aws" not in st.secrets:
+            st.error("'aws' key not found in secrets")
+            return False
+        
+        aws_secrets = st.secrets["aws"]
+        st.write("Available AWS secret keys:", list(aws_secrets.keys()))
+        
+        required_keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"]
+        for key in required_keys:
+            if key not in aws_secrets:
+                st.error(f"'{key}' not found in AWS secrets")
+                return False
+        
         session = boto3.Session(
-            aws_access_key_id=st.secrets["aws"]["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"],
-            region_name=st.secrets["aws"]["AWS_REGION"]
+            aws_access_key_id=aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            region_name=aws_secrets["AWS_REGION"]
         )
         sts = session.client('sts')
         sts.get_caller_identity()
         return True
-    except botocore.exceptions.ClientError:
+    except Exception as e:
+        st.error(f"Error checking AWS credentials: {str(e)}")
         return False
 
 def safe_get(dict_obj, key, default=None):
@@ -2048,7 +2065,8 @@ def aws_textract_tab():
     st.write("Enter your AWS credentials and upload an image or PDF file to extract tables using AWS Textract.")
 
     if st.button("Confirm Credentials"):
-        if check_aws_credentials():
+        credentials_valid = check_aws_credentials()
+        if credentials_valid:
             st.success("AWS credentials are valid!")
             st.session_state.credentials_valid = True
         else:
