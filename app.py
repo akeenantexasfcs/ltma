@@ -14,12 +14,12 @@ import pandas as pd
 import time
 import io
 
-def check_aws_credentials(access_key, secret_key, region):
+def check_aws_credentials():
     try:
         session = boto3.Session(
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            region_name=region
+            aws_access_key_id=st.secrets["aws"]["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"],
+            region_name=st.secrets["aws"]["AWS_REGION"]
         )
         sts = session.client('sts')
         sts.get_caller_identity()
@@ -180,14 +180,8 @@ def aws_textract_tab():
     st.title("AWS Textract with Streamlit - Table Extraction")
     st.write("Enter your AWS credentials and upload an image or PDF file to extract tables using AWS Textract.")
 
-    # AWS Credentials Input
-    aws_access_key = st.text_input("AWS Access Key ID", type="password", key="aws_access_key")
-    aws_secret_key = st.text_input("AWS Secret Access Key", type="password", key="aws_secret_key")
-    aws_region = st.selectbox("AWS Region", ["us-east-2", "us-east-1", "us-west-1", "us-west-2"], index=0)
-    s3_bucket_name = st.text_input("S3 Bucket Name")
-
     if st.button("Confirm Credentials"):
-        if check_aws_credentials(aws_access_key, aws_secret_key, aws_region):
+        if check_aws_credentials():
             st.success("AWS credentials are valid!")
             st.session_state.credentials_valid = True
         else:
@@ -206,17 +200,17 @@ def aws_textract_tab():
                     temp_file_path = temp_file.name
                 
                 textract_client = boto3.client('textract',
-                                               aws_access_key_id=aws_access_key,
-                                               aws_secret_access_key=aws_secret_key,
-                                               region_name=aws_region)
+                                               aws_access_key_id=st.secrets["aws"]["AWS_ACCESS_KEY_ID"],
+                                               aws_secret_access_key=st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"],
+                                               region_name=st.secrets["aws"]["AWS_REGION"])
                 
                 s3_client = boto3.client('s3',
-                                         aws_access_key_id=aws_access_key,
-                                         aws_secret_access_key=aws_secret_key,
-                                         region_name=aws_region)
+                                         aws_access_key_id=st.secrets["aws"]["AWS_ACCESS_KEY_ID"],
+                                         aws_secret_access_key=st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"],
+                                         region_name=st.secrets["aws"]["AWS_REGION"])
                 
                 with st.spinner("Processing document..."):
-                    tables, response_json_path, simplified_response = process_document(temp_file_path, textract_client, s3_client, s3_bucket_name)
+                    tables, response_json_path, simplified_response = process_document(temp_file_path, textract_client, s3_client, st.secrets["aws"]["S3_BUCKET_NAME"])
                 
                 st.session_state.processed = True
                 st.session_state.response_json_path = response_json_path
