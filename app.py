@@ -1227,6 +1227,8 @@ conversion_factors = {
 def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
+        # Remove any number of spaces between $ and (
+        value_str = re.sub(r'\$\s*\(', '$(', value_str)
         if value_str.startswith('(') and value_str.endswith(')'):
             value_str = '-' + value_str[1:-1]
         cleaned_value = re.sub(r'[$,]', '', value_str)
