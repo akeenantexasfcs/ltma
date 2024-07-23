@@ -518,7 +518,7 @@ def balance_sheet_BS():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.25:
+                        if best_match is not None and score < 0.30:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
@@ -994,7 +994,7 @@ def cash_flow_statement_CF():
                     label_value = row.get('Label', '')
                     if pd.notna(account_value):
                         best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.25:
+                        if best_match is not None and score < 0.30:
                             df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
                         else:
                             df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
@@ -1538,7 +1538,7 @@ def income_statement():
                     account_value = row['Account']
                     if pd.notna(account_value):
                         best_match_is, score_is = get_best_match_is(account_value)
-                        if best_match_is is not None and score_is < 0.25:
+                        if best_match_is is not None and score_is < 0.30:
                             df_is.at[idx, 'Mnemonic'] = best_match_is['Mnemonic']
                         else:
                             df_is.at[idx, 'Mnemonic'] = 'Human Intervention Required'
@@ -2175,7 +2175,7 @@ def backup_data_dictionaries():
             # Construct full file paths
             balance_sheet_path = os.path.join(current_dir, 'balance_sheet_data_dictionary.xlsx')
             cash_flow_path = os.path.join(current_dir, 'cash_flow_data_dictionary.xlsx')
-            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.xlsx')
+            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.csv')
             
             # Load data dictionaries
             balance_sheet_data = pd.read_excel(balance_sheet_path)
