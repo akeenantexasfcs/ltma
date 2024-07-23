@@ -1259,31 +1259,32 @@ def apply_unit_conversion_IS(df, columns, factor):
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
 
-def create_combined_df_IS(dfs):
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            continue
+def clean_numeric_value_IS(value):
+    try:
+        value_str = str(value).strip()
         
-        date_cols = [col for col in df.columns if col not in ['Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection', 'Sort Index']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col]).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=[final_mnemonic_col], columns='Date', values='Value')
+        # Remove any number of spaces between $ and (
+        value_str = re.sub(r'\$\s*\(', '$(', value_str)
         
-        # Reverse the order of the date columns
-        df_pivot = df_pivot[sorted(df_pivot.columns, reverse=True)]
+        # Handle negative values in parentheses
+        if value_str.startswith('(') and value_str.endswith(')'):
+            value_str = '-' + value_str[1:-1]
+        elif value_str.startswith('$(') and value_str.endswith(')'):
+            value_str = '-$' + value_str[2:-1]
         
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
+        # Remove dollar signs and commas
+        cleaned_value = re.sub(r'[$,]', '', value_str)
+        
+        # Convert text to number
+        try:
+            cleaned_value = w2n.word_to_num(cleaned_value)
+        except ValueError:
+            pass
+        
+        return float(cleaned_value)
+    except (ValueError, TypeError) as e:
+        print(f"Error converting value: {value} with error: {e}")
+        return value
 
 def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
