@@ -2064,6 +2064,9 @@ def aws_textract_tab():
     st.title("AWS Textract with Streamlit - Table Extraction")
     st.write("Enter your AWS credentials and upload an image or PDF file to extract tables using AWS Textract.")
 
+    if 'credentials_valid' not in st.session_state:
+        st.session_state.credentials_valid = False
+
     if st.button("Confirm Credentials"):
         credentials_valid = check_aws_credentials()
         if credentials_valid:
@@ -2077,7 +2080,7 @@ def aws_textract_tab():
     if st.session_state.credentials_valid:
         uploaded_file = st.file_uploader("Choose an image or PDF file", type=["jpg", "jpeg", "png", "pdf"])
 
-        if uploaded_file is not None and (not st.session_state.processed or uploaded_file != st.session_state.uploaded_file):
+        if uploaded_file is not None and (not st.session_state.get('processed', False) or uploaded_file != st.session_state.get('uploaded_file')):
             st.session_state.uploaded_file = uploaded_file
             temp_file_path = None
             try:
@@ -2114,7 +2117,7 @@ def aws_textract_tab():
                     os.unlink(temp_file_path)
 
     # Show download button and table extraction results only if processing is complete
-    if st.session_state.processed:
+    if st.session_state.get('processed', False):
         response_json_path = st.session_state.response_json_path
         simplified_response = st.session_state.simplified_response
         tables = st.session_state.tables
@@ -2165,28 +2168,44 @@ def aws_textract_tab():
 
 def backup_data_dictionaries():
     if st.button("Backup Data Dictionaries"):
-        # Load data dictionaries
-        balance_sheet_data = pd.read_csv('balance_sheet_data_dictionary.csv')
-        cash_flow_data = pd.read_csv('cash_flow_data_dictionary.csv')
-        income_statement_data = pd.read_excel('income_statement_data_dictionary.xlsx')
+        try:
+            # Get the directory of the current script
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Construct full file paths
+            balance_sheet_path = os.path.join(current_dir, 'balance_sheet_data_dictionary.xlsx')
+            cash_flow_path = os.path.join(current_dir, 'cash_flow_data_dictionary.xlsx')
+            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.csv')
+            
+            # Load data dictionaries
+            balance_sheet_data = pd.read_excel(balance_sheet_path)
+            cash_flow_data = pd.read_excel(cash_flow_path)
+            income_statement_data = pd.read_csv(income_statement_path)
+            
+            # Create a new Excel writer object
+            with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
+                # Write each DataFrame to a different sheet
+                balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
+                cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
+                income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
 
-        # Create a new Excel writer object
-        with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
-            # Write each DataFrame to a different sheet
-            balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
-            cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
-            income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
+            # Read the file into a BytesIO object for download
+            with open("data_dictionaries_backup.xlsx", "rb") as file:
+                backup_file = io.BytesIO(file.read())
 
-        # Read the file into a BytesIO object for download
-        with open("data_dictionaries_backup.xlsx", "rb") as file:
-            backup_file = io.BytesIO(file.read())
+            st.download_button(
+                label="Download Backup",
+                data=backup_file,
+                file_name="data_dictionaries_backup.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
-        st.download_button(
-            label="Download Backup",
-            data=backup_file,
-            file_name="data_dictionaries_backup.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+            st.success("Backup created successfully!")
+
+        except FileNotFoundError as e:
+            st.error(f"File not found: {e.filename}. Please make sure all required files are in the same directory as the script.")
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
 
 def extras_tab():
     st.title("Extras")
