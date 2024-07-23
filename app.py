@@ -176,13 +176,30 @@ def aggregate_data(df):
     return pivot_table
 
 def clean_numeric_value(value):
-    value_str = str(value).strip()
-    if value_str.startswith('(') and value_str.endswith(')'):
-        value_str = '-' + value_str[1:-1]
-    cleaned_value = re.sub(r'[$,]', '', value_str)
     try:
+        value_str = str(value).strip()
+        
+        # Remove any number of spaces between $ and (
+        value_str = re.sub(r'\$\s*\(', '$(', value_str)
+        
+        # Handle negative values in parentheses
+        if value_str.startswith('(') and value_str.endswith(')'):
+            value_str = '-' + value_str[1:-1]
+        elif value_str.startswith('$(') and value_str.endswith(')'):
+            value_str = '-$' + value_str[2:-1]
+        
+        # Remove dollar signs and commas
+        cleaned_value = re.sub(r'[$,]', '', value_str)
+        
+        # Convert text to number
+        try:
+            cleaned_value = w2n.word_to_num(cleaned_value)
+        except ValueError:
+            pass
+        
         return float(cleaned_value)
-    except ValueError:
+    except (ValueError, TypeError) as e:
+        print(f"Error converting value: {value} with error: {e}")
         return 0
 
 def sort_by_label_and_account(df):
