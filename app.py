@@ -1131,6 +1131,7 @@ import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
+from word2number import w2n
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -1223,6 +1224,8 @@ conversion_factors = {
     "Millions": 1000000,
     "Billions": 1000000000
 }
+
+
 
 def clean_numeric_value_IS(value):
     try:
