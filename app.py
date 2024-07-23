@@ -2053,11 +2053,12 @@ def process_document(file_path, textract_client, s3_client, bucket_name):
         st.error(f"An error occurred during document processing: {str(e)}")
         raise
 
-# Initialize session state
-if 'processed' not in st.session_state:
+def reset_aws_process():
     st.session_state.processed = False
-if 'credentials_valid' not in st.session_state:
-    st.session_state.credentials_valid = False
+    st.session_state.uploaded_file = None
+    st.session_state.response_json_path = None
+    st.session_state.simplified_response = None
+    st.session_state.tables = None
 
 def aws_textract_tab():
     st.title("AWS Textract with Streamlit - Table Extraction")
@@ -2076,7 +2077,8 @@ def aws_textract_tab():
     if st.session_state.credentials_valid:
         uploaded_file = st.file_uploader("Choose an image or PDF file", type=["jpg", "jpeg", "png", "pdf"])
 
-        if uploaded_file is not None and not st.session_state.processed:
+        if uploaded_file is not None and (not st.session_state.processed or uploaded_file != st.session_state.uploaded_file):
+            st.session_state.uploaded_file = uploaded_file
             temp_file_path = None
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as temp_file:
@@ -2121,13 +2123,14 @@ def aws_textract_tab():
         st.subheader("Download Full JSON Response:")
         json_file_name = st.text_input("Enter JSON file name (without .json extension)", value='textract_response')
         
-        with open(response_json_path, 'rb') as f:
-            st.download_button(
-                label="Download JSON",
-                data=f,
-                file_name=f"{json_file_name}.json" if json_file_name else 'textract_response.json',
-                mime='application/json'
-            )
+        if st.button("Download JSON"):
+            with open(response_json_path, 'rb') as f:
+                st.download_button(
+                    label="Click to Download",
+                    data=f,
+                    file_name=f"{json_file_name}.json" if json_file_name else 'textract_response.json',
+                    mime='application/json'
+                )
 
         # Now display the extracted information
         st.subheader("Detected Tables:")
@@ -2157,38 +2160,42 @@ def aws_textract_tab():
 
         # Add a button to reset the process
         if st.button("Process another document"):
-            st.session_state.processed = False
+            reset_aws_process()
             st.experimental_rerun()
+
+def backup_data_dictionaries():
+    if st.button("Backup Data Dictionaries"):
+        # Load data dictionaries
+        balance_sheet_data = pd.read_csv('balance_sheet_data_dictionary.csv')
+        cash_flow_data = pd.read_csv('cash_flow_data_dictionary.csv')
+        income_statement_data = pd.read_excel('income_statement_data_dictionary.xlsx')
+
+        # Create a new Excel writer object
+        with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
+            # Write each DataFrame to a different sheet
+            balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
+            cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
+            income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
+
+        # Read the file into a BytesIO object for download
+        with open("data_dictionaries_backup.xlsx", "rb") as file:
+            backup_file = io.BytesIO(file.read())
+
+        st.download_button(
+            label="Download Backup",
+            data=backup_file,
+            file_name="data_dictionaries_backup.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 def extras_tab():
     st.title("Extras")
-    selection = st.radio("Select an option", ["Backup Data Dictionaries", "AWS Textract"])
+    tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract"])
 
-    if selection == "Backup Data Dictionaries":
-        if st.button("Backup Data Dictionaries"):
-            # Load data dictionaries
-            balance_sheet_data = pd.read_csv('balance_sheet_data_dictionary.csv')
-            cash_flow_data = pd.read_csv('cash_flow_data_dictionary.csv')
-            income_statement_data = pd.read_excel('income_statement_data_dictionary.xlsx')
-
-            # Create a new Excel writer object
-            with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
-                # Write each DataFrame to a different sheet
-                balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
-                cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
-                income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
-
-            # Read the file into a BytesIO object for download
-            with open("data_dictionaries_backup.xlsx", "rb") as file:
-                backup_file = io.BytesIO(file.read())
-
-            st.download_button(
-                label="Download Backup",
-                data=backup_file,
-                file_name="data_dictionaries_backup.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-    elif selection == "AWS Textract":
+    with tabs[0]:
+        backup_data_dictionaries()
+    
+    with tabs[1]:
         aws_textract_tab()
 
 def main():
