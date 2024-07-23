@@ -2175,7 +2175,7 @@ def backup_data_dictionaries():
             # Construct full file paths
             balance_sheet_path = os.path.join(current_dir, 'balance_sheet_data_dictionary.xlsx')
             cash_flow_path = os.path.join(current_dir, 'cash_flow_data_dictionary.xlsx')
-            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.csv')
+            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.xlsx')
             
             # Load data dictionaries
             balance_sheet_data = pd.read_excel(balance_sheet_path)
