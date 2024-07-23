@@ -1227,14 +1227,27 @@ conversion_factors = {
 def clean_numeric_value_IS(value):
     try:
         value_str = str(value).strip()
+        
         # Remove any number of spaces between $ and (
         value_str = re.sub(r'\$\s*\(', '$(', value_str)
+        
+        # Handle negative values in parentheses
         if value_str.startswith('(') and value_str.endswith(')'):
             value_str = '-' + value_str[1:-1]
+        
+        # Remove dollar signs and commas
         cleaned_value = re.sub(r'[$,]', '', value_str)
+        
+        # Convert text to number
+        try:
+            cleaned_value = w2n.word_to_num(cleaned_value)
+        except ValueError:
+            pass
+        
         return float(cleaned_value)
     except (ValueError, TypeError):
         return value
+
 
 def apply_unit_conversion_IS(df, columns, factor):
     for selected_column in columns:
