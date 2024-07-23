@@ -1242,7 +1242,9 @@ conversion_factors = {
     "Billions": 1000000000
 }
 
-
+def create_combined_df_IS(dfs):
+    combined_df = pd.concat(dfs, ignore_index=True)
+    return combined_df
 
 def clean_numeric_value_IS(value):
     try:
@@ -1268,40 +1270,12 @@ def clean_numeric_value_IS(value):
     except (ValueError, TypeError):
         return value
 
-
 def apply_unit_conversion_IS(df, columns, factor):
     for selected_column in columns:
         if (selected_column in df.columns) and (not df[selected_column].isnull().all()):
             df[selected_column] = df[selected_column].apply(
                 lambda x: x * factor if isinstance(x, (int, float)) else x)
     return df
-
-def clean_numeric_value_IS(value):
-    try:
-        value_str = str(value).strip()
-        
-        # Remove any number of spaces between $ and (
-        value_str = re.sub(r'\$\s*\(', '$(', value_str)
-        
-        # Handle negative values in parentheses
-        if value_str.startswith('(') and value_str.endswith(')'):
-            value_str = '-' + value_str[1:-1]
-        elif value_str.startswith('$(') and value_str.endswith(')'):
-            value_str = '-$' + value_str[2:-1]
-        
-        # Remove dollar signs and commas
-        cleaned_value = re.sub(r'[$,]', '', value_str)
-        
-        # Convert text to number
-        try:
-            cleaned_value = w2n.word_to_num(cleaned_value)
-        except ValueError:
-            pass
-        
-        return float(cleaned_value)
-    except (ValueError, TypeError) as e:
-        print(f"Error converting value: {value} with error: {e}")
-        return value
 
 def sort_by_sort_index(df):
     if 'Sort Index' in df.columns:
@@ -1721,7 +1695,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
       
 ####################################### Populate CIQ Template ###################################
