@@ -2175,37 +2175,48 @@ def backup_data_dictionaries():
             # Construct full file paths
             balance_sheet_path = os.path.join(current_dir, 'balance_sheet_data_dictionary.xlsx')
             cash_flow_path = os.path.join(current_dir, 'cash_flow_data_dictionary.xlsx')
-            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.csv')
+            income_statement_path = os.path.join(current_dir, 'income_statement_data_dictionary.xlsx')
             
             # Load data dictionaries
-            balance_sheet_data = pd.read_excel(balance_sheet_path)
-            cash_flow_data = pd.read_excel(cash_flow_path)
-            income_statement_data = pd.read_csv(income_statement_path)
+            dfs = {}
+            for name, path in [('Balance Sheet', balance_sheet_path), 
+                               ('Cash Flow', cash_flow_path), 
+                               ('Income Statement', income_statement_path)]:
+                try:
+                    if path.endswith('.xlsx'):
+                        dfs[name] = pd.read_excel(path)
+                    elif path.endswith('.csv'):
+                        dfs[name] = pd.read_csv(path)
+                    else:
+                        st.warning(f"Unsupported file format for {name}. Skipping.")
+                except FileNotFoundError:
+                    st.warning(f"{name} dictionary file not found. Skipping.")
+                except Exception as e:
+                    st.warning(f"Error reading {name} dictionary: {str(e)}. Skipping.")
+            
+            if not dfs:
+                st.error("No data dictionaries could be loaded. Please check the file paths and formats.")
+                return
             
             # Create a new Excel writer object
-            with pd.ExcelWriter("data_dictionaries_backup.xlsx", engine='xlsxwriter') as writer:
-                # Write each DataFrame to a different sheet
-                balance_sheet_data.to_excel(writer, sheet_name='Balance Sheet', index=False)
-                cash_flow_data.to_excel(writer, sheet_name='Cash Flow', index=False)
-                income_statement_data.to_excel(writer, sheet_name='Income Statement', index=False)
-
-            # Read the file into a BytesIO object for download
-            with open("data_dictionaries_backup.xlsx", "rb") as file:
-                backup_file = io.BytesIO(file.read())
-
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                for name, df in dfs.items():
+                    df.to_excel(writer, sheet_name=name, index=False)
+            
+            output.seek(0)
+            
             st.download_button(
                 label="Download Backup",
-                data=backup_file,
+                data=output,
                 file_name="data_dictionaries_backup.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
             st.success("Backup created successfully!")
 
-        except FileNotFoundError as e:
-            st.error(f"File not found: {e.filename}. Please make sure all required files are in the same directory as the script.")
         except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
+            st.error(f"An unexpected error occurred: {str(e)}")
 
 def extras_tab():
     st.title("Extras")
