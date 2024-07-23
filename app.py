@@ -1883,15 +1883,14 @@ import io
 
 def check_aws_credentials():
     try:
-        # Print the keys in st.secrets (don't print values in production!)
-        st.write("Available secret keys:", list(st.secrets.keys()))
-        
-        if "aws" not in st.secrets:
+        st.write("All secret keys:", list(st.secrets.keys()))
+        if "aws" in st.secrets:
+            st.write("AWS secret keys:", list(st.secrets["aws"].keys()))
+        else:
             st.error("'aws' key not found in secrets")
             return False
         
         aws_secrets = st.secrets["aws"]
-        st.write("Available AWS secret keys:", list(aws_secrets.keys()))
         
         required_keys = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"]
         for key in required_keys:
