@@ -246,11 +246,6 @@ def balance_sheet_BS():
 
     balance_sheet_lookup_df = load_lookup_table(balance_sheet_data_dictionary_file)
 
-def balance_sheet_BS():
-    st.title("BALANCE SHEET LTMA")
-
-    tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
-
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
         if uploaded_file is not None:
@@ -371,33 +366,22 @@ def balance_sheet_BS():
             st.dataframe(all_tables)
 
             st.subheader("Select columns to keep before export")
-            if 'columns_to_keep' not in st.session_state:
-                st.session_state.columns_to_keep = all_tables.columns.tolist()
-
-            # Use a multiselect instead of individual checkboxes
-            selected_columns = st.multiselect(
-                "Select columns to keep",
-                options=all_tables.columns,
-                default=st.session_state.columns_to_keep
-            )
-
-            # Update the session state
-            st.session_state.columns_to_keep = selected_columns
-
-            # Ensure 'Label' and 'Account' are always included
-            if 'Label' not in st.session_state.columns_to_keep:
-                st.session_state.columns_to_keep.insert(0, 'Label')
-            if 'Account' not in st.session_state.columns_to_keep:
-                st.session_state.columns_to_keep.insert(1, 'Account')
-
-            # Display the current selection
-            st.write("Selected columns:", st.session_state.columns_to_keep)
+            columns_to_keep = []
+            for col in all_tables.columns:
+                if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
+                    columns_to_keep.append(col)
 
             st.subheader("Select numerical columns")
             numerical_columns = []
             for col in all_tables.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
+
+            if 'Label' not in columns_to_keep:
+                columns_to_keep.insert(0, 'Label')
+
+            if 'Account' not in columns_to_keep:
+                columns_to_keep.insert(1, 'Account')
 
             st.subheader("Label Units")
             selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
@@ -412,7 +396,7 @@ def balance_sheet_BS():
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
                 updated_table = update_labels(all_tables.copy())
-                updated_table = updated_table[[col for col in st.session_state.columns_to_keep if col in updated_table.columns]]
+                updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
 
                 updated_table = updated_table[updated_table['Label'].str.strip() != '']
                 updated_table = updated_table[updated_table['Account'].str.strip() != '']
