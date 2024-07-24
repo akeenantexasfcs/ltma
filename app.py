@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import io
@@ -585,7 +585,7 @@ def balance_sheet_BS():
                     manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW'],
+                        options=[''] + manual_selection_options + ['REMOVE ROW', 'MANUAL OVERRIDE'],
                         key=f"select_{idx}_tab3_bs"
                     )
                     if manual_selection:
@@ -1029,7 +1029,7 @@ def cash_flow_statement_CF():
                                 st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
                     label_mnemonics = cash_flow_lookup_df[cash_flow_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics] + ['REMOVE ROW']
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics] + ['REMOVE ROW', 'MANUAL OVERRIDE']
                     manual_selection = st.selectbox(
                         f"Select category for '{account_value}'",
                         options=[''] + manual_selection_options,
