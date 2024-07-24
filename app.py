@@ -830,26 +830,29 @@ def cash_flow_statement_CF():
                 for label, start_label, end_label in selections:
                     if start_label and end_label:
                         try:
-                            start_label_base = " ".join(start_label.split()[:-1]) if start_label.split()[-1].isdigit() else start_label
-                            end_label_base = " ".join(end_label.split()[:-1]) if end_label.split()[-1].isdigit() else end_label
+                            start_label_parts = start_label.split()
+                            end_label_parts = end_label.split()
+                            start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
+                            end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
+                            start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
+                            end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
 
-                            start_index = df[df[account_column] == start_label_base].index.min()
-                            end_index = df[df[account_column] == end_label_base].index.max()
+                            start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
+                            end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
 
-                            if pd.isna(start_index):
-                                start_index = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index.min()
-                            if pd.isna(end_index):
-                                end_index = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index.max()
+                            if len(start_indices) >= start_instance and len(end_indices) >= end_instance:
+                                start_index = start_indices[start_instance - 1]
+                                end_index = end_indices[end_instance - 1]
 
-                            if pd.notna(start_index) and pd.notna(end_index):
                                 df.loc[start_index:end_index, 'Label'] = label
                             else:
-                                st.error(f"Invalid label bounds for {label}. Skipping...")
+                                st.error(f"Invalid label bounds for {label}. Not enough instances found.")
                         except KeyError as e:
                             st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
                     else:
                         st.info(f"No selections made for {label}. Skipping...")
                 return df
+
 
             if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds_cfs"):
                 preview_table = update_labels(all_tables.copy())
