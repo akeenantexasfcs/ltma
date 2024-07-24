@@ -1624,8 +1624,9 @@ def income_statement():
 
                     combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
 
-                    columns_order_is = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ']]
-                    combined_df_is = combined_df_is[columns_order_is]
+                    # Select only the necessary columns
+                    necessary_columns = ['Final Mnemonic Selection', 'CIQ', 'Account'] + [col for col in combined_df_is.columns if re.match(r'FY\d{4}', col)]
+                    combined_df_is = combined_df_is[necessary_columns]
 
                     combined_df_is = update_negative_values(combined_df_is)
 
@@ -1701,7 +1702,7 @@ def income_statement():
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-      
+
 ####################################### Populate CIQ Template ###################################
 import streamlit as st
 import pandas as pd
