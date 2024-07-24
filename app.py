@@ -382,15 +382,19 @@ def balance_sheet_BS():
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
 
+            st.subheader("Edit Data Frame")
+            editable_df = st.experimental_data_editor(all_tables)
+            st.write("Editable Data Frame:", editable_df)
+
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
-            for col in all_tables.columns:
+            for col in editable_df.columns:
                 if st.checkbox(f"Keep column '{col}'", value=True, key=f"keep_{col}"):
                     columns_to_keep.append(col)
 
             st.subheader("Select numerical columns")
             numerical_columns = []
-            for col in all_tables.columns:
+            for col in editable_df.columns:
                 if st.checkbox(f"Numerical column '{col}'", value=False, key=f"num_{col}"):
                     numerical_columns.append(col)
 
@@ -412,7 +416,7 @@ def balance_sheet_BS():
             }
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = update_labels(all_tables.copy())
+                updated_table = update_labels(editable_df.copy())
                 updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
 
                 updated_table = updated_table[updated_table['Label'].str.strip() != '']
@@ -433,15 +437,16 @@ def balance_sheet_BS():
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             st.subheader("Check for Duplicate Accounts")
-            if 'Account' not in all_tables.columns:
+            if 'Account' not in editable_df.columns:
                 st.warning("The 'Account' column is missing. Please ensure your data includes an 'Account' column.")
             else:
-                duplicated_accounts = all_tables[all_tables.duplicated(['Account'], keep=False)]
+                duplicated_accounts = editable_df[editable_df.duplicated(['Account'], keep=False)]
                 if not duplicated_accounts.empty:
                     st.warning("Duplicates identified:")
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
+
 
     with tab2:
         st.subheader("Aggregate My Data")
