@@ -1602,7 +1602,7 @@ def income_statement():
                     manual_selection_options = income_statement_lookup_df['Mnemonic'].unique()
                     manual_selection_is = st.selectbox(
                         f"Select category for '{account_value}'",
-                        options=[''] + list(manual_selection_options) + ['REMOVE ROW'],
+                        options=[''] + list(manual_selection_options) + ['REMOVE ROW', 'MANUAL OVERRIDE'],
                         key=f"select_{idx}_tab3_is"
                     )
                     if manual_selection_is:
