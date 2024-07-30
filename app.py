@@ -1323,7 +1323,7 @@ def aggregate_data_IS(uploaded_files):
         if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
-    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
+    aggregated_df = numeric_rows.groupby(['Account', 'Final Mnemonic Selection', 'CIQ'], as_index=False).sum(min_count=1)
 
     statement_date_rows['Sort Index'] = 100
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
