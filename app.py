@@ -1226,16 +1226,16 @@ def get_ai_suggested_mapping_IS(account, income_statement_lookup_df, nearby_rows
     similarities = income_statement_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(row['Account'])), axis=1)
 
     # Get top 3 most similar entries
-    top 3_similar = similarities.nlargest(3)
+    top_three_similar = similarities.nlargest(3)
 
     # Scoring system
     scores = {}
-    for idx in top_3_similar.index:
+    for idx in top_three_similar.index:
         row = income_statement_lookup_df.loc[idx]
         score = 0
         if row['Mnemonic'] == suggested_mnemonic:
             score += 3
-        score += top_3_similar[idx] * 5  # Weight similarity score
+        score += top_three_similar[idx] * 5  # Weight similarity score
         scores[row['Mnemonic']] = score
 
     best_mnemonic = max(scores, key=scores.get)
