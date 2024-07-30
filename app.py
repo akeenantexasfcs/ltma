@@ -1652,6 +1652,7 @@ def income_statement():
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
                     st.download_button("Download Excel", excel_file_is, "Mappings_and_Data_Consolidation_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
                 
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
