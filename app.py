@@ -1226,7 +1226,7 @@ def get_ai_suggested_mapping_IS(account, income_statement_lookup_df, nearby_rows
     similarities = income_statement_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(row['Account'])), axis=1)
 
     # Get top 3 most similar entries
-    top_3_similar = similarities.nlargest(3)
+    top 3_similar = similarities.nlargest(3)
 
     # Scoring system
     scores = {}
@@ -1323,7 +1323,7 @@ def aggregate_data_IS(uploaded_files):
         if col not in ['Account', 'Sort Index', 'Positive Decreases NI']:
             numeric_rows[col] = pd.to_numeric(numeric_rows[col], errors='coerce').fillna(0)
 
-    aggregated_df = numeric_rows.groupby(['Account', 'Final Mnemonic Selection', 'CIQ'], as_index=False).sum(min_count=1)
+    aggregated_df = numeric_rows.groupby(['Account'], as_index=False).sum(min_count=1)
 
     statement_date_rows['Sort Index'] = 100
     statement_date_rows = statement_date_rows.groupby('Account', as_index=False).first()
@@ -1607,7 +1607,7 @@ def income_statement():
                     if manual_selection_is:
                         df_is.at[idx, 'Manual Selection'] = manual_selection_is.strip()
 
-                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection', 'Sort Index']])
+                st.dataframe(df_is[['Account', 'Mnemonic', 'Manual Selection']])
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
@@ -1630,20 +1630,22 @@ def income_statement():
                     combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
 
                     # Select only the necessary columns
-                    necessary_columns = ['Final Mnemonic Selection', 'CIQ', 'Account'] + [col for col in combined_df_is.columns if re.match(r'FY\d{4}', col)]
+                    necessary_columns = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if re.match(r'FY\d{4}', col)]
                     combined_df_is = combined_df_is[necessary_columns]
 
-                    combined_df_is = update_negative_values(combined_df_is)
+                    # Aggregate the data by Final Mnemonic Selection and CIQ
+                    aggregated_df = combined_df_is.groupby(['Final Mnemonic Selection', 'CIQ']).sum().reset_index()
 
-                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                    as_presented_df_is = sort_by_sort_index(as_presented_df_is)
-                    as_presented_df_is = as_presented_df_is.drop(columns=['Sort Index'], errors='ignore')
+                    # Update negative values
+                    aggregated_df = update_negative_values(aggregated_df)
+
+                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'Sort Index'], errors='ignore')
                     as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
                     excel_file_is = io.BytesIO()
                     with pd.ExcelWriter(excel_file_is, engine='xlsxwriter') as writer:
-                        combined_df_is.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
+                        aggregated_df.to_excel(writer, sheet_name='Standardized - Income Stmt', index=False)
                         as_presented_df_is.to_excel(writer, sheet_name='As Presented - Income Stmt', index=False)
                         cover_df_is = pd.DataFrame({
                             'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
@@ -1706,7 +1708,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 ####################################### Populate CIQ Template ###################################
