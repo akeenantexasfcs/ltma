@@ -1616,9 +1616,6 @@ def income_statement():
                     )
                     final_output_df_is = df_is[df_is['Final Mnemonic Selection'].str.strip() != 'REMOVE ROW'].copy()
 
-                    combined_df_is = create_combined_df_IS([final_output_df_is])
-                    combined_df_is = sort_by_sort_index(combined_df_is)
-
                     def lookup_ciq_is(mnemonic):
                         if mnemonic == 'Human Intervention Required':
                             return 'CIQ ID Required'
@@ -1627,20 +1624,21 @@ def income_statement():
                             return 'CIQ ID Required'
                         return ciq_value_is.values[0]
 
-                    combined_df_is['CIQ'] = combined_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
+                    final_output_df_is['CIQ'] = final_output_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
 
-                    # Select only the necessary columns
-                    necessary_columns = ['Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df_is.columns if re.match(r'FY\d{4}', col)]
-                    combined_df_is = combined_df_is[necessary_columns]
+                    # Identify numerical columns (assuming they start with 'FY')
+                    numerical_columns = [col for col in final_output_df_is.columns if col.startswith('FY')]
 
-                    # Aggregate the data by Final Mnemonic Selection and CIQ
-                    aggregated_df = combined_df_is.groupby(['Final Mnemonic Selection', 'CIQ']).sum().reset_index()
+                    # Select necessary columns and aggregate
+                    columns_to_keep = ['Final Mnemonic Selection', 'CIQ'] + numerical_columns
+                    aggregated_df = final_output_df_is[columns_to_keep].groupby(['Final Mnemonic Selection', 'CIQ']).sum().reset_index()
 
                     # Update negative values
                     aggregated_df = update_negative_values(aggregated_df)
 
-                    as_presented_df_is = final_output_df_is.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection', 'Sort Index'], errors='ignore')
-                    as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection']]
+                    # Prepare 'As Presented' sheet
+                    as_presented_df_is = final_output_df_is.drop(columns=['Mnemonic', 'Manual Selection', 'Sort Index'], errors='ignore')
+                    as_presented_columns_order_is = ['Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df_is.columns if col not in ['Account', 'Final Mnemonic Selection', 'CIQ']]
                     as_presented_df_is = as_presented_df_is[as_presented_columns_order_is]
 
                     excel_file_is = io.BytesIO()
@@ -1654,7 +1652,7 @@ def income_statement():
                         cover_df_is.to_excel(writer, sheet_name='Cover', index=False)
                     excel_file_is.seek(0)
                     st.download_button("Download Excel", excel_file_is, "Mappings_and_Data_Consolidation_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+                
                 if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_is"):
                     df_is['Final Mnemonic Selection'] = df_is.apply(
                         lambda row: row['Manual Selection'] if row['Manual Selection'] not in ['REMOVE ROW', ''] else row['Mnemonic'], 
