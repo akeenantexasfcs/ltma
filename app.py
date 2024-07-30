@@ -1626,8 +1626,8 @@ def income_statement():
 
                     final_output_df_is['CIQ'] = final_output_df_is['Final Mnemonic Selection'].apply(lookup_ciq_is)
 
-                    # Identify numerical columns (assuming they start with 'FY')
-                    numerical_columns = [col for col in final_output_df_is.columns if col.startswith('FY')]
+                    # Identify numerical columns (excluding 'Sort Index')
+                    numerical_columns = [col for col in final_output_df_is.columns if col not in ['Final Mnemonic Selection', 'CIQ', 'Sort Index', 'Account', 'Mnemonic', 'Manual Selection']]
 
                     # Select necessary columns and aggregate
                     columns_to_keep = ['Final Mnemonic Selection', 'CIQ'] + numerical_columns
