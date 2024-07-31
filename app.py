@@ -16,6 +16,8 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
 
+#The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
+
 # Load a pre-trained sentence transformer model
 @st.cache_resource
 def load_model():
