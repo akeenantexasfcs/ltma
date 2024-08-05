@@ -16,6 +16,11 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
 from word2number import w2n
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -24,23 +29,26 @@ def load_model():
 
 model = load_model()
 
-# Set up the OpenAI client with error handling
+# Set up the OpenAI client with error handling and logging
 @st.cache_resource
 def setup_openai_client():
     try:
         openai.api_key = st.secrets["OPENAI_API_KEY"]
+        logger.info("OpenAI client set up successfully")
     except KeyError:
+        logger.error("OpenAI API key not found in secrets")
         st.error("OpenAI API key not found in secrets. Please check your configuration.")
         st.stop()
 
 # Ensure the OpenAI client is set up when the application starts
 setup_openai_client()
 
-# Function to generate a response from GPT-4o mini
+# Function to generate a response from GPT-4o mini with logging
 @st.cache_data
 def generate_response(prompt, max_tokens=1000, retries=3):
     for attempt in range(retries):
         try:
+            logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
             response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -50,15 +58,14 @@ def generate_response(prompt, max_tokens=1000, retries=3):
                 max_tokens=max_tokens,
                 temperature=0.2
             )
+            logger.info("Received response from OpenAI API")
             return response['choices'][0]['message']['content'].strip()
         except Exception as e:
-            st.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
+            logger.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
             if attempt < retries - 1:
-                st.info("Retrying...")
+                logger.info("Retrying...")
             else:
                 return "I'm sorry, but I encountered an error while processing your request."
-
-
 
 @st.cache_data
 def get_embedding(text):
@@ -254,6 +261,20 @@ def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
+def get_ai_suggestions_batch(df, lookup_df, get_ai_suggested_mapping_func, max_workers=5):
+    def process_row(row):
+        if row[1]['Mnemonic'] == 'Human Intervention Required':
+            label_value = row[1].get('Label', '')
+            account_value = row[1]['Account']
+            nearby_rows = df.iloc[max(0, row[0]-2):min(len(df), row[0]+3)][['Label', 'Account']].to_string()
+            return row[0], get_ai_suggested_mapping_func(label_value, account_value, lookup_df, nearby_rows)
+        return row[0], None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(process_row, df.iterrows()))
+    
+    return {idx: suggestion for idx, suggestion in results if suggestion is not None}
+
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
@@ -271,6 +292,7 @@ def balance_sheet_BS():
             return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ', 'Label'])
 
     balance_sheet_lookup_df = load_lookup_table(balance_sheet_data_dictionary_file)
+
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
