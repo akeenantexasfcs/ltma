@@ -1023,6 +1023,12 @@ def cash_flow_statement_CF():
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
+
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
+                    st.session_state.show_ai_recommendations_cf = True
+                    st.session_state.ai_suggestions_cf = {}
+                    st.experimental_rerun()
+
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -1051,11 +1057,6 @@ def cash_flow_statement_CF():
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
-
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
-                    st.session_state.show_ai_recommendations_cf = True
-                    st.session_state.ai_suggestions_cf = {}
-                    st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
