@@ -44,12 +44,16 @@ def setup_openai_client():
 setup_openai_client()
 
 # Function to generate a response from GPT-4o mini with logging
+# Function to generate a response from GPT-4o mini with logging
 @st.cache_data
 def generate_response(prompt, max_tokens=1000, retries=3):
     for attempt in range(retries):
         try:
             logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
-            response = client.chat.completions.create(
+            # Display a message in Streamlit when the API request is initiated
+            st.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
+            
+            response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
@@ -58,14 +62,20 @@ def generate_response(prompt, max_tokens=1000, retries=3):
                 max_tokens=max_tokens,
                 temperature=0.2
             )
+            
             logger.info("Received response from OpenAI API")
+            # Display a confirmation message in Streamlit when a response is received
+            st.success("Received response from OpenAI API")
             return response['choices'][0]['message']['content'].strip()
         except Exception as e:
             logger.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
             if attempt < retries - 1:
                 logger.info("Retrying...")
+                st.warning("Retrying API request...")
             else:
+                st.error("I'm sorry, but I encountered an error while processing your request.")
                 return "I'm sorry, but I encountered an error while processing your request."
+
 
 @st.cache_data
 def get_embedding(text):
