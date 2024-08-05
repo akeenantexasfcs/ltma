@@ -11,7 +11,7 @@ import streamlit as st
 from openpyxl import load_workbook
 from Levenshtein import distance as levenshtein_distance
 import re
-import openai
+import gpt_4o_mini
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
@@ -24,24 +24,24 @@ def load_model():
 
 model = load_model()
 
-# Set up the OpenAI client with error handling
+# Set up the GPT-4o mini client with error handling
 @st.cache_resource
-def setup_openai_client():
+def setup_gpt4o_mini_client():
     try:
-        openai.api_key = st.secrets["OPENAI_API_KEY"]
+        gpt_4o_mini.api_key = st.secrets["GPT4O_MINI_API_KEY"]
     except KeyError:
-        st.error("OpenAI API key not found in secrets. Please check your configuration.")
+        st.error("GPT-4o Mini API key not found in secrets. Please check your configuration.")
         st.stop()
 
-# Ensure the OpenAI client is set up when the application starts
-setup_openai_client()
+# Ensure the GPT-4o mini client is set up when the application starts
+setup_gpt4o_mini_client()
 
 # Function to generate a response from GPT-4o mini
 @st.cache_data
 def generate_response(prompt, max_tokens=1000):
     try:
-        response = openai.Completion.create(
-            model="gpt-4",
+        response = gpt_4o_mini.Completion.create(
+            model="gpt-4o-mini",
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=0.2
@@ -667,7 +667,62 @@ def balance_sheet_BS():
                 st.experimental_rerun()
 
 
+
 ######################################Cash Flow Statement Functions#################################
+import io
+import json
+import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+from Levenshtein import distance as levenshtein_distance
+import re
+import openai
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from concurrent.futures import ThreadPoolExecutor
+from word2number import w2n
+
+# Load a pre-trained sentence transformer model
+@st.cache_resource
+def load_model():
+    return SentenceTransformer('all-MiniLM-L6-v2')
+
+model = load_model()
+
+# Set up the OpenAI client with error handling
+@st.cache_resource
+def setup_openai_client():
+    try:
+        openai.api_key = st.secrets["OPENAI_API_KEY"]
+    except KeyError:
+        st.error("OpenAI API key not found in secrets. Please check your configuration.")
+        st.stop()
+
+# Ensure the OpenAI client is set up when the application starts
+setup_openai_client()
+
+# Function to generate a response from GPT-4
+@st.cache_data
+def generate_response(prompt, max_tokens=1000):
+    try:
+        response = openai.Completion.create(
+            model="gpt-4",
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=0.2
+        )
+        return response.choices[0].text.strip()
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
+
+@st.cache_data
+def get_embedding(text):
+    return model.encode(text)
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
@@ -1118,7 +1173,7 @@ def cash_flow_statement_CF():
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-     
+ 
 
 #############INCOME STATEMENT#######################################################################
 import io
@@ -1130,7 +1185,7 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
-import anthropic
+import gpt_4o_mini  # Assuming this is the correct module for GPT-4o mini
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
@@ -1143,30 +1198,29 @@ def load_model():
 
 model = load_model()
 
-# Set up the Anthropic client with error handling
+# Set up the GPT-4o mini client with error handling
 @st.cache_resource
-def setup_anthropic_client():
+def setup_gpt4o_client():
     try:
-        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        # Assuming the GPT-4o mini module has a similar setup method
+        gpt_4o_mini.api_key = st.secrets["GPT_4O_MINI_API_KEY"]
     except KeyError:
-        st.error("Anthropic API key not found in secrets. Please check your configuration.")
+        st.error("GPT-4o mini API key not found in secrets. Please check your configuration.")
         st.stop()
 
-client = setup_anthropic_client()
+setup_gpt4o_client()
 
-# Function to generate a response from Claude
+# Function to generate a response from GPT-4o mini
 @st.cache_data
 def generate_response(prompt, max_tokens=1000):
     try:
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
+        response = gpt_4o_mini.Completion.create(
+            engine="gpt-4o-mini",
+            prompt=prompt,
             max_tokens=max_tokens,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            temperature=0.2
         )
-        return response.content[0].text
+        return response.choices[0].text.strip()
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
@@ -1683,6 +1737,7 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 ####################################### Populate CIQ Template ###################################
