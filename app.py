@@ -11,7 +11,7 @@ import streamlit as st
 from openpyxl import load_workbook
 from Levenshtein import distance as levenshtein_distance
 import re
-import anthropic
+import openai
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
@@ -25,33 +25,34 @@ def load_model():
 
 model = load_model()
 
-# Set up the Anthropic client with error handling
+# Set up the OpenAI client with error handling
 @st.cache_resource
-def setup_anthropic_client():
+def setup_openai_client():
     try:
-        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        openai.api_key = st.secrets["OPENAI_API_KEY"]
     except KeyError:
-        st.error("Anthropic API key not found in secrets. Please check your configuration.")
+        st.error("OpenAI API key not found in secrets. Please check your configuration.")
         st.stop()
 
-client = setup_anthropic_client()
+# Ensure the OpenAI client is set up when the application starts
+setup_openai_client()
 
-# Function to generate a response from Claude
+# Function to generate a response from GPT-4o mini
 @st.cache_data
 def generate_response(prompt, max_tokens=10000):
     try:
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
+        response = openai.Completion.create(
+            model="gpt-4o-mini",
+            prompt=prompt,
             max_tokens=max_tokens,
-            temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            temperature=0.2
         )
-        return response.content[0].text
+        return response.choices[0].text.strip()
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         return "I'm sorry, but I encountered an error while processing your request."
+
+
 
 @st.cache_data
 def get_embedding(text):
