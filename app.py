@@ -15,12 +15,8 @@ import openai
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
-from word2number import w2n
-import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -29,7 +25,7 @@ def load_model():
 
 model = load_model()
 
-# Function to generate a response from GPT-4o mini with logging
+# Function to generate a response from OpenAI
 @st.cache_data
 def generate_response(prompt, api_key, max_tokens=1000, retries=3):
     # Set the OpenAI API key
@@ -63,7 +59,6 @@ def generate_response(prompt, api_key, max_tokens=1000, retries=3):
                 st.error("I'm sorry, but I encountered an error while processing your request.")
                 return "I'm sorry, but I encountered an error while processing your request."
 
-
 @st.cache_data
 def get_embedding(text):
     return model.encode(text)
@@ -71,7 +66,7 @@ def get_embedding(text):
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows, api_key):
+def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
@@ -90,7 +85,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
 
     Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
-    suggested_mnemonic = generate_response(prompt, api_key).strip()
+    suggested_mnemonic = generate_response(prompt).strip()
 
     account_embedding = get_embedding(f"{label} {account}")
     similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
@@ -258,21 +253,7 @@ def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
-def get_ai_suggestions_batch(df, lookup_df, get_ai_suggested_mapping_func, max_workers=5):
-    def process_row(row):
-        if row[1]['Mnemonic'] == 'Human Intervention Required':
-            label_value = row[1].get('Label', '')
-            account_value = row[1]['Account']
-            nearby_rows = df.iloc[max(0, row[0]-2):min(len(df), row[0]+3)][['Label', 'Account']].to_string()
-            return row[0], get_ai_suggested_mapping_func(label_value, account_value, lookup_df, nearby_rows)
-        return row[0], None
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = list(executor.map(process_row, df.iterrows()))
-    
-    return {idx: suggestion for idx, suggestion in results if suggestion is not None}
-
-def balance_sheet_BS(api_key):
+def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
@@ -289,7 +270,6 @@ def balance_sheet_BS(api_key):
             return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ', 'Label'])
 
     balance_sheet_lookup_df = load_lookup_table(balance_sheet_data_dictionary_file)
-
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -590,7 +570,7 @@ def balance_sheet_BS(api_key):
                                     label_value = row.get('Label', '')
                                     account_value = row['Account']
                                     nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows, api_key)] = idx
+                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
 
                             for future in futures:
                                 idx = futures[future]
@@ -634,94 +614,110 @@ def balance_sheet_BS(api_key):
                         combined_df = create_combined_df([final_output_df])
                         combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                        def lookup_ciq(mnemonic):
-                            if mnemonic == 'Human Intervention Required':
-                                return 'CIQ ID Required'
-                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                            if ciq_value.empty:
-                                return 'CIQ ID Required'
-                            return ciq_value.values[0]
+                        balance_sheet_dfs = []
+                        for label, group_df in combined_df.groupby('Label'):
+                            group_df.insert(0, 'Company Name', company_name_bs)
+                            group_df.insert(1, 'Currency', selected_currency)
+                            group_df.insert(2, 'Magnitude', selected_magnitude)
+                            group_df.insert(3, 'Date', "")
+                            for date_col in group_df.columns[4:]:
+                                group_df.loc[group_df.index, 'Date'] = statement_dates.get(date_col, "")
 
-                        combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
-
-                        columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                            balance_sheet_dfs.append(group_df)
 
                         excel_file = io.BytesIO()
                         with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                            final_output_df.to_excel(writer, sheet_name='Data with Mnemonics', index=False)
-                            combined_df.to_excel(writer, sheet_name='Combined Data', index=False, columns=columns_order)
+                            for i, balance_sheet_df in enumerate(balance_sheet_dfs):
+                                sheet_name = f'Sheet{i+1}'
+                                balance_sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
                         excel_file.seek(0)
-                        company_name_bs = company_name_bs.replace(" ", "_")
-                        st.download_button(f"Download Excel Lookup Results for {company_name_bs}", excel_file, f"{company_name_bs}_Mnemonic_Mapping_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        st.download_button("Download Generated Excel", excel_file, "Mnemonic_Lookup_Results_BS.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                    if st.button("Generate Updated Data Dictionary", key="generate_updated_data_dictionary_tab3_bs"):
+                        new_mappings = df[['Account', 'Final Mnemonic Selection', 'Label']].drop_duplicates()
+                        new_mappings.columns = ['Account', 'Mnemonic', 'Label']
+
+                        new_mappings = new_mappings[~new_mappings['Mnemonic'].isin(balance_sheet_lookup_df['Mnemonic'])]
+                        updated_balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, new_mappings], ignore_index=True)
+                        updated_balance_sheet_lookup_df.drop_duplicates(inplace=True)
+
+                        save_and_update_balance_sheet_data(updated_balance_sheet_lookup_df)
+                        st.success("Updated Balance Sheet Data Dictionary successfully saved.")
+                        st.dataframe(updated_balance_sheet_lookup_df)
 
     with tab4:
-        st.subheader("Balance Sheet Data Dictionary")
+            st.subheader("Balance Sheet Data Dictionary")
 
-        if balance_sheet_lookup_df.empty:
-            st.info("No entries in the Balance Sheet Data Dictionary yet.")
+            if 'balance_sheet_data' not in st.session_state:
+                st.session_state.balance_sheet_data = load_balance_sheet_data()
 
-        st.dataframe(balance_sheet_lookup_df)
+            balance_sheet_df = st.session_state.balance_sheet_data
 
-        with st.form("add_entry_form"):
-            st.write("Add a new entry:")
-            label_input = st.text_input("Label", key='label_input')
-            account_input = st.text_input("Account", key='account_input')
-            mnemonic_input = st.text_input("Mnemonic", key='mnemonic_input')
-            ciq_input = st.text_input("CIQ", key='ciq_input')
+            st.write("Current Balance Sheet Data Dictionary:")
+            st.dataframe(balance_sheet_df)
 
-            add_entry_submit_button = st.form_submit_button("Add Entry")
+            st.download_button("Download Balance Sheet Data Dictionary",
+                               data=balance_sheet_df.to_excel(index=False, engine='xlsxwriter'),
+                               file_name='Balance_Sheet_Data_Dictionary.xlsx',
+                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-            if add_entry_submit_button:
-                new_entry = {
-                    "Label": label_input,
-                    "Account": account_input,
-                    "Mnemonic": mnemonic_input,
-                    "CIQ": ciq_input
-                }
-                balance_sheet_lookup_df = balance_sheet_lookup_df.append(new_entry, ignore_index=True)
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                st.success("New entry added to the Balance Sheet Data Dictionary.")
-                st.experimental_rerun()
+            st.subheader("Add New Records to Data Dictionary")
 
-        if not balance_sheet_lookup_df.empty:
-            selected_index = st.selectbox("Select an entry to delete", options=range(len(balance_sheet_lookup_df)), format_func=lambda x: f"{balance_sheet_lookup_df.at[x, 'Label']} - {balance_sheet_lookup_df.at[x, 'Account']}")
-            delete_button = st.button("Delete Entry")
+            new_records = []
+            with st.form(key="new_record_form"):
+                new_label = st.text_input("Enter Label", key="new_label")
+                new_account = st.text_input("Enter Account", key="new_account")
+                new_mnemonic = st.text_input("Enter Mnemonic", key="new_mnemonic")
+                new_ciq = st.text_input("Enter CIQ", key="new_ciq")
 
-            if delete_button:
-                balance_sheet_lookup_df = balance_sheet_lookup_df.drop(selected_index).reset_index(drop=True)
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                st.success("Selected entry deleted from the Balance Sheet Data Dictionary.")
-                st.experimental_rerun()
+                submit_button = st.form_submit_button(label="Add Record")
+                if submit_button:
+                    new_records.append({
+                        "Label": new_label,
+                        "Account": new_account,
+                        "Mnemonic": new_mnemonic,
+                        "CIQ": new_ciq
+                    })
+                    st.success("Record added successfully")
+
+            if new_records:
+                new_df = pd.DataFrame(new_records)
+                st.session_state.balance_sheet_data = pd.concat([st.session_state.balance_sheet_data, new_df], ignore_index=True)
+                save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
+
+            st.subheader("Edit Existing Data Dictionary Records")
+            editable_df = st.experimental_data_editor(st.session_state.balance_sheet_data, key="editable_data_dictionary")
+            if st.button("Save Changes", key="save_changes_button"):
+                save_and_update_balance_sheet_data(editable_df)
+                st.success("Changes saved successfully")
+
 
 
 ######################################Cash Flow Statement Functions#################################
-def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows, api_key):
-    # Construct the prompt with given parameters
-    prompt = f"""
-    Given the following account information:
+def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
+    prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
+
     Nearby rows:
     {nearby_rows}
+
     And the following cash flow lookup data:
-    {cash_flow_lookup_df.to_string(index=False)}
+    {cash_flow_lookup_df.to_string()}
 
     What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
     1. The account's position in the cash flow structure (e.g., Operating Activities, Investing Activities, Financing Activities)
     2. The semantic meaning of the account name and its relationship to standard financial statement line items
     3. The nearby rows to understand the context of this account
     4. Common financial reporting standards and practices
-    """
 
-    # Generate response from OpenAI API
-    suggested_mnemonic = generate_response(prompt, api_key).strip()
+    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label."""
 
-    # Calculate similarity and determine best mnemonic match
+    suggested_mnemonic = generate_response(prompt).strip()
+
     account_embedding = get_embedding(f"{label} {account}")
-    similarities = cash_flow_lookup_df.apply(
-        lambda row: np.dot(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")) / 
-        (np.linalg.norm(account_embedding) * np.linalg.norm(get_embedding(f"{row['Label']} {row['Account']}"))), axis=1)
+    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
 
     top_3_similar = similarities.nlargest(3)
     scores = {}
@@ -743,7 +739,7 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
-def cash_flow_statement_CF(api_key):
+def cash_flow_statement_CF():
     global cash_flow_lookup_df
     cash_flow_data_dictionary_file = "cash_flow_data_dictionary.xlsx"  # Define the file to store the data dictionary
 
@@ -1023,12 +1019,6 @@ def cash_flow_statement_CF(api_key):
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
-
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
-                    st.session_state.show_ai_recommendations_cf = True
-                    st.session_state.ai_suggestions_cf = {}
-                    st.experimental_rerun()
-
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -1042,7 +1032,7 @@ def cash_flow_statement_CF(api_key):
                             if st.session_state.show_ai_recommendations_cf:
                                 if idx not in st.session_state.ai_suggestions_cf:
                                     nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df, nearby_rows, api_key)
+                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df, nearby_rows)
                                     st.session_state.ai_suggestions_cf[idx] = ai_suggested_mnemonic
                                 st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
@@ -1057,6 +1047,11 @@ def cash_flow_statement_CF(api_key):
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
+                    st.session_state.show_ai_recommendations_cf = True
+                    st.session_state.ai_suggestions_cf = {}
+                    st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -1150,6 +1145,7 @@ def cash_flow_statement_CF(api_key):
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+     
 
 #############INCOME STATEMENT#######################################################################
 import io
@@ -1161,7 +1157,7 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
-import openai
+import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
@@ -1174,41 +1170,33 @@ def load_model():
 
 model = load_model()
 
-# Set up the OpenAI client with error handling
+# Set up the Anthropic client with error handling
 @st.cache_resource
-def setup_openai_client():
+def setup_anthropic_client():
     try:
-        openai.api_key = st.secrets["OPENAI_API_KEY"]
+        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
     except KeyError:
-        st.error("OpenAI API key not found in secrets. Please check your configuration.")
+        st.error("Anthropic API key not found in secrets. Please check your configuration.")
         st.stop()
 
-# Ensure the OpenAI client is set up when the application starts
-setup_openai_client()
+client = setup_anthropic_client()
 
-# Function to generate a response from GPT-4o-mini
+# Function to generate a response from Claude
 @st.cache_data
-def generate_response(prompt, max_tokens=1000, retries=3):
-    for attempt in range(retries):
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=0.2
-            )
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            st.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
-            if attempt < retries - 1:
-                st.info("Retrying...")
-            else:
-                return "I'm sorry, but I encountered an error while processing your request."
-
-
+def generate_response(prompt, max_tokens=1000):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=max_tokens,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
 
 @st.cache_data
 def get_embedding(text):
@@ -1722,7 +1710,6 @@ def income_statement():
             st.session_state.income_statement_data.to_excel(excel_file_is, index=False)
             excel_file_is.seek(0)
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 ####################################### Populate CIQ Template ###################################
