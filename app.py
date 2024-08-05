@@ -49,7 +49,7 @@ def generate_response(prompt, max_tokens=1000, retries=3):
     for attempt in range(retries):
         try:
             logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
@@ -1195,7 +1195,7 @@ setup_openai_client()
 def generate_response(prompt, max_tokens=1000, retries=3):
     for attempt in range(retries):
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
