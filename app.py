@@ -15,6 +15,7 @@ import openai
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
+from word2number import w2n
 
 # The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
 
@@ -28,12 +29,10 @@ model = load_model()
 # Function to generate a response from OpenAI
 @st.cache_data
 def generate_response(prompt, api_key, max_tokens=1000, retries=3):
-    # Set the OpenAI API key
     openai.api_key = api_key
     for attempt in range(retries):
         try:
             logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
-            # Display a message in Streamlit when the API request is initiated
             st.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
             
             response = openai.ChatCompletion.create(
@@ -47,7 +46,6 @@ def generate_response(prompt, api_key, max_tokens=1000, retries=3):
             )
             
             logger.info("Received response from OpenAI API")
-            # Display a confirmation message in Streamlit when a response is received
             st.success("Received response from OpenAI API")
             return response['choices'][0]['message']['content'].strip()
         except Exception as e:
@@ -85,7 +83,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
 
     Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
-    suggested_mnemonic = generate_response(prompt).strip()
+    suggested_mnemonic = generate_response(prompt, st.secrets["OPENAI_API_KEY"]).strip()
 
     account_embedding = get_embedding(f"{label} {account}")
     similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
@@ -614,83 +612,76 @@ def balance_sheet_BS():
                         combined_df = create_combined_df([final_output_df])
                         combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                        balance_sheet_dfs = []
-                        for label, group_df in combined_df.groupby('Label'):
-                            group_df.insert(0, 'Company Name', company_name_bs)
-                            group_df.insert(1, 'Currency', selected_currency)
-                            group_df.insert(2, 'Magnitude', selected_magnitude)
-                            group_df.insert(3, 'Date', "")
-                            for date_col in group_df.columns[4:]:
-                                group_df.loc[group_df.index, 'Date'] = statement_dates.get(date_col, "")
+                        def lookup_ciq(mnemonic):
+                            lookup_row = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic]
+                            if not lookup_row.empty:
+                                return lookup_row.iloc[0]['CIQ']
+                            return 'NO MNEMONIC FOUND'
 
-                            balance_sheet_dfs.append(group_df)
+                        combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
+                        company_name_bs_safe = company_name_bs.replace("/", "_")
+                        file_name = f"Lookup_Results_Balance_Sheet_{company_name_bs_safe}.xlsx"
 
                         excel_file = io.BytesIO()
                         with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                            for i, balance_sheet_df in enumerate(balance_sheet_dfs):
-                                sheet_name = f'Sheet{i+1}'
-                                balance_sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                            combined_df.to_excel(writer, sheet_name='Consolidated Output', index=False)
+                            workbook = writer.book
+                            worksheet = writer.sheets['Consolidated Output']
+
+                            cell_format = workbook.add_format({'bold': True, 'align': 'center'})
+                            worksheet.write('A1', 'LTMA')
+                            worksheet.write('B1', company_name_bs, cell_format)
+                            worksheet.write('A2', 'CURRENCY')
+                            worksheet.write('B2', selected_currency, cell_format)
+                            worksheet.write('A3', 'MAGNITUDE')
+                            worksheet.write('B3', selected_magnitude, cell_format)
+
+                            for col_index, statement_date in enumerate(statement_dates.values(), start=2):
+                                worksheet.write(0, col_index, statement_date, cell_format)
 
                         excel_file.seek(0)
-                        st.download_button("Download Generated Excel", excel_file, "Mnemonic_Lookup_Results_BS.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                    if st.button("Generate Updated Data Dictionary", key="generate_updated_data_dictionary_tab3_bs"):
-                        new_mappings = df[['Account', 'Final Mnemonic Selection', 'Label']].drop_duplicates()
-                        new_mappings.columns = ['Account', 'Mnemonic', 'Label']
-
-                        new_mappings = new_mappings[~new_mappings['Mnemonic'].isin(balance_sheet_lookup_df['Mnemonic'])]
-                        updated_balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, new_mappings], ignore_index=True)
-                        updated_balance_sheet_lookup_df.drop_duplicates(inplace=True)
-
-                        save_and_update_balance_sheet_data(updated_balance_sheet_lookup_df)
-                        st.success("Updated Balance Sheet Data Dictionary successfully saved.")
-                        st.dataframe(updated_balance_sheet_lookup_df)
+                        st.download_button("Download Lookup Results Excel", excel_file, file_name, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with tab4:
-            st.subheader("Balance Sheet Data Dictionary")
+        st.subheader("Balance Sheet Data Dictionary")
 
-            if 'balance_sheet_data' not in st.session_state:
-                st.session_state.balance_sheet_data = load_balance_sheet_data()
+        data_dictionary_df = st.session_state.balance_sheet_data.copy()
+        st.dataframe(data_dictionary_df)
 
-            balance_sheet_df = st.session_state.balance_sheet_data
+        st.subheader("Add New Entry to Data Dictionary")
+        with st.form(key='add_entry_form_bs'):
+            new_account = st.text_input("Account", key='new_account_input_bs')
+            new_mnemonic = st.text_input("Mnemonic", key='new_mnemonic_input_bs')
+            new_ciq = st.text_input("CIQ", key='new_ciq_input_bs')
+            new_label = st.selectbox("Label", options=[
+                "Current Assets", "Non Current Assets", "Current Liabilities", "Non Current Liabilities", "Equity",
+                "Total Equity and Liabilities"
+            ], key='new_label_select_bs')
 
-            st.write("Current Balance Sheet Data Dictionary:")
-            st.dataframe(balance_sheet_df)
+            add_entry_button = st.form_submit_button("Add Entry")
 
-            st.download_button("Download Balance Sheet Data Dictionary",
-                               data=balance_sheet_df.to_excel(index=False, engine='xlsxwriter'),
-                               file_name='Balance_Sheet_Data_Dictionary.xlsx',
-                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            if add_entry_button:
+                new_entry = {
+                    'Account': new_account,
+                    'Mnemonic': new_mnemonic,
+                    'CIQ': new_ciq,
+                    'Label': new_label
+                }
+                data_dictionary_df = data_dictionary_df.append(new_entry, ignore_index=True)
+                save_and_update_balance_sheet_data(data_dictionary_df)
+                st.success("New entry added successfully.")
 
-            st.subheader("Add New Records to Data Dictionary")
+        st.subheader("Edit Data Dictionary")
+        editable_data_dict_df = st.experimental_data_editor(data_dictionary_df)
 
-            new_records = []
-            with st.form(key="new_record_form"):
-                new_label = st.text_input("Enter Label", key="new_label")
-                new_account = st.text_input("Enter Account", key="new_account")
-                new_mnemonic = st.text_input("Enter Mnemonic", key="new_mnemonic")
-                new_ciq = st.text_input("Enter CIQ", key="new_ciq")
-
-                submit_button = st.form_submit_button(label="Add Record")
-                if submit_button:
-                    new_records.append({
-                        "Label": new_label,
-                        "Account": new_account,
-                        "Mnemonic": new_mnemonic,
-                        "CIQ": new_ciq
-                    })
-                    st.success("Record added successfully")
-
-            if new_records:
-                new_df = pd.DataFrame(new_records)
-                st.session_state.balance_sheet_data = pd.concat([st.session_state.balance_sheet_data, new_df], ignore_index=True)
-                save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
-
-            st.subheader("Edit Existing Data Dictionary Records")
-            editable_df = st.experimental_data_editor(st.session_state.balance_sheet_data, key="editable_data_dictionary")
-            if st.button("Save Changes", key="save_changes_button"):
-                save_and_update_balance_sheet_data(editable_df)
-                st.success("Changes saved successfully")
+        st.subheader("Download Data Dictionary")
+        if st.button("Save Changes and Download", key='save_changes_and_download_bs'):
+            save_and_update_balance_sheet_data(editable_data_dict_df)
+            excel_file = io.BytesIO()
+            with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                editable_data_dict_df.to_excel(writer, sheet_name='Balance Sheet Data Dictionary', index=False)
+            excel_file.seek(0)
+            st.download_button("Download Data Dictionary", excel_file, "Balance_Sheet_Data_Dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 
