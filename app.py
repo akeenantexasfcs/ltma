@@ -700,28 +700,31 @@ def balance_sheet_BS():
 
 ######################################Cash Flow Statement Functions#################################
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
-    prompt = f"""Given the following account information:
+    # Construct the prompt with given parameters
+    prompt = f"""
+    Given the following account information:
     Label: {label}
     Account: {account}
-
     Nearby rows:
     {nearby_rows}
-
     And the following cash flow lookup data:
-    {cash_flow_lookup_df.to_string()}
+    {cash_flow_lookup_df.to_string(index=False)}
 
     What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
     1. The account's position in the cash flow structure (e.g., Operating Activities, Investing Activities, Financing Activities)
     2. The semantic meaning of the account name and its relationship to standard financial statement line items
     3. The nearby rows to understand the context of this account
     4. Common financial reporting standards and practices
+    """
 
-    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label."""
-
+    # Generate response from OpenAI API
     suggested_mnemonic = generate_response(prompt).strip()
 
+    # Calculate similarity and determine best mnemonic match
     account_embedding = get_embedding(f"{label} {account}")
-    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
+    similarities = cash_flow_lookup_df.apply(
+        lambda row: np.dot(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")) / 
+        (np.linalg.norm(account_embedding) * np.linalg.norm(get_embedding(f"{row['Label']} {row['Account']}"))), axis=1)
 
     top_3_similar = similarities.nlargest(3)
     scores = {}
