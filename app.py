@@ -38,21 +38,26 @@ setup_openai_client()
 
 # Function to generate a response from GPT-4o mini
 @st.cache_data
-# Function to generate a response from GPT-4o-mini using the new OpenAI API
-@st.cache_data
-def generate_response(prompt, max_tokens=1000):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "system", "content": "You are a helpful assistant."},
-                      {"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.2
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
+def generate_response(prompt, max_tokens=1000, retries=3):
+    for attempt in range(retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.2
+            )
+            return response['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            st.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
+            if attempt < retries - 1:
+                st.info("Retrying...")
+            else:
+                return "I'm sorry, but I encountered an error while processing your request."
+
 
 
 @st.cache_data
@@ -1161,21 +1166,26 @@ setup_openai_client()
 
 # Function to generate a response from GPT-4o-mini
 @st.cache_data
-# Function to generate a response from GPT-4o-mini using the new OpenAI API
-@st.cache_data
-def generate_response(prompt, max_tokens=1000):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "system", "content": "You are a helpful assistant."},
-                      {"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.2
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
+def generate_response(prompt, max_tokens=1000, retries=3):
+    for attempt in range(retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.2
+            )
+            return response['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            st.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
+            if attempt < retries - 1:
+                st.info("Retrying...")
+            else:
+                return "I'm sorry, but I encountered an error while processing your request."
+
 
 
 @st.cache_data
