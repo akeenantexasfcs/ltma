@@ -1934,6 +1934,7 @@ import io
 import openai
 
 def check_aws_credentials():
+    """Check if AWS credentials are valid."""
     try:
         st.write("All secret keys:", list(st.secrets.keys()))
         if "aws" in st.secrets:
@@ -1967,6 +1968,7 @@ def safe_get(dict_obj, key, default=None):
     return dict_obj.get(key, default)
 
 def extract_table_data(table_blocks, blocks_map):
+    """Extract table data from Textract blocks."""
     rows = []
     for relationship in safe_get(table_blocks, 'Relationships', []):
         if safe_get(relationship, 'Type') == 'CHILD':
@@ -1992,6 +1994,7 @@ def extract_table_data(table_blocks, blocks_map):
     return rows
 
 def upload_to_s3(s3_client, file_bytes, bucket_name, object_name):
+    """Upload a file to an S3 bucket."""
     try:
         s3_client.put_object(Body=file_bytes, Bucket=bucket_name, Key=object_name)
         st.success(f"Successfully uploaded file to S3: {bucket_name}/{object_name}")
@@ -2000,6 +2003,7 @@ def upload_to_s3(s3_client, file_bytes, bucket_name, object_name):
         raise
 
 def start_document_analysis(textract_client, bucket_name, object_name):
+    """Start a document analysis job using Textract."""
     try:
         response = textract_client.start_document_analysis(
             DocumentLocation={'S3Object': {'Bucket': bucket_name, 'Name': object_name}},
@@ -2011,6 +2015,7 @@ def start_document_analysis(textract_client, bucket_name, object_name):
         raise
 
 def get_document_analysis(textract_client, job_id):
+    """Get the results of a document analysis job."""
     pages = []
     next_token = None
     max_attempts = 60  # Increase this for larger documents
@@ -2052,6 +2057,7 @@ def get_document_analysis(textract_client, job_id):
     return pages
 
 def process_document(file_path, textract_client, s3_client, bucket_name):
+    """Process a document using AWS Textract."""
     try:
         with open(file_path, 'rb') as document:
             file_bytes = document.read()
@@ -2106,6 +2112,7 @@ def process_document(file_path, textract_client, s3_client, bucket_name):
         raise
 
 def reset_aws_process():
+    """Reset the AWS Textract processing state."""
     st.session_state.processed = False
     st.session_state.uploaded_file = None
     st.session_state.response_json_path = None
@@ -2113,6 +2120,7 @@ def reset_aws_process():
     st.session_state.tables = None
 
 def aws_textract_tab():
+    """Create the AWS Textract tab in the Streamlit app."""
     st.title("AWS Textract with Streamlit - Table Extraction")
     st.write("Enter your AWS credentials and upload an image or PDF file to extract tables using AWS Textract.")
 
@@ -2219,6 +2227,7 @@ def aws_textract_tab():
             st.experimental_rerun()
 
 def backup_data_dictionaries():
+    """Backup data dictionaries to a downloadable Excel file."""
     if st.button("Backup Data Dictionaries"):
         try:
             # Get the directory of the current script
@@ -2270,9 +2279,8 @@ def backup_data_dictionaries():
         except Exception as e:
             st.error(f"An unexpected error occurred: {str(e)}")
 
-
-
 def openai_api_test():
+    """Test the connection to the OpenAI API."""
     st.subheader("OpenAI API Test")
 
     # Ensure the button has a unique key
@@ -2296,12 +2304,8 @@ def openai_api_test():
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
 
-# Call the function to display the Streamlit interface
-openai_api_test()
-
-
-
 def extras_tab():
+    """Create the Extras tab with multiple functions."""
     st.title("Extras")
     tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract", "OpenAI API Test"])
 
@@ -2315,6 +2319,7 @@ def extras_tab():
         openai_api_test()
 
 def main():
+    """Main function to run the Streamlit app."""
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
