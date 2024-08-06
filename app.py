@@ -2282,30 +2282,28 @@ def backup_data_dictionaries():
 
 
 
+import streamlit as st
+import openai
+
 def openai_api_test():
     """Test the connection to the OpenAI API with an open-ended prompt."""
     st.subheader("OpenAI API Test")
-
-    # Text input for the user to input their OpenAI API key
-    api_key = st.text_input("Enter your OpenAI API Key:", type="password")
-
+    
+    # Get the API key from Streamlit secrets
+    api_key = st.secrets["OpenKey"]
+    
     # Text area for the user to input their question or prompt
     prompt = st.text_area("Enter your question for the API:", value="Type your question here...")
-
+    
     # Ensure the button has a unique key
     if st.button("Submit Prompt to OpenAI API", key="openai_test_button"):
         try:
-            # Check if the API key is provided
-            if not api_key:
-                st.error("Please enter your OpenAI API Key.")
-                return
-
             # Set the OpenAI API key
             openai.api_key = api_key
-
+            
             # Create a client instance
             client = openai.OpenAI(api_key=openai.api_key)
-
+            
             # Create a chat completion using the new method
             response = client.chat.completions.create(
                 model="gpt-4o-mini",  # Use "gpt-3.5-turbo" or "gpt-4" if available
