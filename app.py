@@ -43,7 +43,7 @@ def setup_openai_client():
 # Ensure the OpenAI client is set up when the application starts
 setup_openai_client()
 
-# Function to generate a response from GPT-4o mini with logging
+
 # Function to generate a response from GPT-4o mini with logging
 @st.cache_data
 def generate_response(prompt, max_tokens=1000, retries=3):
@@ -53,8 +53,8 @@ def generate_response(prompt, max_tokens=1000, retries=3):
             # Display a message in Streamlit when the API request is initiated
             st.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
             
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",  # Ensure you have access to this model
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
