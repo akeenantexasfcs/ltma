@@ -29,11 +29,24 @@ def load_model():
 
 model = load_model()
 
+# Set up the OpenAI client with error handling and logging
+@st.cache_resource
+def setup_openai_client():
+    try:
+        openai.api_key = st.secrets["OPENAI_API_KEY"]
+        logger.info("OpenAI client set up successfully")
+    except KeyError:
+        logger.error("OpenAI API key not found in secrets")
+        st.error("OpenAI API key not found in secrets. Please check your configuration.")
+        st.stop()
+
+# Ensure the OpenAI client is set up when the application starts
+setup_openai_client()
+
+# Function to generate a response from GPT-4o mini with logging
 # Function to generate a response from GPT-4o mini with logging
 @st.cache_data
-def generate_response(prompt, api_key, max_tokens=1000, retries=3):
-    # Set the OpenAI API key
-    openai.api_key = api_key
+def generate_response(prompt, max_tokens=1000, retries=3):
     for attempt in range(retries):
         try:
             logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
@@ -71,7 +84,7 @@ def get_embedding(text):
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows, api_key):
+def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
@@ -90,7 +103,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
 
     Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
 
-    suggested_mnemonic = generate_response(prompt, api_key).strip()
+    suggested_mnemonic = generate_response(prompt).strip()
 
     account_embedding = get_embedding(f"{label} {account}")
     similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
@@ -272,7 +285,7 @@ def get_ai_suggestions_batch(df, lookup_df, get_ai_suggested_mapping_func, max_w
     
     return {idx: suggestion for idx, suggestion in results if suggestion is not None}
 
-def balance_sheet_BS(api_key):
+def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Balance Sheet Data Dictionary"])
@@ -590,7 +603,7 @@ def balance_sheet_BS(api_key):
                                     label_value = row.get('Label', '')
                                     account_value = row['Account']
                                     nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows, api_key)] = idx
+                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
 
                             for future in futures:
                                 idx = futures[future]
@@ -696,7 +709,7 @@ def balance_sheet_BS(api_key):
 
 
 ######################################Cash Flow Statement Functions#################################
-def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows, api_key):
+def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
     # Construct the prompt with given parameters
     prompt = f"""
     Given the following account information:
@@ -715,7 +728,7 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows
     """
 
     # Generate response from OpenAI API
-    suggested_mnemonic = generate_response(prompt, api_key).strip()
+    suggested_mnemonic = generate_response(prompt).strip()
 
     # Calculate similarity and determine best mnemonic match
     account_embedding = get_embedding(f"{label} {account}")
@@ -743,7 +756,7 @@ def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows
     best_mnemonic = max(scores, key=scores.get)
     return best_mnemonic
 
-def cash_flow_statement_CF(api_key):
+def cash_flow_statement_CF():
     global cash_flow_lookup_df
     cash_flow_data_dictionary_file = "cash_flow_data_dictionary.xlsx"  # Define the file to store the data dictionary
 
@@ -1042,7 +1055,7 @@ def cash_flow_statement_CF(api_key):
                             if st.session_state.show_ai_recommendations_cf:
                                 if idx not in st.session_state.ai_suggestions_cf:
                                     nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df, nearby_rows, api_key)
+                                    ai_suggested_mnemonic = get_ai_suggested_mapping_CF(label_value, account_value, cash_flow_lookup_df, nearby_rows)
                                     st.session_state.ai_suggestions_cf[idx] = ai_suggested_mnemonic
                                 st.markdown(f"**AI Suggested Mapping:** {st.session_state.ai_suggestions_cf[idx]}")
 
@@ -1150,6 +1163,7 @@ def cash_flow_statement_CF(api_key):
         cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+     
 
 #############INCOME STATEMENT#######################################################################
 import io
