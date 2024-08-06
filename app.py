@@ -1931,6 +1931,7 @@ import botocore
 import pandas as pd
 import time
 import io
+import openai
 
 def check_aws_credentials():
     try:
@@ -2269,15 +2270,34 @@ def backup_data_dictionaries():
         except Exception as e:
             st.error(f"An unexpected error occurred: {str(e)}")
 
+def openai_api_test():
+    st.subheader("OpenAI API Test")
+
+    if st.button("Test OpenAI API Connection"):
+        try:
+            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            response = openai.Completion.create(
+                model="gpt-3.5-turbo",
+                prompt="Hello, OpenAI!",
+                max_tokens=5
+            )
+            st.success("API call succeeded!")
+            st.write("Response:", response.choices[0].text.strip())
+        except Exception as e:
+            st.error(f"API test failed: {str(e)}")
+
 def extras_tab():
     st.title("Extras")
-    tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract"])
+    tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract", "OpenAI API Test"])
 
     with tabs[0]:
         backup_data_dictionaries()
     
     with tabs[1]:
         aws_textract_tab()
+
+    with tabs[2]:
+        openai_api_test()
 
 def main():
     st.sidebar.title("Navigation")
