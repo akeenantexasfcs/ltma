@@ -2282,11 +2282,14 @@ def backup_data_dictionaries():
 
 
 def openai_api_test():
-    """Test the connection to the OpenAI API."""
+    """Test the connection to the OpenAI API with an open-ended prompt."""
     st.subheader("OpenAI API Test")
 
+    # Text area for the user to input their question or prompt
+    prompt = st.text_area("Enter your question for the API:", value="Type your question here...")
+
     # Ensure the button has a unique key
-    if st.button("Test OpenAI API Connection", key="openai_test_button"):
+    if st.button("Submit Prompt to OpenAI API", key="openai_test_button"):
         try:
             # Set the OpenAI API key
             openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -2298,7 +2301,7 @@ def openai_api_test():
             response = client.chat.completions.create(
                 model="gpt-4o-mini",  # Use "gpt-3.5-turbo" or "gpt-4" if available
                 messages=[
-                    {"role": "user", "content": "Confirm Success by stating the word success only"}
+                    {"role": "user", "content": prompt}
                 ],
                 max_tokens=50
             )
@@ -2310,6 +2313,7 @@ def openai_api_test():
             st.write("Tokens used:", response.usage.total_tokens)
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
+
 
 def extras_tab():
     """Create the Extras tab with multiple functions."""
