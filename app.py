@@ -2277,7 +2277,7 @@ def openai_api_test():
         try:
             openai.api_key = st.secrets["OPENAI_API_KEY"]
             response = openai.Completion.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 prompt="Hello, OpenAI!",
                 max_tokens=5
             )
