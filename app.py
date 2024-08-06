@@ -2296,9 +2296,9 @@ def openai_api_test():
             response = client.chat.completions.create(
                 model="gpt-4",  # Use "gpt-3.5-turbo" or "gpt-4" if available
                 messages=[
-                    {"role": "user", "content": "Hello, OpenAI!"}
+                    {"role": "user", "content": "Confirm Success by stating the word success only"}
                 ],
-                max_tokens=5
+                max_tokens=50
             )
             
             # Display success message and response
