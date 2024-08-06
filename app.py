@@ -2279,6 +2279,7 @@ def backup_data_dictionaries():
         except Exception as e:
             st.error(f"An unexpected error occurred: {str(e)}")
 
+
 def openai_api_test():
     """Test the connection to the OpenAI API."""
     st.subheader("OpenAI API Test")
@@ -2289,12 +2290,9 @@ def openai_api_test():
             # Set the OpenAI API key
             openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-            # Create a client instance
-            client = openai.OpenAI(api_key=openai.api_key)
-
             # Create a chat completion using the new method
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Use "gpt-3.5-turbo" or "gpt-4" if available
+            response = openai.ChatCompletion.create(
+                model="gpt-4",  # Use "gpt-3.5-turbo" or "gpt-4" if available
                 messages=[
                     {"role": "user", "content": "Confirm Success by stating the word success only"}
                 ],
@@ -2303,9 +2301,16 @@ def openai_api_test():
             
             # Display success message and response
             st.success("API call succeeded!")
+
+            # Print additional information about the API call
             st.write("Response:", response.choices[0].message.content.strip())
+            st.write("Model used:", response.model)
+            st.write("Request ID:", response.get('id'))
+            st.write("API Usage:", response.usage)
+
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
+
 
 def extras_tab():
     """Create the Extras tab with multiple functions."""
