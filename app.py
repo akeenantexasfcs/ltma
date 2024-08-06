@@ -2280,37 +2280,46 @@ def backup_data_dictionaries():
             st.error(f"An unexpected error occurred: {str(e)}")
 
 
+
 def openai_api_test():
-    """Test the connection to the OpenAI API."""
+    """Test the connection to the OpenAI API and display detailed information."""
     st.subheader("OpenAI API Test")
 
-    # Ensure the button has a unique key
     if st.button("Test OpenAI API Connection", key="openai_test_button"):
         try:
             # Set the OpenAI API key
-            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+            # Record start time
+            start_time = time.time()
 
             # Create a chat completion using the new method
-            response = openai.ChatCompletion.create(
-                model="gpt-4",  # Use "gpt-3.5-turbo" or "gpt-4" if available
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",  # Use "gpt-3.5-turbo" as it's more widely available
                 messages=[
-                    {"role": "user", "content": "Confirm Success by stating the word success only"}
+                    {"role": "user", "content": "Hello, OpenAI!"}
                 ],
-                max_tokens=50
+                max_tokens=10
             )
-            
-            # Display success message and response
-            st.success("API call succeeded!")
 
-            # Print additional information about the API call
+            # Calculate elapsed time
+            elapsed_time = time.time() - start_time
+
+            # Display success message and detailed information
+            st.success("API call succeeded!")
             st.write("Response:", response.choices[0].message.content.strip())
             st.write("Model used:", response.model)
-            st.write("Request ID:", response.get('id'))
-            st.write("API Usage:", response.usage)
+            st.write("Response time:", f"{elapsed_time:.2f} seconds")
+            st.write("Tokens used:", response.usage.total_tokens)
+            st.write("API version:", client.api_version)
+
+            # Display the full API response for more details
+            st.subheader("Full API Response")
+            st.json(response.model_dump())
 
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
-
+            st.write("Please check your API key and network connection.")
 
 def extras_tab():
     """Create the Extras tab with multiple functions."""
