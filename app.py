@@ -2271,10 +2271,12 @@ def backup_data_dictionaries():
             st.error(f"An unexpected error occurred: {str(e)}")
 
 
+
 def openai_api_test():
     st.subheader("OpenAI API Test")
 
-    if st.button("Test OpenAI API Connection"):
+    # Ensure the button has a unique key
+    if st.button("Test OpenAI API Connection", key="openai_test_button"):
         try:
             # Set the OpenAI API key
             openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -2296,6 +2298,7 @@ def openai_api_test():
 
 # Call the function to display the Streamlit interface
 openai_api_test()
+
 
 
 def extras_tab():
