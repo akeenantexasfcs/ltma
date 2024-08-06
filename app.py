@@ -671,41 +671,33 @@ def balance_sheet_BS():
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
 
-        if balance_sheet_lookup_df.empty:
-            st.info("No entries in the Balance Sheet Data Dictionary yet.")
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
+            balance_sheet_lookup_df = new_lookup_df
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(balance_sheet_lookup_df)
 
-        with st.form("add_entry_form"):
-            st.write("Add a new entry:")
-            label_input = st.text_input("Label", key='label_input')
-            account_input = st.text_input("Account", key='account_input')
-            mnemonic_input = st.text_input("Mnemonic", key='mnemonic_input')
-            ciq_input = st.text_input("CIQ", key='ciq_input')
+        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        rows_removed = False
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
+            updated_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
+            balance_sheet_lookup_df = updated_df
+            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            rows_removed = True
+            st.success("Selected rows removed successfully!")
+            st.dataframe(balance_sheet_lookup_df)
 
-            add_entry_submit_button = st.form_submit_button("Add Entry")
+        st.subheader("Download Data Dictionary")
+        download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
+        excel_file = io.BytesIO()
+        balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-            if add_entry_submit_button:
-                new_entry = {
-                    "Label": label_input,
-                    "Account": account_input,
-                    "Mnemonic": mnemonic_input,
-                    "CIQ": ciq_input
-                }
-                balance_sheet_lookup_df = balance_sheet_lookup_df.append(new_entry, ignore_index=True)
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                st.success("New entry added to the Balance Sheet Data Dictionary.")
-                st.experimental_rerun()
 
-        if not balance_sheet_lookup_df.empty:
-            selected_index = st.selectbox("Select an entry to delete", options=range(len(balance_sheet_lookup_df)), format_func=lambda x: f"{balance_sheet_lookup_df.at[x, 'Label']} - {balance_sheet_lookup_df.at[x, 'Account']}")
-            delete_button = st.button("Delete Entry")
-
-            if delete_button:
-                balance_sheet_lookup_df = balance_sheet_lookup_df.drop(selected_index).reset_index(drop=True)
-                save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                st.success("Selected entry deleted from the Balance Sheet Data Dictionary.")
-                st.experimental_rerun()
 
 
 ######################################Cash Flow Statement Functions#################################
