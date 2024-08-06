@@ -1851,24 +1851,24 @@ def populate_ciq_template_pt():
                 if template_type == "Annual":
                     if uploaded_balance_sheet:
                         balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
                     if uploaded_cash_flow:
                         cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
                     if uploaded_income_statement:
                         income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
 
                 if template_type == "Quarterly":
                     if uploaded_balance_sheet:
                         balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (94, 160), 92)
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
                     if uploaded_cash_flow:
                         cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (169, 232), 167)
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
                     if uploaded_income_statement:
                         income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (12, 70), 10)
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
