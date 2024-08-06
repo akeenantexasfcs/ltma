@@ -2290,7 +2290,7 @@ def openai_api_test():
             openai.api_key = st.secrets["OPENAI_API_KEY"]
 
             # Create a chat completion using the new method
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create((
                 model="gpt-4o-mini",  # You can replace with "gpt-4" if available
                 messages=[
                     {"role": "user", "content": "Hello, OpenAI!"}
