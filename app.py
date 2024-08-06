@@ -2282,44 +2282,36 @@ def backup_data_dictionaries():
 
 
 def openai_api_test():
-    """Test the connection to the OpenAI API and display detailed information."""
+    """Test the connection to the OpenAI API."""
     st.subheader("OpenAI API Test")
 
+    # Ensure the button has a unique key
     if st.button("Test OpenAI API Connection", key="openai_test_button"):
         try:
             # Set the OpenAI API key
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+            openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-            # Record start time
-            start_time = time.time()
+            # Create a client instance
+            client = openai.OpenAI(api_key=openai.api_key)
 
             # Create a chat completion using the new method
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",  # Use "gpt-3.5-turbo" as it's more widely available
+                model="gpt-4o-mini",  # Use "gpt-3.5-turbo" or "gpt-4" if available
                 messages=[
-                    {"role": "user", "content": "Hello, OpenAI!"}
+                    {"role": "user", "content": "Confirm Success by stating the word success only"}
                 ],
-                max_tokens=10
+                max_tokens=50
             )
-
-            # Calculate elapsed time
-            elapsed_time = time.time() - start_time
-
-            # Display success message and detailed information
+            
+            # Display success message and response
             st.success("API call succeeded!")
             st.write("Response:", response.choices[0].message.content.strip())
             st.write("Model used:", response.model)
             st.write("Response time:", f"{elapsed_time:.2f} seconds")
             st.write("Tokens used:", response.usage.total_tokens)
             st.write("API version:", client.api_version)
-
-            # Display the full API response for more details
-            st.subheader("Full API Response")
-            st.json(response.model_dump())
-
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
-            st.write("Please check your API key and network connection.")
 
 def extras_tab():
     """Create the Extras tab with multiple functions."""
