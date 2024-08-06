@@ -2307,9 +2307,7 @@ def openai_api_test():
             st.success("API call succeeded!")
             st.write("Response:", response.choices[0].message.content.strip())
             st.write("Model used:", response.model)
-            st.write("Response time:", f"{elapsed_time:.2f} seconds")
             st.write("Tokens used:", response.usage.total_tokens)
-            st.write("API version:", client.api_version)
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
 
