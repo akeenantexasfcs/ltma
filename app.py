@@ -2289,6 +2289,9 @@ def openai_api_test():
             # Set the OpenAI API key
             openai.api_key = st.secrets["OPENAI_API_KEY"]
 
+            # Create a client instance
+            client = openai.OpenAI(api_key=openai.api_key)
+
             # Create a chat completion using the new method
             response = client.chat.completions.create(
                 model="gpt-4",  # Use "gpt-3.5-turbo" or "gpt-4" if available
