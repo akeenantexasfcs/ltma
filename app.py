@@ -29,17 +29,6 @@ def load_model():
 
 model = load_model()
 
-# Set up the OpenAI client with error handling and logging
-def setup_openai_client(api_key):
-    try:
-        openai.api_key = api_key
-        logger.info("OpenAI client set up successfully")
-    except KeyError:
-        logger.error("OpenAI API key is missing or invalid")
-        st.error("OpenAI API key is missing or invalid. Please enter a valid key.")
-        st.stop()
-
-
 # Function to generate a response from GPT-4o mini with logging
 @st.cache_data
 def generate_response(prompt, max_tokens=1000, retries=3):
@@ -71,7 +60,6 @@ def generate_response(prompt, max_tokens=1000, retries=3):
             else:
                 st.error("I'm sorry, but I encountered an error while processing your request.")
                 return "I'm sorry, but I encountered an error while processing your request."
-
 
 @st.cache_data
 def get_embedding(text):
@@ -591,33 +579,29 @@ def balance_sheet_BS():
                 if 'ai_recommendations_generated' not in st.session_state:
                     st.session_state.ai_recommendations_generated = False
 
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                    api_key = st.text_input("Enter your OpenAI API Key to proceed:", type="password", key="api_key_tab3")
-                    if not api_key:
-                        st.error("Please enter your OpenAI API Key to generate AI recommendations.")
-                        return
+                api_key = st.text_input("Enter your OpenAI API Key to proceed:", type="password", key="api_key_tab3")
+                if api_key:
+                    openai.api_key = api_key
+                    if not st.session_state.ai_recommendations_generated:
+                        with ThreadPoolExecutor() as executor:
+                            futures = {}
+                            for idx, row in df.iterrows():
+                                if row['Mnemonic'] == 'Human Intervention Required':
+                                    label_value = row.get('Label', '')
+                                    account_value = row['Account']
+                                    nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
 
-                    setup_openai_client(api_key)
+                            for future in futures:
+                                idx = futures[future]
+                                try:
+                                    ai_suggested_mnemonic = future.result()
+                                    st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+                                except Exception as e:
+                                    st.error(f"An error occurred for row {idx}: {e}")
 
-                    with ThreadPoolExecutor() as executor:
-                        futures = {}
-                        for idx, row in df.iterrows():
-                            if row['Mnemonic'] == 'Human Intervention Required':
-                                label_value = row.get('Label', '')
-                                account_value = row['Account']
-                                nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
-
-                        for future in futures:
-                            idx = futures[future]
-                            try:
-                                ai_suggested_mnemonic = future.result()
-                                st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
-                            except Exception as e:
-                                st.error(f"An error occurred for row {idx}: {e}")
-
-                    st.session_state.ai_recommendations_generated = True
-                    st.experimental_rerun()
+                        st.session_state.ai_recommendations_generated = True
+                        st.experimental_rerun()
 
                 for idx, row in df.iterrows():
                     account_value = row['Account']
@@ -699,8 +683,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
 
 
 ######################################Cash Flow Statement Functions#################################
