@@ -2281,9 +2281,13 @@ def backup_data_dictionaries():
 
 
 
+
 def openai_api_test():
     """Test the connection to the OpenAI API with an open-ended prompt."""
     st.subheader("OpenAI API Test")
+
+    # Text input for the user to input their OpenAI API key
+    api_key = st.text_input("Enter your OpenAI API Key:", type="password")
 
     # Text area for the user to input their question or prompt
     prompt = st.text_area("Enter your question for the API:", value="Type your question here...")
@@ -2291,8 +2295,13 @@ def openai_api_test():
     # Ensure the button has a unique key
     if st.button("Submit Prompt to OpenAI API", key="openai_test_button"):
         try:
+            # Check if the API key is provided
+            if not api_key:
+                st.error("Please enter your OpenAI API Key.")
+                return
+
             # Set the OpenAI API key
-            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            openai.api_key = api_key
 
             # Create a client instance
             client = openai.OpenAI(api_key=openai.api_key)
@@ -2313,6 +2322,7 @@ def openai_api_test():
             st.write("Tokens used:", response.usage.total_tokens)
         except Exception as e:
             st.error(f"API test failed: {str(e)}")
+
 
 
 def extras_tab():
