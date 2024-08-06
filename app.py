@@ -2291,7 +2291,7 @@ def openai_api_test():
 
             # Create a chat completion using the new method
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # You can replace with "gpt-4" if available
+                model="gpt-4o-mini",  # You can replace with "gpt-4" if available
                 messages=[
                     {"role": "user", "content": "Hello, OpenAI!"}
                 ],
