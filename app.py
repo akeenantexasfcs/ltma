@@ -11,16 +11,12 @@ import streamlit as st
 from openpyxl import load_workbook
 from Levenshtein import distance as levenshtein_distance
 import re
-import openai
+import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
-from word2number import w2n
-import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+#The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -29,37 +25,33 @@ def load_model():
 
 model = load_model()
 
-# Function to generate a response from GPT-4o mini with logging
+# Set up the Anthropic client with error handling
+@st.cache_resource
+def setup_anthropic_client():
+    try:
+        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    except KeyError:
+        st.error("Anthropic API key not found in secrets. Please check your configuration.")
+        st.stop()
+
+client = setup_anthropic_client()
+
+# Function to generate a response from Claude
 @st.cache_data
-def generate_response(prompt, max_tokens=1000, retries=3):
-    for attempt in range(retries):
-        try:
-            logger.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
-            # Display a message in Streamlit when the API request is initiated
-            st.info(f"Sending request to OpenAI API (attempt {attempt + 1})")
-            
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",  # Ensure you have access to this model
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=0.2
-            )
-            
-            logger.info("Received response from OpenAI API")
-            # Display a confirmation message in Streamlit when a response is received
-            st.success("Received response from OpenAI API")
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            logger.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
-            if attempt < retries - 1:
-                logger.info("Retrying...")
-                st.warning("Retrying API request...")
-            else:
-                st.error("I'm sorry, but I encountered an error while processing your request.")
-                return "I'm sorry, but I encountered an error while processing your request."
+def generate_response(prompt, max_tokens=10000):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=max_tokens,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
 
 @st.cache_data
 def get_embedding(text):
@@ -255,20 +247,6 @@ def check_all_zeroes(df):
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
-def get_ai_suggestions_batch(df, lookup_df, get_ai_suggested_mapping_func, max_workers=5):
-    def process_row(row):
-        if row[1]['Mnemonic'] == 'Human Intervention Required':
-            label_value = row[1].get('Label', '')
-            account_value = row[1]['Account']
-            nearby_rows = df.iloc[max(0, row[0]-2):min(len(df), row[0]+3)][['Label', 'Account']].to_string()
-            return row[0], get_ai_suggested_mapping_func(label_value, account_value, lookup_df, nearby_rows)
-        return row[0], None
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = list(executor.map(process_row, df.iterrows()))
-    
-    return {idx: suggestion for idx, suggestion in results if suggestion is not None}
-
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
@@ -286,7 +264,6 @@ def balance_sheet_BS():
             return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ', 'Label'])
 
     balance_sheet_lookup_df = load_lookup_table(balance_sheet_data_dictionary_file)
-
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -524,65 +501,62 @@ def balance_sheet_BS():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-        st.subheader("Mappings and Data Consolidation")
+            st.subheader("Mappings and Data Consolidation")
 
-        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+            uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
-        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+            currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+            magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
-        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
-        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
+            selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
+            selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
+            company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
-        if uploaded_excel is not None:
-            df = pd.read_excel(uploaded_excel)
+            if uploaded_excel is not None:
+                df = pd.read_excel(uploaded_excel)
 
-            statement_dates = {}
-            for col in df.columns[2:]:
-                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_bs")
-                statement_dates[col] = statement_date
+                statement_dates = {}
+                for col in df.columns[2:]:
+                    statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_bs")
+                    statement_dates[col] = statement_date
 
-            st.write("Columns in the uploaded file:", df.columns.tolist())
+                st.write("Columns in the uploaded file:", df.columns.tolist())
 
-            if 'Account' not in df.columns:
-                st.error("The uploaded file does not contain an 'Account' column.")
-            else:
-                def get_best_match(label, account):
-                    best_score = float('inf')
-                    best_match = None
-                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                            lookup_account = lookup_row['Account']
-                            account_str = str(account)
-                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                            if score < best_score:
-                                best_score = score
-                                best_match = lookup_row
-                    return best_match, best_score
+                if 'Account' not in df.columns:
+                    st.error("The uploaded file does not contain an 'Account' column.")
+                else:
+                    def get_best_match(label, account):
+                        best_score = float('inf')
+                        best_match = None
+                        for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                            if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                                lookup_account = lookup_row['Account']
+                                account_str = str(account)
+                                score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                                if score < best_score:
+                                    best_score = score
+                                    best_match = lookup_row
+                        return best_match, best_score
 
-                df['Mnemonic'] = ''
-                df['Manual Selection'] = ''
-                for idx, row in df.iterrows():
-                    account_value = row['Account']
-                    label_value = row.get('Label', '')
-                    if pd.notna(account_value):
-                        best_match, score = get_best_match(label_value, account_value)
-                        if best_match is not None and score < 0.30:
-                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                        else:
-                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+                    df['Mnemonic'] = ''
+                    df['Manual Selection'] = ''
+                    for idx, row in df.iterrows():
+                        account_value = row['Account']
+                        label_value = row.get('Label', '')
+                        if pd.notna(account_value):
+                            best_match, score = get_best_match(label_value, account_value)
+                            if best_match is not None and score < 0.30:
+                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                            else:
+                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
 
-                if 'ai_suggestions_bs' not in st.session_state:
-                    st.session_state.ai_suggestions_bs = {}
+                    if 'ai_suggestions_bs' not in st.session_state:
+                        st.session_state.ai_suggestions_bs = {}
 
-                if 'ai_recommendations_generated' not in st.session_state:
-                    st.session_state.ai_recommendations_generated = False
+                    if 'ai_recommendations_generated' not in st.session_state:
+                        st.session_state.ai_recommendations_generated = False
 
-                api_key = st.text_input("Enter your OpenAI API Key to proceed:", type="password", key="api_key_tab3")
-                if api_key:
-                    openai.api_key = api_key
-                    if not st.session_state.ai_recommendations_generated:
+                    if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
                         with ThreadPoolExecutor() as executor:
                             futures = {}
                             for idx, row in df.iterrows():
@@ -603,57 +577,91 @@ def balance_sheet_BS():
                         st.session_state.ai_recommendations_generated = True
                         st.experimental_rerun()
 
-                for idx, row in df.iterrows():
-                    account_value = row['Account']
-                    label_value = row.get('Label', '')
-                    if row['Mnemonic'] == 'Human Intervention Required':
-                        st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                        if st.session_state.ai_recommendations_generated and idx in st.session_state.ai_suggestions_bs:
-                            ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
-                            st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
+                    for idx, row in df.iterrows():
+                        account_value = row['Account']
+                        label_value = row.get('Label', '')
+                        if row['Mnemonic'] == 'Human Intervention Required':
+                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                            if st.session_state.ai_recommendations_generated and idx in st.session_state.ai_suggestions_bs:
+                                ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
+                                st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
 
-                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                    manual_selection = st.selectbox(
-                        f"Select category for '{account_value}'",
-                        options=[''] + manual_selection_options + ['REMOVE ROW', 'MANUAL OVERRIDE'],
-                        key=f"select_{idx}_tab3_bs"
-                    )
-                    if manual_selection:
-                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+                        label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                        manual_selection = st.selectbox(
+                            f"Select category for '{account_value}'",
+                            options=[''] + manual_selection_options + ['REMOVE ROW', 'MANUAL OVERRIDE'],
+                            key=f"select_{idx}_tab3_bs"
+                        )
+                        if manual_selection:
+                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
-                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+                    st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
 
-                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
-                    df['Final Mnemonic Selection'] = df.apply(
-                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
-                        axis=1
-                    )
-                    final_output_df = df[df['Manual Selection'] != 'REMOVE ROW'].copy()
+                    if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                        df['Final Mnemonic Selection'] = df.apply(
+                            lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
+                            axis=1
+                        )
+                        final_output_df = df[df['Manual Selection'] != 'REMOVE ROW'].copy()
 
-                    combined_df = create_combined_df([final_output_df])
-                    combined_df = sort_by_label_and_final_mnemonic(combined_df)
+                        combined_df = create_combined_df([final_output_df])
+                        combined_df = sort_by_label_and_final_mnemonic(combined_df)
 
-                    def lookup_ciq(mnemonic):
-                        if mnemonic == 'Human Intervention Required':
-                            return 'CIQ ID Required'
-                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                        if ciq_value.empty:
-                            return 'CIQ ID Required'
-                        return ciq_value.values[0]
+                        def lookup_ciq(mnemonic):
+                            if mnemonic == 'Human Intervention Required':
+                                return 'CIQ ID Required'
+                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                            if ciq_value.empty:
+                                return 'CIQ ID Required'
+                            return ciq_value.values[0]
 
-                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
+                        combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
 
-                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                        columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                        combined_df = combined_df[columns_order]
 
-                    excel_file = io.BytesIO()
-                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                        final_output_df.to_excel(writer, sheet_name='Data with Mnemonics', index=False)
-                        combined_df.to_excel(writer, sheet_name='Combined Data', index=False, columns=columns_order)
+                        as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                        as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                        as_presented_df = as_presented_df[as_presented_columns_order]
 
-                    excel_file.seek(0)
-                    company_name_bs = company_name_bs.replace(" ", "_")
-                    st.download_button(f"Download Excel Lookup Results for {company_name_bs}", excel_file, f"{company_name_bs}_Mnemonic_Mapping_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        excel_file = io.BytesIO()
+                        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                            combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+                            as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
+                            cover_df = pd.DataFrame({
+                                'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                                'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
+                            })
+                            cover_df.to_excel(writer, sheet_name='Cover', index=False)
+                        excel_file.seek(0)
+                        st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                    if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                        df['Final Mnemonic Selection'] = df.apply(
+                            lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
+                            axis=1
+                        )
+                        new_entries = []
+                        for idx, row in df.iterrows():
+                            manual_selection = row['Manual Selection']
+                            final_mnemonic = row['Final Mnemonic Selection']
+                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+
+                            if manual_selection == 'REMOVE ROW':
+                                balance_sheet_lookup_df = balance_sheet_lookup_df.drop(idx)
+                            elif manual_selection != '':
+                                if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                                    new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                                else:
+                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                        if new_entries:
+                            balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                        balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                        save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                        st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
@@ -687,31 +695,28 @@ def balance_sheet_BS():
 
 ######################################Cash Flow Statement Functions#################################
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
-    # Construct the prompt with given parameters
-    prompt = f"""
-    Given the following account information:
+    prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
+
     Nearby rows:
     {nearby_rows}
+
     And the following cash flow lookup data:
-    {cash_flow_lookup_df.to_string(index=False)}
+    {cash_flow_lookup_df.to_string()}
 
     What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
     1. The account's position in the cash flow structure (e.g., Operating Activities, Investing Activities, Financing Activities)
     2. The semantic meaning of the account name and its relationship to standard financial statement line items
     3. The nearby rows to understand the context of this account
     4. Common financial reporting standards and practices
-    """
 
-    # Generate response from OpenAI API
+    Please provide only the value from the 'Mnemonic' column in the Cash Flow Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label."""
+
     suggested_mnemonic = generate_response(prompt).strip()
 
-    # Calculate similarity and determine best mnemonic match
     account_embedding = get_embedding(f"{label} {account}")
-    similarities = cash_flow_lookup_df.apply(
-        lambda row: np.dot(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")) / 
-        (np.linalg.norm(account_embedding) * np.linalg.norm(get_embedding(f"{row['Label']} {row['Account']}"))), axis=1)
+    similarities = cash_flow_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
 
     top_3_similar = similarities.nlargest(3)
     scores = {}
@@ -1013,12 +1018,6 @@ def cash_flow_statement_CF():
 
                 df['Mnemonic'] = ''
                 df['Manual Selection'] = ''
-
-                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
-                    st.session_state.show_ai_recommendations_cf = True
-                    st.session_state.ai_suggestions_cf = {}
-                    st.experimental_rerun()
-
                 for idx, row in df.iterrows():
                     account_value = row['Account']
                     label_value = row.get('Label', '')
@@ -1047,6 +1046,11 @@ def cash_flow_statement_CF():
                         df.at[idx, 'Manual Selection'] = manual_selection.strip()
 
                 st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_tab3_cfs"):
+                    st.session_state.show_ai_recommendations_cf = True
+                    st.session_state.ai_suggestions_cf = {}
+                    st.experimental_rerun()
 
                 if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_cfs"):
                     df['Final Mnemonic Selection'] = df.apply(
@@ -1152,7 +1156,7 @@ import streamlit as st
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from Levenshtein import distance as levenshtein_distance
-import openai
+import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
@@ -1165,41 +1169,33 @@ def load_model():
 
 model = load_model()
 
-# Set up the OpenAI client with error handling
+# Set up the Anthropic client with error handling
 @st.cache_resource
-def setup_openai_client():
+def setup_anthropic_client():
     try:
-        openai.api_key = st.secrets["OPENAI_API_KEY"]
+        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
     except KeyError:
-        st.error("OpenAI API key not found in secrets. Please check your configuration.")
+        st.error("Anthropic API key not found in secrets. Please check your configuration.")
         st.stop()
 
-# Ensure the OpenAI client is set up when the application starts
-setup_openai_client()
+client = setup_anthropic_client()
 
-# Function to generate a response from GPT-4o-mini
+# Function to generate a response from Claude
 @st.cache_data
-def generate_response(prompt, max_tokens=1000, retries=3):
-    for attempt in range(retries):
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=0.2
-            )
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            st.error(f"An error occurred on attempt {attempt + 1}: {str(e)}")
-            if attempt < retries - 1:
-                st.info("Retrying...")
-            else:
-                return "I'm sorry, but I encountered an error while processing your request."
-
-
+def generate_response(prompt, max_tokens=1000):
+    try:
+        response = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=max_tokens,
+            temperature=0.2,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.content[0].text
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return "I'm sorry, but I encountered an error while processing your request."
 
 @st.cache_data
 def get_embedding(text):
@@ -1715,7 +1711,6 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-
 ####################################### Populate CIQ Template ###################################
 import streamlit as st
 import pandas as pd
@@ -1908,10 +1903,8 @@ import botocore
 import pandas as pd
 import time
 import io
-import openai
 
 def check_aws_credentials():
-    """Check if AWS credentials are valid."""
     try:
         st.write("All secret keys:", list(st.secrets.keys()))
         if "aws" in st.secrets:
@@ -1945,7 +1938,6 @@ def safe_get(dict_obj, key, default=None):
     return dict_obj.get(key, default)
 
 def extract_table_data(table_blocks, blocks_map):
-    """Extract table data from Textract blocks."""
     rows = []
     for relationship in safe_get(table_blocks, 'Relationships', []):
         if safe_get(relationship, 'Type') == 'CHILD':
@@ -1971,7 +1963,6 @@ def extract_table_data(table_blocks, blocks_map):
     return rows
 
 def upload_to_s3(s3_client, file_bytes, bucket_name, object_name):
-    """Upload a file to an S3 bucket."""
     try:
         s3_client.put_object(Body=file_bytes, Bucket=bucket_name, Key=object_name)
         st.success(f"Successfully uploaded file to S3: {bucket_name}/{object_name}")
@@ -1980,7 +1971,6 @@ def upload_to_s3(s3_client, file_bytes, bucket_name, object_name):
         raise
 
 def start_document_analysis(textract_client, bucket_name, object_name):
-    """Start a document analysis job using Textract."""
     try:
         response = textract_client.start_document_analysis(
             DocumentLocation={'S3Object': {'Bucket': bucket_name, 'Name': object_name}},
@@ -1992,7 +1982,6 @@ def start_document_analysis(textract_client, bucket_name, object_name):
         raise
 
 def get_document_analysis(textract_client, job_id):
-    """Get the results of a document analysis job."""
     pages = []
     next_token = None
     max_attempts = 60  # Increase this for larger documents
@@ -2034,7 +2023,6 @@ def get_document_analysis(textract_client, job_id):
     return pages
 
 def process_document(file_path, textract_client, s3_client, bucket_name):
-    """Process a document using AWS Textract."""
     try:
         with open(file_path, 'rb') as document:
             file_bytes = document.read()
@@ -2089,7 +2077,6 @@ def process_document(file_path, textract_client, s3_client, bucket_name):
         raise
 
 def reset_aws_process():
-    """Reset the AWS Textract processing state."""
     st.session_state.processed = False
     st.session_state.uploaded_file = None
     st.session_state.response_json_path = None
@@ -2097,7 +2084,6 @@ def reset_aws_process():
     st.session_state.tables = None
 
 def aws_textract_tab():
-    """Create the AWS Textract tab in the Streamlit app."""
     st.title("AWS Textract with Streamlit - Table Extraction")
     st.write("Enter your AWS credentials and upload an image or PDF file to extract tables using AWS Textract.")
 
@@ -2204,7 +2190,6 @@ def aws_textract_tab():
             st.experimental_rerun()
 
 def backup_data_dictionaries():
-    """Backup data dictionaries to a downloadable Excel file."""
     if st.button("Backup Data Dictionaries"):
         try:
             # Get the directory of the current script
@@ -2256,63 +2241,9 @@ def backup_data_dictionaries():
         except Exception as e:
             st.error(f"An unexpected error occurred: {str(e)}")
 
-
-
-
-import streamlit as st
-import openai
-
-
-def openai_api_test():
-    """Test the connection to the OpenAI API with an open-ended prompt."""
-    st.subheader("OpenAI API Test")
-    
-    # Try to get the API key from Streamlit secrets, if not available, use text input
-    try:
-        api_key = st.secrets["OpenKey"]
-    except KeyError:
-        st.warning("OpenKey not found in Streamlit secrets. Please enter your API key manually.")
-        api_key = st.text_input("Enter your OpenAI API Key:", type="password")
-    
-    # Text area for the user to input their question or prompt
-    prompt = st.text_area("Enter your question for the API:", value="Type your question here...")
-    
-    # Ensure the button has a unique key
-    if st.button("Submit Prompt to OpenAI API", key="openai_test_button"):
-        if not api_key:
-            st.error("Please enter your OpenAI API Key.")
-            return
-        
-        try:
-            # Set the OpenAI API key
-            openai.api_key = api_key
-            
-            # Create a client instance
-            client = openai.OpenAI(api_key=openai.api_key)
-            
-            # Create a chat completion using the new method
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Use "gpt-4-0314" as "gpt-4o-mini" is not a standard model name
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=50
-            )
-            
-            # Display success message and response
-            st.success("API call succeeded!")
-            st.write("Response:", response.choices[0].message.content.strip())
-            st.write("Model used:", response.model)
-            st.write("Tokens used:", response.usage.total_tokens)
-        except Exception as e:
-            st.error(f"API test failed: {str(e)}")
-
-
-
 def extras_tab():
-    """Create the Extras tab with multiple functions."""
     st.title("Extras")
-    tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract", "OpenAI API Test"])
+    tabs = st.tabs(["Backup Data Dictionaries", "AWS Textract"])
 
     with tabs[0]:
         backup_data_dictionaries()
@@ -2320,11 +2251,7 @@ def extras_tab():
     with tabs[1]:
         aws_textract_tab()
 
-    with tabs[2]:
-        openai_api_test()
-
 def main():
-    """Main function to run the Streamlit app."""
     st.sidebar.title("Navigation")
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
@@ -2341,4 +2268,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
