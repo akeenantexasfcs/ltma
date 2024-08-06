@@ -2294,7 +2294,7 @@ def openai_api_test():
 
             # Create a chat completion using the new method
             response = client.chat.completions.create(
-                model="gpt-4",  # Use "gpt-3.5-turbo" or "gpt-4" if available
+                model="gpt-4o-mini",  # Use "gpt-3.5-turbo" or "gpt-4" if available
                 messages=[
                     {"role": "user", "content": "Confirm Success by stating the word success only"}
                 ],
