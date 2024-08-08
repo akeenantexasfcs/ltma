@@ -1711,6 +1711,8 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+            
+ ##############################POPULATE CIQ TEMPLATE*****************************           
 import streamlit as st
 import pandas as pd
 import openpyxl
@@ -1742,24 +1744,8 @@ def populate_ciq_template_pt():
                     st.error("Please ensure the template file is a valid Excel file (.xlsx or .xlsm).")
                     return
 
-                # Create a new workbook to copy data into (this helps avoid external link issues)
-                new_template_wb = Workbook()
-
-                # Copy sheets from loaded workbook to the new workbook
-                for sheet_name in template_wb.sheetnames:
-                    source = template_wb[sheet_name]
-                    if sheet_name in new_template_wb.sheetnames:
-                        target = new_template_wb[sheet_name]
-                    else:
-                        target = new_template_wb.create_sheet(title=sheet_name)
-                    
-                    for row in source:
-                        for cell in row:
-                            target[cell.coordinate].value = cell.value
-
-                    # Remove all links
-                    target._rels = {}
-                    target.external_links = []
+                # List available sheets in the template
+                st.write("Sheets in the template file:", template_wb.sheetnames)
 
                 def process_sheet(uploaded_file, sheet_name, row_range, date_row):
                     if uploaded_file is None:
@@ -1771,6 +1757,9 @@ def populate_ciq_template_pt():
                         st.error(f"Error loading {sheet_name} file: {e}")
                         st.error(f"Please ensure the {sheet_name} file is a valid Excel file (.xlsx or .xlsm).")
                         return
+                    
+                    # List available sheets in the uploaded file
+                    st.write(f"Sheets in the {sheet_name} file:", sheet_wb.sheetnames)
                     
                     try:
                         as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
@@ -1784,17 +1773,15 @@ def populate_ciq_template_pt():
                         st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
                         return
 
-                    # Clean external links in sheets
-                    as_presented_sheet._rels = {}
-                    as_presented_sheet.external_links = []
+                    # Find the correct sheet in the template workbook
+                    target_sheet_name = next((name for name in template_wb.sheetnames if sheet_name.lower() in name.lower()), None)
+                    if not target_sheet_name:
+                        st.error(f"Could not find a sheet for {sheet_name} in the template file.")
+                        return
+                    
+                    target_sheet = template_wb[target_sheet_name]
 
-                    # Copy "As Presented" sheet to the new workbook
-                    new_as_presented = new_template_wb.create_sheet(f"As Presented - {sheet_name}")
-                    for row in as_presented_sheet.iter_rows(values_only=True):
-                        new_as_presented.append(row)
-
-                    # Copy standardized data to the appropriate sheet in the new workbook
-                    target_sheet = new_template_wb[sheet_name]
+                    # Copy standardized data to the appropriate sheet in the template
                     for index, row in standardized_sheet.iterrows():
                         if row['CIQ'] and pd.notna(row['CIQ']):
                             cell = target_sheet.cell(row=int(row['CIQ']), column=2)
@@ -1811,7 +1798,7 @@ def populate_ciq_template_pt():
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
-                new_template_wb.save(output)
+                template_wb.save(output)
                 output.seek(0)
                 template_data = output.getvalue()
 
