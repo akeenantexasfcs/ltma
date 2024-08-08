@@ -1711,8 +1711,7 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-            
- ##############################POPULATE CIQ TEMPLATE*****************************           
+####################################### Populate CIQ Template ###################################
 import streamlit as st
 import pandas as pd
 import openpyxl
@@ -1736,44 +1735,144 @@ def populate_ciq_template_pt():
             try:
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
-                
-                template_wb = load_workbook(BytesIO(template_file), keep_vba=True, data_only=False)
-                
-                # Ensure "Upload" sheet exists
-                if "Upload" not in template_wb.sheetnames:
-                    st.error("The template file does not contain an 'Upload' sheet.")
+                try:
+                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+                except Exception as e:
+                    st.error(f"Error loading template file: {e}")
                     return
-                
-                upload_sheet = template_wb["Upload"]
 
-                def process_sheet(uploaded_file, sheet_name, start_row, end_row):
-                    if uploaded_file is None:
+                def process_sheet(sheet_file, sheet_name, row_range, date_row):
+                    try:
+                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
+                    except Exception as e:
+                        st.error(f"Error loading {sheet_name} file: {e}")
                         return
                     
-                    df = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
-                    
-                    if 'CIQ' not in df.columns or 'Item' not in df.columns:
-                        st.error(f"The 'Standardized - {sheet_name}' sheet is missing required columns (CIQ or Item).")
+                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
+                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
+
+                    # Check for required columns in the Standardized sheet
+                    if 'CIQ' not in standardized_sheet.columns:
+                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
                         return
 
-                    for _, row in df.iterrows():
-                        if pd.notna(row['CIQ']) and row['CIQ'] >= start_row and row['CIQ'] <= end_row:
-                            cell = upload_sheet.cell(row=int(row['CIQ']), column=2)
-                            cell.value = row['Item']
+                    st.write(f"{sheet_name} CIQ column found, proceeding...")
+                    st.write(standardized_sheet.head())
 
+                    # Copy the "As Presented" sheet to the template workbook
+                    if f"As Presented - {sheet_name}" in template_wb.sheetnames:
+                        del template_wb[f"As Presented - {sheet_name}"]
+                    new_sheet = template_wb.create_sheet(f"As Presented - {sheet_name}")
+                    for row in as_presented_sheet.iter_rows():
+                        for cell in row:
+                            new_sheet[cell.coordinate].value = cell.value
+
+                    # Color the "As Presented" tab orange
+                    tab_color = "FFA500"
+                    new_sheet.sheet_properties.tabColor = tab_color
+
+                    # Copy the "Standardized" sheet to the template workbook
+                    if f"Standardized - {sheet_name}" in template_wb.sheetnames:
+                        del template_wb[f"Standardized - {sheet_name}"]
+                    standardized_ws = template_wb.create_sheet(f"Standardized - {sheet_name}")
+
+                    # Write the header row
+                    for col_num, header in enumerate(standardized_sheet.columns, 1):
+                        standardized_ws.cell(row=1, column=col_num, value=header)
+
+                    # Write the data rows
+                    for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
+                        for c_idx, value in enumerate(row, 1):
+                            standardized_ws.cell(row=r_idx, column=c_idx, value=value)
+
+                    # Perform lookups and update the "Upload" sheet
+                    upload_sheet = template_wb["Upload"]
+                    ciq_values = standardized_sheet['CIQ'].tolist()
+                    dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
+
+                    st.write(f"CIQ Values from {sheet_name}:", ciq_values)
+                    st.write(f"Dates from {sheet_name}:", dates)
+
+                    if template_type == "Annual":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 10):
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+                    
+                    elif template_type == "Quarterly":
+                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
+                            ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
+                            ciq_value = ciq_cell.value
+                            if ciq_value in ciq_values:
+                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
+                                for col in range(4, 22):  # Changed to include columns D to U
+                                    date_value = upload_sheet.cell(row=date_row, column=col).value
+                                    st.write(f"Checking date {date_value} at column {col}")
+                                    if date_value in dates:
+                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
+                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
+                                        if not pd.isna(lookup_value):
+                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
+                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
+                                                cell_to_update.value = lookup_value
+                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
+
+                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
+                            for cell in row:
+                                if cell.value is not None:
+                                    try:
+                                        cell_value = float(cell.value)
+                                        cell.value = -abs(cell_value)
+                                    except ValueError:
+                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
+
+                # Process sheets based on the uploaded files
                 if template_type == "Annual":
-                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
-                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
-                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
-                elif template_type == "Quarterly":
-                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
-                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
-                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
+
+                if template_type == "Quarterly":
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
                 template_wb.save(output)
-                output.seek(0)
                 template_data = output.getvalue()
 
                 # Provide a download button for the updated template
@@ -1788,7 +1887,6 @@ def populate_ciq_template_pt():
 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
-                st.error("Please check all your input files and try again.")
 
     with tab1:
         process_template("Annual")
