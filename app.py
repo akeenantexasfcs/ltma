@@ -1735,13 +1735,25 @@ def populate_ciq_template_pt():
             try:
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
-                template_wb = Workbook()
-                loaded_template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+                
+                try:
+                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+                except Exception as e:
+                    st.error(f"Error loading template file: {e}")
+                    st.error("Please ensure the template file is a valid Excel file (.xlsx or .xlsm).")
+                    return
 
-                # Copy sheets from loaded workbook to the new workbook to strip external links
-                for sheet_name in loaded_template_wb.sheetnames:
-                    source = loaded_template_wb[sheet_name]
-                    target = template_wb.create_sheet(title=sheet_name)
+                # Create a new workbook to copy data into (this helps avoid external link issues)
+                new_template_wb = Workbook()
+
+                # Copy sheets from loaded workbook to the new workbook
+                for sheet_name in template_wb.sheetnames:
+                    source = template_wb[sheet_name]
+                    if sheet_name in new_template_wb.sheetnames:
+                        target = new_template_wb[sheet_name]
+                    else:
+                        target = new_template_wb.create_sheet(title=sheet_name)
+                    
                     for row in source:
                         for cell in row:
                             target[cell.coordinate].value = cell.value
@@ -1750,15 +1762,24 @@ def populate_ciq_template_pt():
                     target._rels = {}
                     target.external_links = []
 
-                def process_sheet(sheet_file, sheet_name, row_range, date_row):
-                    try:
-                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
-                    except Exception as e:
-                        st.error(f"Error loading {sheet_name} file: {e}")
+                def process_sheet(uploaded_file, sheet_name, row_range, date_row):
+                    if uploaded_file is None:
                         return
                     
-                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
-                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
+                    try:
+                        sheet_wb = load_workbook(BytesIO(uploaded_file.read()), data_only=True)
+                    except Exception as e:
+                        st.error(f"Error loading {sheet_name} file: {e}")
+                        st.error(f"Please ensure the {sheet_name} file is a valid Excel file (.xlsx or .xlsm).")
+                        return
+                    
+                    try:
+                        as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
+                        standardized_sheet = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
+                    except Exception as e:
+                        st.error(f"Error reading sheets from {sheet_name} file: {e}")
+                        st.error(f"Please ensure the {sheet_name} file contains 'As Presented - {sheet_name}' and 'Standardized - {sheet_name}' sheets.")
+                        return
 
                     if 'CIQ' not in standardized_sheet.columns:
                         st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
@@ -1768,35 +1789,32 @@ def populate_ciq_template_pt():
                     as_presented_sheet._rels = {}
                     as_presented_sheet.external_links = []
 
-                    # Code continues to copy the "As Presented" and "Standardized" sheets as before
+                    # Copy "As Presented" sheet to the new workbook
+                    new_as_presented = new_template_wb.create_sheet(f"As Presented - {sheet_name}")
+                    for row in as_presented_sheet.iter_rows(values_only=True):
+                        new_as_presented.append(row)
+
+                    # Copy standardized data to the appropriate sheet in the new workbook
+                    target_sheet = new_template_wb[sheet_name]
+                    for index, row in standardized_sheet.iterrows():
+                        if row['CIQ'] and pd.notna(row['CIQ']):
+                            cell = target_sheet.cell(row=int(row['CIQ']), column=2)
+                            cell.value = row['Item']
 
                 if template_type == "Annual":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
-
-                if template_type == "Quarterly":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", (96, 162), 94)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", (171, 234), 169)
+                    process_sheet(uploaded_income_statement, "Income Stmt", (14, 72), 12)
+                elif template_type == "Quarterly":
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", (96, 162), 94)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", (171, 234), 169)
+                    process_sheet(uploaded_income_statement, "Income Stmt", (14, 72), 12)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
-                template_wb.save(output)
+                new_template_wb.save(output)
                 output.seek(0)
-                template_data = output.read()
+                template_data = output.getvalue()
 
                 # Provide a download button for the updated template
                 mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if uploaded_template.name.endswith('.xlsm') else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -1811,16 +1829,13 @@ def populate_ciq_template_pt():
 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
+                st.error("Please check all your input files and try again.")
 
     with tab1:
         process_template("Annual")
 
     with tab2:
         process_template("Quarterly")
-
-# This function setup should address file format and extension issues and provide a robust handling mechanism for your templates.
-
-
 
 #######################################Extras#############################
 import os
