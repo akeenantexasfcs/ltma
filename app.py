@@ -1770,12 +1770,27 @@ def populate_ciq_template_pt():
 
                     # Code continues to copy the "As Presented" and "Standardized" sheets as before
 
-                # Add process for each type of sheet
                 if template_type == "Annual":
-                    # Continue with previous logic for Annual type
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
 
                 if template_type == "Quarterly":
-                    # Continue with previous logic for Quarterly type
+                    if uploaded_balance_sheet:
+                        balance_sheet_file = uploaded_balance_sheet.read()
+                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
+                    if uploaded_cash_flow:
+                        cash_flow_file = uploaded_cash_flow.read()
+                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
+                    if uploaded_income_statement:
+                        income_statement_file = uploaded_income_statement.read()
+                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
@@ -1801,7 +1816,7 @@ def populate_ciq_template_pt():
     with tab2:
         process_template("Quarterly")
 
-# Below this line, other parts of your application would continue
+
 
 #######################################Extras#############################
 import os
