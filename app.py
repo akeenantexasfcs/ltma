@@ -1711,7 +1711,6 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-####################################### Populate CIQ Template ###################################
 import streamlit as st
 import pandas as pd
 import openpyxl
@@ -1836,7 +1835,6 @@ def populate_ciq_template_pt():
 
     with tab2:
         process_template("Quarterly")
-
 #######################################Extras#############################
 import os
 import streamlit as st
