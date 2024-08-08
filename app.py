@@ -1795,14 +1795,16 @@ def populate_ciq_template_pt():
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
                 template_wb.save(output)
-                template_data = output.getvalue()
+                output.seek(0)
+                template_data = output.read()
 
                 # Provide a download button for the updated template
+                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if uploaded_template.name.endswith('.xlsm') else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
                     label=f"Download Updated {template_type} Template",
                     data=template_data,
                     file_name=uploaded_template.name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime=mime_type
                 )
 
                 st.success(f"{template_type} Template populated successfully. You can now download the updated template.")
@@ -1815,6 +1817,8 @@ def populate_ciq_template_pt():
 
     with tab2:
         process_template("Quarterly")
+
+# This function setup should address file format and extension issues and provide a robust handling mechanism for your templates.
 
 
 
