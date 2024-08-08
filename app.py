@@ -1716,7 +1716,7 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 from io import BytesIO
 
 def populate_ciq_template_pt():
@@ -1737,64 +1737,38 @@ def populate_ciq_template_pt():
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
                 
-                try:
-                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
-                except Exception as e:
-                    st.error(f"Error loading template file: {e}")
-                    st.error("Please ensure the template file is a valid Excel file (.xlsx or .xlsm).")
+                template_wb = load_workbook(BytesIO(template_file), keep_vba=True, data_only=False)
+                
+                # Ensure "Upload" sheet exists
+                if "Upload" not in template_wb.sheetnames:
+                    st.error("The template file does not contain an 'Upload' sheet.")
                     return
+                
+                upload_sheet = template_wb["Upload"]
 
-                # List available sheets in the template
-                st.write("Sheets in the template file:", template_wb.sheetnames)
-
-                def process_sheet(uploaded_file, sheet_name, row_range, date_row):
+                def process_sheet(uploaded_file, sheet_name, start_row, end_row):
                     if uploaded_file is None:
                         return
                     
-                    try:
-                        sheet_wb = load_workbook(BytesIO(uploaded_file.read()), data_only=True)
-                    except Exception as e:
-                        st.error(f"Error loading {sheet_name} file: {e}")
-                        st.error(f"Please ensure the {sheet_name} file is a valid Excel file (.xlsx or .xlsm).")
-                        return
+                    df = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
                     
-                    # List available sheets in the uploaded file
-                    st.write(f"Sheets in the {sheet_name} file:", sheet_wb.sheetnames)
-                    
-                    try:
-                        as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
-                        standardized_sheet = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
-                    except Exception as e:
-                        st.error(f"Error reading sheets from {sheet_name} file: {e}")
-                        st.error(f"Please ensure the {sheet_name} file contains 'As Presented - {sheet_name}' and 'Standardized - {sheet_name}' sheets.")
+                    if 'CIQ' not in df.columns or 'Item' not in df.columns:
+                        st.error(f"The 'Standardized - {sheet_name}' sheet is missing required columns (CIQ or Item).")
                         return
 
-                    if 'CIQ' not in standardized_sheet.columns:
-                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
-                        return
-
-                    # Find the correct sheet in the template workbook
-                    target_sheet_name = next((name for name in template_wb.sheetnames if sheet_name.lower() in name.lower()), None)
-                    if not target_sheet_name:
-                        st.error(f"Could not find a sheet for {sheet_name} in the template file.")
-                        return
-                    
-                    target_sheet = template_wb[target_sheet_name]
-
-                    # Copy standardized data to the appropriate sheet in the template
-                    for index, row in standardized_sheet.iterrows():
-                        if row['CIQ'] and pd.notna(row['CIQ']):
-                            cell = target_sheet.cell(row=int(row['CIQ']), column=2)
+                    for _, row in df.iterrows():
+                        if pd.notna(row['CIQ']) and row['CIQ'] >= start_row and row['CIQ'] <= end_row:
+                            cell = upload_sheet.cell(row=int(row['CIQ']), column=2)
                             cell.value = row['Item']
 
                 if template_type == "Annual":
-                    process_sheet(uploaded_balance_sheet, "Balance Sheet", (96, 162), 94)
-                    process_sheet(uploaded_cash_flow, "Cash Flow", (171, 234), 169)
-                    process_sheet(uploaded_income_statement, "Income Stmt", (14, 72), 12)
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
                 elif template_type == "Quarterly":
-                    process_sheet(uploaded_balance_sheet, "Balance Sheet", (96, 162), 94)
-                    process_sheet(uploaded_cash_flow, "Cash Flow", (171, 234), 169)
-                    process_sheet(uploaded_income_statement, "Income Stmt", (14, 72), 12)
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
@@ -1803,12 +1777,11 @@ def populate_ciq_template_pt():
                 template_data = output.getvalue()
 
                 # Provide a download button for the updated template
-                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if uploaded_template.name.endswith('.xlsm') else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
                     label=f"Download Updated {template_type} Template",
                     data=template_data,
                     file_name=uploaded_template.name,
-                    mime=mime_type
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
                 st.success(f"{template_type} Template populated successfully. You can now download the updated template.")
