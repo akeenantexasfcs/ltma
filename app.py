@@ -16,8 +16,6 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
 
-#The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
-
 # Load a pre-trained sentence transformer model
 @st.cache_resource
 def load_model():
@@ -263,7 +261,8 @@ def balance_sheet_BS():
         except FileNotFoundError:
             return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ', 'Label'])
 
-    balance_sheet_lookup_df = load_lookup_table(balance_sheet_data_dictionary_file)
+    # Initialize balance_sheet_lookup_df from the session state
+    balance_sheet_lookup_df = st.session_state.get('balance_sheet_data', load_lookup_table(balance_sheet_data_dictionary_file))
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
@@ -501,167 +500,171 @@ def balance_sheet_BS():
             st.warning("Please upload valid Excel files for aggregation.")
 
     with tab3:
-            st.subheader("Mappings and Data Consolidation")
+        st.subheader("Mappings and Data Consolidation")
 
-            uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
+        # Reload the balance sheet lookup table to ensure it's updated
+        balance_sheet_lookup_df = st.session_state.get('balance_sheet_data', load_lookup_table(balance_sheet_data_dictionary_file))
 
-            currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
-            magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
+        uploaded_excel = st.file_uploader("Upload your Excel file for Mnemonic Mapping", type=['xlsx'], key='excel_uploader_tab3_bs')
 
-            selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
-            selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
-            company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
+        currency_options = ["U.S. Dollar", "Euro", "British Pound Sterling", "Japanese Yen"]
+        magnitude_options = ["Actuals", "Thousands", "Millions", "Billions", "Trillions"]
 
-            if uploaded_excel is not None:
-                df = pd.read_excel(uploaded_excel)
+        selected_currency = st.selectbox("Select Currency", currency_options, key='currency_selection_tab3_bs')
+        selected_magnitude = st.selectbox("Select Magnitude", magnitude_options, key='magnitude_selection_tab3_bs')
+        company_name_bs = st.text_input("Enter Company Name", key='company_name_input_bs')
 
-                statement_dates = {}
-                for col in df.columns[2:]:
-                    statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_bs")
-                    statement_dates[col] = statement_date
+        if uploaded_excel is not None:
+            df = pd.read_excel(uploaded_excel)
 
-                st.write("Columns in the uploaded file:", df.columns.tolist())
+            statement_dates = {}
+            for col in df.columns[2:]:
+                statement_date = st.text_input(f"Enter statement date for {col}", key=f"statement_date_{col}_bs")
+                statement_dates[col] = statement_date
 
-                if 'Account' not in df.columns:
-                    st.error("The uploaded file does not contain an 'Account' column.")
-                else:
-                    def get_best_match(label, account):
-                        best_score = float('inf')
-                        best_match = None
-                        for _, lookup_row in balance_sheet_lookup_df.iterrows():
-                            if lookup_row['Label'].strip().lower() == str(label).strip().lower():
-                                lookup_account = lookup_row['Account']
-                                account_str = str(account)
-                                score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
-                                if score < best_score:
-                                    best_score = score
-                                    best_match = lookup_row
-                        return best_match, best_score
+            st.write("Columns in the uploaded file:", df.columns.tolist())
 
-                    df['Mnemonic'] = ''
-                    df['Manual Selection'] = ''
-                    for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if pd.notna(account_value):
-                            best_match, score = get_best_match(label_value, account_value)
-                            if best_match is not None and score < 0.30:
-                                df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
-                            else:
-                                df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
+            if 'Account' not in df.columns:
+                st.error("The uploaded file does not contain an 'Account' column.")
+            else:
+                def get_best_match(label, account):
+                    best_score = float('inf')
+                    best_match = None
+                    for _, lookup_row in balance_sheet_lookup_df.iterrows():
+                        if lookup_row['Label'].strip().lower() == str(label).strip().lower():
+                            lookup_account = lookup_row['Account']
+                            account_str = str(account)
+                            score = levenshtein_distance(account_str.lower(), lookup_account.lower()) / max(len(account_str), len(lookup_account))
+                            if score < best_score:
+                                best_score = score
+                                best_match = lookup_row
+                    return best_match, best_score
 
-                    if 'ai_suggestions_bs' not in st.session_state:
-                        st.session_state.ai_suggestions_bs = {}
+                df['Mnemonic'] = ''
+                df['Manual Selection'] = ''
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if pd.notna(account_value):
+                        best_match, score = get_best_match(label_value, account_value)
+                        if best_match is not None and score < 0.30:
+                            df.at[idx, 'Mnemonic'] = best_match['Mnemonic']
+                        else:
+                            df.at[idx, 'Mnemonic'] = 'Human Intervention Required'
 
-                    if 'ai_recommendations_generated' not in st.session_state:
-                        st.session_state.ai_recommendations_generated = False
+                if 'ai_suggestions_bs' not in st.session_state:
+                    st.session_state.ai_suggestions_bs = {}
 
-                    if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
-                        with ThreadPoolExecutor() as executor:
-                            futures = {}
-                            for idx, row in df.iterrows():
-                                if row['Mnemonic'] == 'Human Intervention Required':
-                                    label_value = row.get('Label', '')
-                                    account_value = row['Account']
-                                    nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
-                                    futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
+                if 'ai_recommendations_generated' not in st.session_state:
+                    st.session_state.ai_recommendations_generated = False
 
-                            for future in futures:
-                                idx = futures[future]
-                                try:
-                                    ai_suggested_mnemonic = future.result()
-                                    st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
-                                except Exception as e:
-                                    st.error(f"An error occurred for row {idx}: {e}")
-
-                        st.session_state.ai_recommendations_generated = True
-                        st.experimental_rerun()
-
-                    for idx, row in df.iterrows():
-                        account_value = row['Account']
-                        label_value = row.get('Label', '')
-                        if row['Mnemonic'] == 'Human Intervention Required':
-                            st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
-                            if st.session_state.ai_recommendations_generated and idx in st.session_state.ai_suggestions_bs:
-                                ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
-                                st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
-
-                        label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
-                        manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
-                        manual_selection = st.selectbox(
-                            f"Select category for '{account_value}'",
-                            options=[''] + manual_selection_options + ['REMOVE ROW', 'MANUAL OVERRIDE'],
-                            key=f"select_{idx}_tab3_bs"
-                        )
-                        if manual_selection:
-                            df.at[idx, 'Manual Selection'] = manual_selection.strip()
-
-                    st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
-
-                    if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
-                        df['Final Mnemonic Selection'] = df.apply(
-                            lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
-                            axis=1
-                        )
-                        final_output_df = df[df['Manual Selection'] != 'REMOVE ROW'].copy()
-
-                        combined_df = create_combined_df([final_output_df])
-                        combined_df = sort_by_label_and_final_mnemonic(combined_df)
-
-                        def lookup_ciq(mnemonic):
-                            if mnemonic == 'Human Intervention Required':
-                                return 'CIQ ID Required'
-                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
-                            if ciq_value.empty:
-                                return 'CIQ ID Required'
-                            return ciq_value.values[0]
-
-                        combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
-
-                        columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
-                        combined_df = combined_df[columns_order]
-
-                        as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
-                        as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
-                        as_presented_df = as_presented_df[as_presented_columns_order]
-
-                        excel_file = io.BytesIO()
-                        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-                            combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
-                            as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
-                            cover_df = pd.DataFrame({
-                                'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
-                                'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
-                            })
-                            cover_df.to_excel(writer, sheet_name='Cover', index=False)
-                        excel_file.seek(0)
-                        st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                    if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
-                        df['Final Mnemonic Selection'] = df.apply(
-                            lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
-                            axis=1
-                        )
-                        new_entries = []
+                if st.button("Generate AI Recommendations", key="generate_ai_recommendations_bs"):
+                    with ThreadPoolExecutor() as executor:
+                        futures = {}
                         for idx, row in df.iterrows():
-                            manual_selection = row['Manual Selection']
-                            final_mnemonic = row['Final Mnemonic Selection']
-                            ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+                            if row['Mnemonic'] == 'Human Intervention Required':
+                                label_value = row.get('Label', '')
+                                account_value = row['Account']
+                                nearby_rows = df.iloc[max(0, idx-2):min(len(df), idx+3)][['Label', 'Account']].to_string()
+                                futures[executor.submit(get_ai_suggested_mapping_BS, label_value, account_value, balance_sheet_lookup_df, nearby_rows)] = idx
 
-                            if manual_selection == 'REMOVE ROW':
-                                balance_sheet_lookup_df = balance_sheet_lookup_df.drop(idx)
-                            elif manual_selection != '':
-                                if row['Account'] not in balance_sheet_lookup_df['Account'].values:
-                                    new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
-                                else:
-                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
-                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
-                                    balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
-                        if new_entries:
-                            balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
-                        balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
-                        save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-                        st.success("Data Dictionary Updated Successfully")
+                        for future in futures:
+                            idx = futures[future]
+                            try:
+                                ai_suggested_mnemonic = future.result()
+                                st.session_state.ai_suggestions_bs[idx] = ai_suggested_mnemonic
+                            except Exception as e:
+                                st.error(f"An error occurred for row {idx}: {e}")
+
+                    st.session_state.ai_recommendations_generated = True
+                    st.experimental_rerun()
+
+                for idx, row in df.iterrows():
+                    account_value = row['Account']
+                    label_value = row.get('Label', '')
+                    if row['Mnemonic'] == 'Human Intervention Required':
+                        st.markdown(f"**Human Intervention Required for:** {account_value} [{label_value} - Index {idx}]")
+                        if st.session_state.ai_recommendations_generated and idx in st.session_state.ai_suggestions_bs:
+                            ai_suggested_mnemonic = st.session_state.ai_suggestions_bs[idx]
+                            st.markdown(f"**Suggested AI Mapping:** {ai_suggested_mnemonic}")
+
+                    label_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Label'] == label_value]['Mnemonic'].unique()
+                    manual_selection_options = [mnemonic for mnemonic in label_mnemonics]
+                    manual_selection = st.selectbox(
+                        f"Select category for '{account_value}'",
+                        options=[''] + manual_selection_options + ['REMOVE ROW', 'MANUAL OVERRIDE'],
+                        key=f"select_{idx}_tab3_bs"
+                    )
+                    if manual_selection:
+                        df.at[idx, 'Manual Selection'] = manual_selection.strip()
+
+                st.dataframe(df[['Label', 'Account', 'Mnemonic', 'Manual Selection']])
+
+                if st.button("Generate Excel with Lookup Results", key="generate_excel_lookup_results_tab3_bs"):
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
+                        axis=1
+                    )
+                    final_output_df = df[df['Manual Selection'] != 'REMOVE ROW'].copy()
+
+                    combined_df = create_combined_df([final_output_df])
+                    combined_df = sort_by_label_and_final_mnemonic(combined_df)
+
+                    def lookup_ciq(mnemonic):
+                        if mnemonic == 'Human Intervention Required':
+                            return 'CIQ ID Required'
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == mnemonic, 'CIQ']
+                        if ciq_value.empty:
+                            return 'CIQ ID Required'
+                        return ciq_value.values[0]
+
+                    combined_df['CIQ'] = combined_df['Final Mnemonic Selection'].apply(lookup_ciq)
+
+                    columns_order = ['Label', 'Final Mnemonic Selection', 'CIQ'] + [col for col in combined_df.columns if col not in ['Label', 'Final Mnemonic Selection', 'CIQ']]
+                    combined_df = combined_df[columns_order]
+
+                    as_presented_df = final_output_df.drop(columns=['CIQ', 'Mnemonic', 'Manual Selection'], errors='ignore')
+                    as_presented_columns_order = ['Label', 'Account', 'Final Mnemonic Selection'] + [col for col in as_presented_df.columns if col not in ['Label', 'Account', 'Final Mnemonic Selection']]
+                    as_presented_df = as_presented_df[as_presented_columns_order]
+
+                    excel_file = io.BytesIO()
+                    with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+                        combined_df.to_excel(writer, sheet_name='Standardized - Balance Sheet', index=False)
+                        as_presented_df.to_excel(writer, sheet_name='As Presented - Balance Sheet', index=False)
+                        cover_df = pd.DataFrame({
+                            'Selection': ['Currency', 'Magnitude', 'Company Name'] + list(statement_dates.keys()),
+                            'Value': [selected_currency, selected_magnitude, company_name_bs] + list(statement_dates.values())
+                        })
+                        cover_df.to_excel(writer, sheet_name='Cover', index=False)
+                    excel_file.seek(0)
+                    st.download_button("Download Excel", excel_file, "Mappings_and_Data_Consolidation_Balance_Sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                if st.button("Update Data Dictionary with Manual Mappings", key="update_data_dictionary_tab3_bs"):
+                    df['Final Mnemonic Selection'] = df.apply(
+                        lambda row: row['Manual Selection'] if row['Manual Selection'] != '' else row['Mnemonic'], 
+                        axis=1
+                    )
+                    new_entries = []
+                    for idx, row in df.iterrows():
+                        manual_selection = row['Manual Selection']
+                        final_mnemonic = row['Final Mnemonic Selection']
+                        ciq_value = balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].values[0] if not balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Mnemonic'] == final_mnemonic, 'CIQ'].empty else 'CIQ ID Required'
+
+                        if manual_selection == 'REMOVE ROW':
+                            balance_sheet_lookup_df = balance_sheet_lookup_df.drop(idx)
+                        elif manual_selection != '':
+                            if row['Account'] not in balance_sheet_lookup_df['Account'].values:
+                                new_entries.append({'Account': row['Account'], 'Mnemonic': final_mnemonic, 'CIQ': ciq_value, 'Label': row['Label']})
+                            else:
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Mnemonic'] = final_mnemonic
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'Label'] = row['Label']
+                                balance_sheet_lookup_df.loc[balance_sheet_lookup_df['Account'] == row['Account'], 'CIQ'] = ciq_value
+                    if new_entries:
+                        balance_sheet_lookup_df = pd.concat([balance_sheet_lookup_df, pd.DataFrame(new_entries)], ignore_index=True)
+                    balance_sheet_lookup_df.reset_index(drop=True, inplace=True)
+                    save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+                    st.session_state.balance_sheet_data = balance_sheet_lookup_df  # Update session state
+                    st.success("Data Dictionary Updated Successfully")
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
@@ -671,6 +674,7 @@ def balance_sheet_BS():
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.session_state.balance_sheet_data = balance_sheet_lookup_df  # Update session state
             st.success("Data Dictionary uploaded and updated successfully!")
 
         st.dataframe(balance_sheet_lookup_df)
@@ -681,6 +685,7 @@ def balance_sheet_BS():
             updated_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
             balance_sheet_lookup_df = updated_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
+            st.session_state.balance_sheet_data = balance_sheet_lookup_df  # Update session state
             rows_removed = True
             st.success("Selected rows removed successfully!")
             st.dataframe(balance_sheet_lookup_df)
@@ -691,7 +696,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 ######################################Cash Flow Statement Functions#################################
 def get_ai_suggested_mapping_CF(label, account, cash_flow_lookup_df, nearby_rows):
@@ -1711,7 +1715,8 @@ def income_statement():
             st.download_button("Download Excel", excel_file_is, "income_statement_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-####################################### Populate CIQ Template ###################################
+            
+ ##############################POPULATE CIQ TEMPLATE*****************************           
 import streamlit as st
 import pandas as pd
 import openpyxl
@@ -1735,144 +1740,44 @@ def populate_ciq_template_pt():
             try:
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
-                try:
-                    template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
-                except Exception as e:
-                    st.error(f"Error loading template file: {e}")
+                
+                template_wb = load_workbook(BytesIO(template_file), keep_vba=True, data_only=False)
+                
+                # Ensure "Upload" sheet exists
+                if "Upload" not in template_wb.sheetnames:
+                    st.error("The template file does not contain an 'Upload' sheet.")
                     return
+                
+                upload_sheet = template_wb["Upload"]
 
-                def process_sheet(sheet_file, sheet_name, row_range, date_row):
-                    try:
-                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
-                    except Exception as e:
-                        st.error(f"Error loading {sheet_name} file: {e}")
+                def process_sheet(uploaded_file, sheet_name, start_row, end_row):
+                    if uploaded_file is None:
                         return
                     
-                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
-                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
-
-                    # Check for required columns in the Standardized sheet
-                    if 'CIQ' not in standardized_sheet.columns:
-                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
+                    df = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
+                    
+                    if 'CIQ' not in df.columns or 'Item' not in df.columns:
+                        st.error(f"The 'Standardized - {sheet_name}' sheet is missing required columns (CIQ or Item).")
                         return
 
-                    st.write(f"{sheet_name} CIQ column found, proceeding...")
-                    st.write(standardized_sheet.head())
+                    for _, row in df.iterrows():
+                        if pd.notna(row['CIQ']) and row['CIQ'] >= start_row and row['CIQ'] <= end_row:
+                            cell = upload_sheet.cell(row=int(row['CIQ']), column=2)
+                            cell.value = row['Item']
 
-                    # Copy the "As Presented" sheet to the template workbook
-                    if f"As Presented - {sheet_name}" in template_wb.sheetnames:
-                        del template_wb[f"As Presented - {sheet_name}"]
-                    new_sheet = template_wb.create_sheet(f"As Presented - {sheet_name}")
-                    for row in as_presented_sheet.iter_rows():
-                        for cell in row:
-                            new_sheet[cell.coordinate].value = cell.value
-
-                    # Color the "As Presented" tab orange
-                    tab_color = "FFA500"
-                    new_sheet.sheet_properties.tabColor = tab_color
-
-                    # Copy the "Standardized" sheet to the template workbook
-                    if f"Standardized - {sheet_name}" in template_wb.sheetnames:
-                        del template_wb[f"Standardized - {sheet_name}"]
-                    standardized_ws = template_wb.create_sheet(f"Standardized - {sheet_name}")
-
-                    # Write the header row
-                    for col_num, header in enumerate(standardized_sheet.columns, 1):
-                        standardized_ws.cell(row=1, column=col_num, value=header)
-
-                    # Write the data rows
-                    for r_idx, row in enumerate(standardized_sheet.itertuples(index=False), 2):
-                        for c_idx, value in enumerate(row, 1):
-                            standardized_ws.cell(row=r_idx, column=c_idx, value=value)
-
-                    # Perform lookups and update the "Upload" sheet
-                    upload_sheet = template_wb["Upload"]
-                    ciq_values = standardized_sheet['CIQ'].tolist()
-                    dates = list(standardized_sheet.columns[1:])  # Assumes dates start from the second column
-
-                    st.write(f"CIQ Values from {sheet_name}:", ciq_values)
-                    st.write(f"Dates from {sheet_name}:", dates)
-
-                    if template_type == "Annual":
-                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=upload_sheet.max_column):
-                            ciq_cell = upload_sheet.cell(row=row[0].row, column=11)
-                            ciq_value = ciq_cell.value
-                            if ciq_value in ciq_values:
-                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
-                                for col in range(4, 10):
-                                    date_value = upload_sheet.cell(row=date_row, column=col).value
-                                    st.write(f"Checking date {date_value} at column {col}")
-                                    if date_value in dates:
-                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
-                                        if not pd.isna(lookup_value):
-                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                                cell_to_update.value = lookup_value
-                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
-
-                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=9):
-                            for cell in row:
-                                if cell.value is not None:
-                                    try:
-                                        cell_value = float(cell.value)
-                                        cell.value = -abs(cell_value)
-                                    except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
-                    
-                    elif template_type == "Quarterly":
-                        for row in upload_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=4, max_col=21):  # Changed to column U (21)
-                            ciq_cell = upload_sheet.cell(row=row[0].row, column=23)  # Changed to column W (23)
-                            ciq_value = ciq_cell.value
-                            if ciq_value in ciq_values:
-                                st.write(f"Processing CIQ Value: {ciq_value} at row {row[0].row}")
-                                for col in range(4, 22):  # Changed to include columns D to U
-                                    date_value = upload_sheet.cell(row=date_row, column=col).value
-                                    st.write(f"Checking date {date_value} at column {col}")
-                                    if date_value in dates:
-                                        lookup_value = standardized_sheet.loc[standardized_sheet['CIQ'] == ciq_value, date_value].sum()
-                                        st.write(f"Lookup value for CIQ {ciq_value} and date {date_value}: {lookup_value}")
-                                        if not pd.isna(lookup_value):
-                                            cell_to_update = upload_sheet.cell(row=row[0].row, column=col)
-                                            if cell_to_update.data_type == 'f' or cell_to_update.value is None:
-                                                cell_to_update.value = lookup_value
-                                                st.write(f"Updated {cell_to_update.coordinate} with value {lookup_value}")
-
-                        for row in upload_sheet.iter_rows(min_row=row_range[1] + 1, max_row=row_range[1] + 1, min_col=4, max_col=21):  # Changed to column U (21)
-                            for cell in row:
-                                if cell.value is not None:
-                                    try:
-                                        cell_value = float(cell.value)
-                                        cell.value = -abs(cell_value)
-                                    except ValueError:
-                                        st.warning(f"Non-numeric value found in cell {cell.coordinate}, skipping negation.")
-
-                # Process sheets based on the uploaded files
                 if template_type == "Annual":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
-
-                if template_type == "Quarterly":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
+                elif template_type == "Quarterly":
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
                 template_wb.save(output)
+                output.seek(0)
                 template_data = output.getvalue()
 
                 # Provide a download button for the updated template
@@ -1887,6 +1792,7 @@ def populate_ciq_template_pt():
 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
+                st.error("Please check all your input files and try again.")
 
     with tab1:
         process_template("Annual")
