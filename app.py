@@ -1703,7 +1703,7 @@ def income_statement():
 import streamlit as st
 import pandas as pd
 import openpyxl
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 from io import BytesIO
 
 def populate_ciq_template_pt():
@@ -1723,82 +1723,59 @@ def populate_ciq_template_pt():
             try:
                 # Read the uploaded template file
                 template_file = uploaded_template.read()
-                template_wb = Workbook()
-                loaded_template_wb = load_workbook(BytesIO(template_file), keep_vba=True)
+                
+                template_wb = load_workbook(BytesIO(template_file), keep_vba=True, data_only=False)
+                
+                # Ensure "Upload" sheet exists
+                if "Upload" not in template_wb.sheetnames:
+                    st.error("The template file does not contain an 'Upload' sheet.")
+                    return
+                
+                upload_sheet = template_wb["Upload"]
 
-                # Copy sheets from loaded workbook to the new workbook to strip external links
-                for sheet_name in loaded_template_wb.sheetnames:
-                    source = loaded_template_wb[sheet_name]
-                    target = template_wb.create_sheet(title=sheet_name)
-                    for row in source:
-                        for cell in row:
-                            target[cell.coordinate].value = cell.value
-
-                    # Remove all links
-                    target._rels = {}
-                    target.external_links = []
-
-                def process_sheet(sheet_file, sheet_name, row_range, date_row):
-                    try:
-                        sheet_wb = load_workbook(BytesIO(sheet_file), keep_vba=True)
-                    except Exception as e:
-                        st.error(f"Error loading {sheet_name} file: {e}")
+                def process_sheet(uploaded_file, sheet_name, start_row, end_row):
+                    if uploaded_file is None:
                         return
                     
-                    as_presented_sheet = sheet_wb[f"As Presented - {sheet_name}"]
-                    standardized_sheet = pd.read_excel(BytesIO(sheet_file), sheet_name=f"Standardized - {sheet_name}")
-
-                    if 'CIQ' not in standardized_sheet.columns:
-                        st.error(f"The column 'CIQ' is missing from the Standardized - {sheet_name}.")
+                    df = pd.read_excel(uploaded_file, sheet_name=f"Standardized - {sheet_name}", engine='openpyxl')
+                    
+                    if 'CIQ' not in df.columns or 'Item' not in df.columns:
+                        st.error(f"The 'Standardized - {sheet_name}' sheet is missing required columns (CIQ or Item).")
                         return
 
-                    # Clean external links in sheets
-                    as_presented_sheet._rels = {}
-                    as_presented_sheet.external_links = []
-
-                    # Code continues to copy the "As Presented" and "Standardized" sheets as before
+                    for _, row in df.iterrows():
+                        if pd.notna(row['CIQ']) and row['CIQ'] >= start_row and row['CIQ'] <= end_row:
+                            cell = upload_sheet.cell(row=int(row['CIQ']), column=2)
+                            cell.value = row['Item']
 
                 if template_type == "Annual":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
-
-                if template_type == "Quarterly":
-                    if uploaded_balance_sheet:
-                        balance_sheet_file = uploaded_balance_sheet.read()
-                        process_sheet(balance_sheet_file, "Balance Sheet", (96, 162), 94)
-                    if uploaded_cash_flow:
-                        cash_flow_file = uploaded_cash_flow.read()
-                        process_sheet(cash_flow_file, "Cash Flow", (171, 234), 169)
-                    if uploaded_income_statement:
-                        income_statement_file = uploaded_income_statement.read()
-                        process_sheet(income_statement_file, "Income Stmt", (14, 72), 12)
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
+                elif template_type == "Quarterly":
+                    process_sheet(uploaded_balance_sheet, "Balance Sheet", 96, 162)
+                    process_sheet(uploaded_cash_flow, "Cash Flow", 171, 234)
+                    process_sheet(uploaded_income_statement, "Income Stmt", 14, 72)
 
                 # Save the updated workbook to a BytesIO object
                 output = BytesIO()
                 template_wb.save(output)
                 output.seek(0)
-                template_data = output.read()
+                template_data = output.getvalue()
 
                 # Provide a download button for the updated template
-                mime_type = "application/vnd.ms-excel.sheet.macroEnabled.12" if uploaded_template.name.endswith('.xlsm') else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 st.download_button(
                     label=f"Download Updated {template_type} Template",
                     data=template_data,
                     file_name=uploaded_template.name,
-                    mime=mime_type
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
                 st.success(f"{template_type} Template populated successfully. You can now download the updated template.")
 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
+                st.error("Please check all your input files and try again.")
 
     with tab1:
         process_template("Annual")
