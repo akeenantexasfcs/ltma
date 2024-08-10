@@ -658,33 +658,33 @@ def balance_sheet_BS():
                     st.success("Data Dictionary Updated Successfully")
                     st.experimental_rerun()
 
-with tab4:
-    st.subheader("Balance Sheet Data Dictionary")
+    with tab4:
+        st.subheader("Balance Sheet Data Dictionary")
 
-    uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
-    if uploaded_dict_file is not None:
-        new_lookup_df = pd.read_excel(uploaded_dict_file)
-        st.session_state.balance_sheet_data = new_lookup_df
-        save_lookup_table(st.session_state.balance_sheet_data, balance_sheet_data_dictionary_file)
-        st.success("Data Dictionary uploaded and updated successfully!")
+        uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
+        if uploaded_dict_file is not None:
+            new_lookup_df = pd.read_excel(uploaded_dict_file)
+            st.session_state.balance_sheet_data = new_lookup_df
+            save_lookup_table(st.session_state.balance_sheet_data, balance_sheet_data_dictionary_file)
+            st.success("Data Dictionary uploaded and updated successfully!")
 
-    st.dataframe(st.session_state.balance_sheet_data)
-
-    remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_data.index, key='remove_indices_tab4_bs')
-    rows_removed = False
-    if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-        st.session_state.balance_sheet_data = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
-        save_lookup_table(st.session_state.balance_sheet_data, balance_sheet_data_dictionary_file)
-        rows_removed = True
-        st.success("Selected rows removed successfully!")
         st.dataframe(st.session_state.balance_sheet_data)
 
-    st.subheader("Download Data Dictionary")
-    download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
-    excel_file = io.BytesIO()
-    st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
-    excel_file.seek(0)
-    st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_data.index, key='remove_indices_tab4_bs')
+        rows_removed = False
+        if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
+            st.session_state.balance_sheet_data = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
+            save_lookup_table(st.session_state.balance_sheet_data, balance_sheet_data_dictionary_file)
+            rows_removed = True
+            st.success("Selected rows removed successfully!")
+            st.dataframe(st.session_state.balance_sheet_data)
+
+        st.subheader("Download Data Dictionary")
+        download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
+        excel_file = io.BytesIO()
+        st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
+        excel_file.seek(0)
+        st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 
