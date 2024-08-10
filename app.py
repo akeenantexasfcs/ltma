@@ -257,7 +257,13 @@ def balance_sheet_BS():
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
+
+        # Persist uploaded file across sessions
         if uploaded_file is not None:
+            st.session_state.uploaded_file = uploaded_file
+
+        if 'uploaded_file' in st.session_state:
+            uploaded_file = st.session_state.uploaded_file
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
             st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
@@ -656,7 +662,13 @@ def balance_sheet_BS():
         st.subheader("Balance Sheet Data Dictionary")
 
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
+        
+        # Persist the uploaded dictionary file across sessions
         if uploaded_dict_file is not None:
+            st.session_state.uploaded_dict_file = uploaded_dict_file
+
+        if 'uploaded_dict_file' in st.session_state:
+            uploaded_dict_file = st.session_state.uploaded_dict_file
             new_lookup_df = pd.read_excel(uploaded_dict_file)
             balance_sheet_lookup_df = new_lookup_df
             save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
@@ -680,7 +692,6 @@ def balance_sheet_BS():
         balance_sheet_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 
