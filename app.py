@@ -16,7 +16,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
 
-# The author would like to both credit and thank Cordell Tanny of Trend Prophets and Chirag, known as Srce Cde, for their ideas, code, and inspiration.
+# Debug function to print messages to the app
+def debug_message(message):
+    st.write(f"DEBUG: {message}")  # Replace this with logging as needed.
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -40,13 +42,12 @@ client = setup_anthropic_client()
 @st.cache_data
 def generate_response(prompt, max_tokens=10000):
     try:
+        debug_message("Generating response from Claude...")
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=max_tokens,
             temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text
     except Exception as e:
@@ -61,6 +62,7 @@ def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
+    debug_message("Computing AI suggested mapping...")
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
@@ -71,13 +73,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
     And the following balance sheet lookup data:
     {balance_sheet_lookup_df.to_string()}
 
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination? Please consider the following:
-    1. The account's position in the balance sheet structure (e.g., Current Assets, Non-Current Assets, Liabilities, Equity)
-    2. The semantic meaning of the account name and its relationship to standard financial statement line items
-    3. The nearby rows to understand the context of this account
-    4. Common financial reporting standards and practices
-
-    Please provide only the value from the 'Mnemonic' column in the Balance Sheet Data Dictionary data frame based on Label and Account combination, without any explanation. Ensure that the suggested Mnemonic is appropriate for the given Label e.g., don't suggest a Current Asset Mnemonic for a current liability Label."""
+    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination?"""
 
     suggested_mnemonic = generate_response(prompt).strip()
 
@@ -96,12 +92,8 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
         score += top_3_similar[idx] * 5
         scores[row['Mnemonic']] = score
 
-    if "total" in account.lower() and not any("total" in mnemonic.lower() for mnemonic in scores):
-        total_mnemonics = balance_sheet_lookup_df[balance_sheet_lookup_df['Mnemonic'].str.contains('Total', case=False)]['Mnemonic']
-        if not total_mnemonics.empty:
-            scores[total_mnemonics.iloc[0]] = max(scores.values()) + 1
-
     best_mnemonic = max(scores, key=scores.get)
+    debug_message(f"Suggested mnemonic: {best_mnemonic}")
     return best_mnemonic
 
 # Define the initial lookup data for Balance Sheet
@@ -118,6 +110,7 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 # Load or initialize the lookup table
 @st.cache_data(ttl=600)
 def load_balance_sheet_data():
+    debug_message("Loading or initializing balance sheet data...")
     try:
         return pd.read_excel(balance_sheet_data_dictionary_file)
     except FileNotFoundError:
@@ -127,14 +120,17 @@ if 'balance_sheet_data' not in st.session_state:
     st.session_state.balance_sheet_data = load_balance_sheet_data()
 
 def save_and_update_balance_sheet_data(df):
+    debug_message("Saving and updating balance sheet data...")
     st.session_state.balance_sheet_data = df
     save_lookup_table(df, balance_sheet_data_dictionary_file)
 
 def save_lookup_table(df, file_path):
+    debug_message("Writing data to Excel...")
     df.to_excel(file_path, index=False)
 
 # General Utility Functions
 def process_file(file):
+    debug_message(f"Processing file: {file.name}")
     try:
         df = pd.read_excel(file, sheet_name=None)
         first_sheet_name = list(df.keys())[0]
@@ -145,13 +141,14 @@ def process_file(file):
         return None
 
 def create_combined_df(dfs):
+    debug_message("Combining data frames...")
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
         if final_mnemonic_col not in df.columns:
             st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
             continue
-        
+
         date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
         if not date_cols:
             st.error(f"No date columns found in dataframe {i+1}")
@@ -160,7 +157,7 @@ def create_combined_df(dfs):
         df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
         df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
         df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-        
+
         if combined_df.empty:
             combined_df = df_pivot
         else:
@@ -168,43 +165,46 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
+    debug_message("Aggregating data...")
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
-    
+
     pivot_table = df.pivot_table(index=['Label', 'Account'], 
                                  values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
                                  aggfunc='sum').reset_index()
     return pivot_table
 
 def clean_numeric_value(value):
+    debug_message(f"Cleaning numeric value: {value}")
     try:
         value_str = str(value).strip()
-        
+
         # Remove any number of spaces between $ and (
         value_str = re.sub(r'\$\s*\(', '$(', value_str)
-        
+
         # Handle negative values in parentheses
         if value_str.startswith('(') and value_str.endswith(')'):
             value_str = '-' + value_str[1:-1]
         elif value_str.startswith('$(') and value_str.endswith(')'):
             value_str = '-$' + value_str[2:-1]
-        
+
         # Remove dollar signs and commas
         cleaned_value = re.sub(r'[$,]', '', value_str)
-        
+
         # Convert text to number
         try:
             cleaned_value = w2n.word_to_num(cleaned_value)
         except ValueError:
             pass
-        
+
         return float(cleaned_value)
     except (ValueError, TypeError) as e:
         print(f"Error converting value: {value} with error: {e}")
         return 0
 
 def sort_by_label_and_account(df):
+    debug_message("Sorting by label and account...")
     sort_order = {
         "Current Assets": 0,
         "Non Current Assets": 1,
@@ -213,14 +213,15 @@ def sort_by_label_and_account(df):
         "Equity": 4,
         "Total Equity and Liabilities": 5
     }
-    
+
     df['Label_Order'] = df['Label'].map(sort_order)
     df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
-    
+
     df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
 def sort_by_label_and_final_mnemonic(df):
+    debug_message("Sorting by label and final mnemonic selection...")
     sort_order = {
         "Current Assets": 0,
         "Non Current Assets": 1,
@@ -229,14 +230,15 @@ def sort_by_label_and_final_mnemonic(df):
         "Equity": 4,
         "Total Equity and Liabilities": 5
     }
-    
+
     df['Label_Order'] = df['Label'].map(sort_order)
     df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-    
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+
+    df = df.sort_values by(['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
 def apply_unit_conversion(df, columns, factor):
+    debug_message("Applying unit conversion...")
     for selected_column in columns:
         if selected_column in df.columns:
             df[selected_column] = df[selected_column].apply(
@@ -244,6 +246,7 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def check_all_zeroes(df):
+    debug_message("Checking for all zeroes in data frame...")
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
@@ -684,6 +687,7 @@ def balance_sheet_BS():
         st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 ######################################Cash Flow Statement Functions#################################
