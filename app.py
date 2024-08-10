@@ -234,7 +234,7 @@ def sort_by_label_and_final_mnemonic(df):
     df['Label_Order'] = df['Label'].map(sort_order)
     df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
 
-    df = df.sort_values by(['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
     return df
 
 def apply_unit_conversion(df, columns, factor):
