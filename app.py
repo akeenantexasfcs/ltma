@@ -120,9 +120,7 @@ if 'balance_sheet_data' not in st.session_state:
     st.session_state.balance_sheet_data = load_balance_sheet_data()
 
 def save_and_update_balance_sheet_data(df):
-    # Remove or modify the debug message prefix
-    message = "Saving and updating balance sheet data..."
-    print(message)  # Or use a logging mechanism if preferred
+    debug_message("Saving and updating balance sheet data...")
     st.session_state.balance_sheet_data = df
     save_lookup_table(df, balance_sheet_data_dictionary_file)
 
