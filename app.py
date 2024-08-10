@@ -257,13 +257,7 @@ def balance_sheet_BS():
 
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
-
-        # Persist uploaded file across sessions
         if uploaded_file is not None:
-            st.session_state.uploaded_file = uploaded_file
-
-        if 'uploaded_file' in st.session_state:
-            uploaded_file = st.session_state.uploaded_file
             data = json.load(uploaded_file)
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
             st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
@@ -662,34 +656,35 @@ def balance_sheet_BS():
         st.subheader("Balance Sheet Data Dictionary")
 
         uploaded_dict_file = st.file_uploader("Upload a new Data Dictionary Excel file", type=['xlsx'], key='dict_uploader_tab4_bs')
-        
-        # Persist the uploaded dictionary file across sessions
         if uploaded_dict_file is not None:
-            st.session_state.uploaded_dict_file = uploaded_dict_file
+            try:
+                new_lookup_df = pd.read_excel(uploaded_dict_file)
+                st.session_state.balance_sheet_data = new_lookup_df
+                save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
+                st.success("Data Dictionary uploaded and updated successfully!")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Error uploading file: {e}")
 
-        if 'uploaded_dict_file' in st.session_state:
-            uploaded_dict_file = st.session_state.uploaded_dict_file
-            new_lookup_df = pd.read_excel(uploaded_dict_file)
-            balance_sheet_lookup_df = new_lookup_df
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-            st.success("Data Dictionary uploaded and updated successfully!")
+        st.dataframe(st.session_state.balance_sheet_data)
 
-        st.dataframe(balance_sheet_lookup_df)
-
-        remove_indices = st.multiselect("Select rows to remove", balance_sheet_lookup_df.index, key='remove_indices_tab4_bs')
+        remove_indices = st.multiselect("Select rows to remove", st.session_state.balance_sheet_data.index, key='remove_indices_tab4_bs')
         rows_removed = False
         if st.button("Remove Selected Rows", key="remove_selected_rows_tab4_bs"):
-            updated_df = balance_sheet_lookup_df.drop(remove_indices).reset_index(drop=True)
-            balance_sheet_lookup_df = updated_df
-            save_lookup_table(balance_sheet_lookup_df, balance_sheet_data_dictionary_file)
-            rows_removed = True
-            st.success("Selected rows removed successfully!")
-            st.dataframe(balance_sheet_lookup_df)
+            try:
+                updated_df = st.session_state.balance_sheet_data.drop(remove_indices).reset_index(drop=True)
+                st.session_state.balance_sheet_data = updated_df
+                save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
+                rows_removed = True
+                st.success("Selected rows removed successfully!")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Error removing rows: {e}")
 
         st.subheader("Download Data Dictionary")
         download_label = "Download Updated Data Dictionary" if rows_removed else "Download Data Dictionary"
         excel_file = io.BytesIO()
-        balance_sheet_lookup_df.to_excel(excel_file, index=False)
+        st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
