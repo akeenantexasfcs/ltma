@@ -15,10 +15,10 @@ import anthropic
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
-# Debug function to print messages to the app
-def debug_message(message):
-    st.write(f"DEBUG: {message}")  # Replace this with logging as needed.
+# Set up logging
+logging.basicConfig(level=logging.INFO)  # Set to INFO or WARNING to reduce output
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -42,7 +42,7 @@ client = setup_anthropic_client()
 @st.cache_data
 def generate_response(prompt, max_tokens=10000):
     try:
-        debug_message("Generating response from Claude...")
+        logging.info("Generating response from Claude...")
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=max_tokens,
@@ -62,7 +62,7 @@ def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
-    debug_message("Computing AI suggested mapping...")
+    logging.info("Computing AI suggested mapping...")
     prompt = f"""Given the following account information:
     Label: {label}
     Account: {account}
@@ -93,7 +93,7 @@ def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_
         scores[row['Mnemonic']] = score
 
     best_mnemonic = max(scores, key=scores.get)
-    debug_message(f"Suggested mnemonic: {best_mnemonic}")
+    logging.info(f"Suggested mnemonic: {best_mnemonic}")
     return best_mnemonic
 
 # Define the initial lookup data for Balance Sheet
@@ -110,7 +110,7 @@ balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
 # Load or initialize the lookup table
 @st.cache_data(ttl=600)
 def load_balance_sheet_data():
-    debug_message("Loading or initializing balance sheet data...")
+    logging.info("Loading or initializing balance sheet data...")
     try:
         return pd.read_excel(balance_sheet_data_dictionary_file)
     except FileNotFoundError:
@@ -120,17 +120,17 @@ if 'balance_sheet_data' not in st.session_state:
     st.session_state.balance_sheet_data = load_balance_sheet_data()
 
 def save_and_update_balance_sheet_data(df):
-    debug_message("Saving and updating balance sheet data...")
+    logging.info("Saving and updating balance sheet data...")
     st.session_state.balance_sheet_data = df
     save_lookup_table(df, balance_sheet_data_dictionary_file)
 
 def save_lookup_table(df, file_path):
-    debug_message("Writing data to Excel...")
+    logging.info("Writing data to Excel...")
     df.to_excel(file_path, index=False)
 
 # General Utility Functions
 def process_file(file):
-    debug_message(f"Processing file: {file.name}")
+    logging.info(f"Processing file: {file.name}")
     try:
         df = pd.read_excel(file, sheet_name=None)
         first_sheet_name = list(df.keys())[0]
@@ -141,7 +141,7 @@ def process_file(file):
         return None
 
 def create_combined_df(dfs):
-    debug_message("Combining data frames...")
+    logging.info("Combining data frames...")
     combined_df = pd.DataFrame()
     for i, df in enumerate(dfs):
         final_mnemonic_col = 'Final Mnemonic Selection'
@@ -165,7 +165,7 @@ def create_combined_df(dfs):
     return combined_df.reset_index()
 
 def aggregate_data(df):
-    debug_message("Aggregating data...")
+    logging.info("Aggregating data...")
     if 'Label' not in df.columns or 'Account' not in df.columns:
         st.error("'Label' and/or 'Account' columns not found in the data.")
         return df
@@ -176,7 +176,7 @@ def aggregate_data(df):
     return pivot_table
 
 def clean_numeric_value(value):
-    debug_message(f"Cleaning numeric value: {value}")
+    logging.info(f"Cleaning numeric value: {value}")
     try:
         value_str = str(value).strip()
 
@@ -200,11 +200,11 @@ def clean_numeric_value(value):
 
         return float(cleaned_value)
     except (ValueError, TypeError) as e:
-        print(f"Error converting value: {value} with error: {e}")
+        logging.error(f"Error converting value: {value} with error: {e}")
         return 0
 
 def sort_by_label_and_account(df):
-    debug_message("Sorting by label and account...")
+    logging.info("Sorting by label and account...")
     sort_order = {
         "Current Assets": 0,
         "Non Current Assets": 1,
@@ -221,7 +221,7 @@ def sort_by_label_and_account(df):
     return df
 
 def sort_by_label_and_final_mnemonic(df):
-    debug_message("Sorting by label and final mnemonic selection...")
+    logging.info("Sorting by label and final mnemonic selection...")
     sort_order = {
         "Current Assets": 0,
         "Non Current Assets": 1,
@@ -238,7 +238,7 @@ def sort_by_label_and_final_mnemonic(df):
     return df
 
 def apply_unit_conversion(df, columns, factor):
-    debug_message("Applying unit conversion...")
+    logging.info("Applying unit conversion...")
     for selected_column in columns:
         if selected_column in df.columns:
             df[selected_column] = df[selected_column].apply(
@@ -246,7 +246,7 @@ def apply_unit_conversion(df, columns, factor):
     return df
 
 def check_all_zeroes(df):
-    debug_message("Checking for all zeroes in data frame...")
+    logging.info("Checking for all zeroes in data frame...")
     zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
     return zeroes
 
