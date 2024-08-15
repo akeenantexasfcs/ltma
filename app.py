@@ -128,39 +128,6 @@ def save_lookup_table(df, file_path):
     logging.info("Writing data to Excel...")
     df.to_excel(file_path, index=False)
 
-def fuzzy_match_options(options, target, threshold=0.4):
-    closest_match = None
-    closest_distance = float('inf')
-
-    for option in options:
-        distance = levenshtein_distance(option.lower(), target.lower()) / max(len(option), len(target))
-        if distance < closest_distance:
-            closest_distance = distance
-            closest_match = option
-
-    return closest_match if closest_distance <= threshold else None
-
-def attempt_auto_bounds(df, column_a):
-    bounds = {
-        "Current Assets": ("Current Assets", "Total Current Assets"),
-        "Non Current Assets": ("Total Current Assets", "Total Assets"),
-        "Current Liabilities": ("Liabilities", "Total Current Liabilities"),
-        "Non Current Liabilities": ("Total Current Liabilities", "Total Liabilities"),
-        "Equity": ("Shareholder Equity", "Total Equity"),
-        "Total Equity and Liabilities": ("Total Equity and Liabilities", "Total Equity and Liabilities")
-    }
-
-    selections = []
-
-    for label, (start_bound, end_bound) in bounds.items():
-        options = df[column_a].dropna().unique()
-        start_label = fuzzy_match_options(options, start_bound)
-        end_label = fuzzy_match_options(options, end_bound)
-
-        selections.append((label, start_label, end_label))
-
-    return selections
-
 # General Utility Functions
 def process_file(file):
     logging.info(f"Processing file: {file.name}")
@@ -172,6 +139,41 @@ def process_file(file):
     except Exception as e:
         st.error(f"Error processing file {file.name}: {e}")
         return None
+
+def create_combined_df(dfs):
+    logging.info("Combining data frames...")
+    combined_df = pd.DataFrame()
+    for i, df in enumerate(dfs):
+        final_mnemonic_col = 'Final Mnemonic Selection'
+        if final_mnemonic_col not in df.columns:
+            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
+            continue
+
+        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
+        if not date_cols:
+            st.error(f"No date columns found in dataframe {i+1}")
+            continue
+
+        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
+        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
+        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
+
+        if combined_df.empty:
+            combined_df = df_pivot
+        else:
+            combined_df = combined_df.join(df_pivot, how='outer')
+    return combined_df.reset_index()
+
+def aggregate_data(df):
+    logging.info("Aggregating data...")
+    if 'Label' not in df.columns or 'Account' not in df.columns:
+        st.error("'Label' and/or 'Account' columns not found in the data.")
+        return df
+
+    pivot_table = df.pivot_table(index=['Label', 'Account'], 
+                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
+                                 aggfunc='sum').reset_index()
+    return pivot_table
 
 def clean_numeric_value(value):
     logging.info(f"Cleaning numeric value: {value}")
@@ -190,10 +192,63 @@ def clean_numeric_value(value):
         # Remove dollar signs and commas
         cleaned_value = re.sub(r'[$,]', '', value_str)
 
+        # Convert text to number
+        try:
+            cleaned_value = w2n.word_to_num(cleaned_value)
+        except ValueError:
+            pass
+
         return float(cleaned_value)
     except (ValueError, TypeError) as e:
         logging.error(f"Error converting value: {value} with error: {e}")
         return 0
+
+def sort_by_label_and_account(df):
+    logging.info("Sorting by label and account...")
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
+
+    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def sort_by_label_and_final_mnemonic(df):
+    logging.info("Sorting by label and final mnemonic selection...")
+    sort_order = {
+        "Current Assets": 0,
+        "Non Current Assets": 1,
+        "Current Liabilities": 2,
+        "Non Current Liabilities": 3,
+        "Equity": 4,
+        "Total Equity and Liabilities": 5
+    }
+
+    df['Label_Order'] = df['Label'].map(sort_order)
+    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
+
+    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
+    return df
+
+def apply_unit_conversion(df, columns, factor):
+    logging.info("Applying unit conversion...")
+    for selected_column in columns:
+        if selected_column in df.columns:
+            df[selected_column] = df[selected_column].apply(
+                lambda x: x * factor if isinstance(x, (int, float)) else x)
+    return df
+
+def check_all_zeroes(df):
+    logging.info("Checking for all zeroes in data frame...")
+    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
+    return zeroes
 
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
@@ -203,6 +258,7 @@ def balance_sheet_BS():
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
 
+        # Persist uploaded file across sessions
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
 
@@ -214,8 +270,10 @@ def balance_sheet_BS():
             except json.JSONDecodeError:
                 st.error("The uploaded file is not a valid JSON. Please upload a valid JSON file.")
                 return
+            
+            st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
+            st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
 
-            # Process data as before to generate `all_tables` DataFrame...
             tables = []
             for block in data['Blocks']:
                 if block['BlockType'] == 'TABLE':
@@ -250,29 +308,75 @@ def balance_sheet_BS():
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
-            if 'auto_bounds' not in st.session_state:
-                st.session_state.auto_bounds = attempt_auto_bounds(all_tables, column_a)
+            st.subheader("Data Preview")
+            st.dataframe(all_tables)
 
-            selections = st.session_state.auto_bounds
+            def get_unique_options(series):
+                counts = series.value_counts()
+                unique_options = []
+                occurrence_counts = {}
+                for item in series:
+                    if counts[item] > 1:
+                        if item not in occurrence_counts:
+                            occurrence_counts[item] = 1
+                        else:
+                            occurrence_counts[item] += 1
+                        unique_options.append(f"{item} {occurrence_counts[item]}")
+                    else:
+                        unique_options.append(item)
+                return unique_options
 
-            st.subheader("Setting Bounds")
-            clear_button_clicked = st.button("Clear Bounds")
+            labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
+                      "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
+            selections = []
 
-            if clear_button_clicked:
-                st.session_state.auto_bounds = [(label, None, None) for label, _, _ in st.session_state.auto_bounds]
-                selections = st.session_state.auto_bounds
-            
-            for label, (start_label, end_label) in selections:
+            for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + all_tables[column_a].dropna().unique().tolist()
-                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}", index=options.index(start_label) if start_label else 0)
-                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}", index=options.index(end_label) if end_label else 0)
-                st.session_state.auto_bounds = [(label, start_label, end_label) if label == label_name else (label_name, start, end) for label_name, start, end in st.session_state.auto_bounds]
+                options = [''] + get_unique_options(all_tables[column_a].dropna())
+                start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
+                end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
+                selections.append((label, start_label, end_label))
+
+            new_column_names = {col: col for col in all_tables.columns}
+
+            def update_labels(df):
+                df['Label'] = ''
+                account_column = new_column_names.get(column_a, column_a)
+                for label, start_label, end_label in selections:
+                    if start_label and end_label:
+                        try:
+                            start_label_parts = start_label.split()
+                            end_label_parts = end_label.split()
+                            start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
+                            end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
+                            start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
+                            end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
+
+                            start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
+                            end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
+
+                            if len(start_indices) >= start_instance and len(end_indices) >= end_instance:
+                                start_index = start_indices[start_instance - 1]
+                                end_index = end_indices[end_instance - 1]
+
+                                df.loc[start_index:end_index, 'Label'] = label
+                            else:
+                                st.error(f"Invalid label bounds for {label}. Not enough instances found.")
+                        except KeyError as e:
+                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
+                    else:
+                        st.info(f"No selections made for {label}. Skipping...")
+                return df
+
+            if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
+                preview_table = update_labels(all_tables.copy())
+                st.subheader("Preview of Setting Bounds")
+                st.dataframe(preview_table)
 
             st.subheader("Rename Columns")
             new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
-            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range 1, 4]
+            ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
             for col in all_tables.columns:
@@ -318,28 +422,6 @@ def balance_sheet_BS():
             }
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                def update_labels(df):
-                    df['Label'] = ''
-                    account_column = new_column_names.get(column_a, column_a)
-                    for label, start_label, end_label in selections:
-                        if start_label and end_label:
-                            try:
-                                start_indices = df[df[account_column].str.contains(start_label, regex=False, na=False)].index
-                                end_indices = df[df[account_column].str.contains(end_label, regex=False, na=False)].index
-
-                                if len(start_indices) > 0 and len(end_indices) > 0:
-                                    start_index = start_indices[0]
-                                    end_index = end_indices[-1]
-
-                                    df.loc[start_index:end_index, 'Label'] = label
-                                else:
-                                    st.error(f"Invalid label bounds for {label}. Not enough instances found.")
-                            except KeyError as e:
-                                st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
-                        else:
-                            st.info(f"No selections made for {label}. Skipping...")
-                    return df
-
                 updated_table = update_labels(editable_df.copy())
                 updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
 
@@ -370,7 +452,6 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
-
 
     with tab2:
         st.subheader("Aggregate My Data")
