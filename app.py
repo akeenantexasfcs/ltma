@@ -411,7 +411,7 @@ def balance_sheet_BS():
                 columns_to_keep.insert(1, 'Account')
 
             st.subheader("Label Units")
-            selected_columns = st.multiselect("Select columns for conversion", options[numerical_columns, key="columns_selection"])
+            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
             selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
             conversion_factors = {
