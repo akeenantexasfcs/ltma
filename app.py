@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)  # Set to INFO or WARNING to reduce output
+logging.basicConfig(level=logging.INFO)
 
 # Load a pre-trained sentence transformer model
 @st.cache_resource
@@ -264,7 +264,13 @@ def balance_sheet_BS():
 
         if 'uploaded_file' in st.session_state:
             uploaded_file = st.session_state.uploaded_file
-            data = json.load(uploaded_file)
+            
+            try:
+                data = json.load(uploaded_file)
+            except json.JSONDecodeError:
+                st.error("The uploaded file is not a valid JSON. Please upload a valid JSON file.")
+                return
+            
             st.warning("PLEASE NOTE: In the Setting Bounds Preview Window, you will see only your respective labels. In the Updated Columns Preview Window, you will see only your renamed column headers. The labels from the Setting Bounds section will not appear in the Updated Columns Preview.")
             st.warning("PLEASE ALSO NOTE: An Account column must also be designated when you are in the Rename Columns section.")
 
@@ -405,7 +411,7 @@ def balance_sheet_BS():
                 columns_to_keep.insert(1, 'Account')
 
             st.subheader("Label Units")
-            selected_columns = st.multiselect("Select columns for conversion", options=numerical_columns, key="columns_selection")
+            selected_columns = st.multiselect("Select columns for conversion", options[numerical_columns, key="columns_selection"])
             selected_value = st.radio("Select conversion value", ["Actuals", "Thousands", "Millions", "Billions"], index=0, key="conversion_value")
 
             conversion_factors = {
@@ -685,7 +691,6 @@ def balance_sheet_BS():
         st.session_state.balance_sheet_data.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "balance_sheet_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 ######################################Cash Flow Statement Functions#################################
