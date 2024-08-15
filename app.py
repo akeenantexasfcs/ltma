@@ -4,197 +4,6 @@
 # In[ ]:
 
 
-import io
-import json
-import pandas as pd
-import streamlit as st
-from openpyxl import load_workbook
-from Levenshtein import distance as levenshtein_distance
-import re
-import anthropic
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from concurrent.futures import ThreadPoolExecutor
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-
-# Load a pre-trained sentence transformer model
-@st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-model = load_model()
-
-# Set up the Anthropic client with error handling
-@st.cache_resource
-def setup_anthropic_client():
-    try:
-        return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-    except KeyError:
-        st.error("Anthropic API key not found in secrets. Please check your configuration.")
-        st.stop()
-
-client = setup_anthropic_client()
-
-# Function to generate a response from Claude
-@st.cache_data
-def generate_response(prompt, max_tokens=10000):
-    try:
-        logging.info("Generating response from Claude...")
-        response = client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=max_tokens,
-            temperature=0.2,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.content[0].text
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return "I'm sorry, but I encountered an error while processing your request."
-
-@st.cache_data
-def get_embedding(text):
-    return model.encode(text)
-
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
-    logging.info("Computing AI suggested mapping...")
-    prompt = f"""Given the following account information:
-    Label: {label}
-    Account: {account}
-
-    Nearby rows:
-    {nearby_rows}
-
-    And the following balance sheet lookup data:
-    {balance_sheet_lookup_df.to_string()}
-
-    What is the most appropriate Mnemonic mapping for this account based on Label and Account combination?"""
-
-    suggested_mnemonic = generate_response(prompt).strip()
-
-    account_embedding = get_embedding(f"{label} {account}")
-    similarities = balance_sheet_lookup_df.apply(lambda row: cosine_similarity(account_embedding, get_embedding(f"{row['Label']} {row['Account']}")), axis=1)
-
-    top_3_similar = similarities.nlargest(3)
-    scores = {}
-    for idx in top_3_similar.index:
-        row = balance_sheet_lookup_df.loc[idx]
-        score = 0
-        if row['Label'].lower() == label.lower():
-            score += 2
-        if row['Mnemonic'] == suggested_mnemonic:
-            score += 3
-        score += top_3_similar[idx] * 5
-        scores[row['Mnemonic']] = score
-
-    best_mnemonic = max(scores, key=scores.get)
-    logging.info(f"Suggested mnemonic: {best_mnemonic}")
-    return best_mnemonic
-
-# Define the initial lookup data for Balance Sheet
-initial_balance_sheet_lookup_data = {
-    "Label": ["Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets", "Non Current Assets"],
-    "Account": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "Mnemonic": ["Gross Property, Plant & Equipment", "Accumulated Depreciation", "Net Property, Plant & Equipment", "Long-term Investments", "Goodwill", "Other Intangibles", "Right-of-Use Asset-Net"],
-    "CIQ": ["IQ_GPPE", "IQ_AD", "IQ_NPPE", "IQ_LT_INVEST", "IQ_GW", "IQ_OTHER_INTAN", "IQ_RUA_NET"]
-}
-
-# Define the file path for the Balance Sheet data dictionary
-balance_sheet_data_dictionary_file = 'balance_sheet_data_dictionary.xlsx'
-
-# Load or initialize the lookup table
-@st.cache_data(ttl=600)
-def load_balance_sheet_data():
-    logging.info("Loading or initializing balance sheet data...")
-    try:
-        return pd.read_excel(balance_sheet_data_dictionary_file)
-    except FileNotFoundError:
-        return pd.DataFrame(initial_balance_sheet_lookup_data)
-
-if 'balance_sheet_data' not in st.session_state:
-    st.session_state.balance_sheet_data = load_balance_sheet_data()
-
-def save_and_update_balance_sheet_data(df):
-    logging.info("Saving and updating balance sheet data...")
-    st.session_state.balance_sheet_data = df
-    save_lookup_table(df, balance_sheet_data_dictionary_file)
-
-def save_lookup_table(df, file_path):
-    logging.info("Writing data to Excel...")
-    df.to_excel(file_path, index=False)
-
-def fuzzy_match_options(options, target, threshold=0.4):
-    closest_match = None
-    closest_distance = float('inf')
-
-    for option in options:
-        distance = levenshtein_distance(option.lower(), target.lower()) / max(len(option), len(target))
-        if distance < closest_distance:
-            closest_distance = distance
-            closest_match = option
-
-    return closest_match if closest_distance <= threshold else None
-
-def attempt_auto_bounds(df, column_a):
-    bounds = {
-        "Current Assets": ("Current Assets", "Total Current Assets"),
-        "Non Current Assets": ("Total Current Assets", "Total Assets"),
-        "Current Liabilities": ("Liabilities", "Total Current Liabilities"),
-        "Non Current Liabilities": ("Total Current Liabilities", "Total Liabilities"),
-        "Equity": ("Shareholder Equity", "Total Equity"),
-        "Total Equity and Liabilities": ("Total Equity and Liabilities", "Total Equity and Liabilities")
-    }
-
-    selections = []
-
-    for label, (start_bound, end_bound) in bounds.items():
-        options = df[column_a].dropna().unique()
-        start_label = fuzzy_match_options(options, start_bound)
-        end_label = fuzzy_match_options(options, end_bound)
-
-        selections.append((label, start_label, end_label))
-
-    return selections
-
-# General Utility Functions
-def process_file(file):
-    logging.info(f"Processing file: {file.name}")
-    try:
-        df = pd.read_excel(file, sheet_name=None)
-        first_sheet_name = list(df.keys())[0]
-        df = df[first_sheet_name]
-        return df
-    except Exception as e:
-        st.error(f"Error processing file {file.name}: {e}")
-        return None
-
-def clean_numeric_value(value):
-    logging.info(f"Cleaning numeric value: {value}")
-    try:
-        value_str = str(value).strip()
-
-        # Remove any number of spaces between $ and (
-        value_str = re.sub(r'\$\s*\(', '$(', value_str)
-
-        # Handle negative values in parentheses
-        if value_str.startswith('(') and value_str.endswith(')'):
-            value_str = '-' + value_str[1:-1]
-        elif value_str.startswith('$(') and value_str.endswith(')'):
-            value_str = '-$' + value_str[2:-1]
-
-        # Remove dollar signs and commas
-        cleaned_value = re.sub(r'[$,]', '', value_str)
-
-        return float(cleaned_value)
-    except (ValueError, TypeError) as e:
-        logging.error(f"Error converting value: {value} with error: {e}")
-        return 0
-
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
@@ -250,10 +59,16 @@ def balance_sheet_BS():
             column_a = all_tables.columns[0]
             all_tables.insert(0, 'Label', '')
 
+            # Initialize auto_bounds
             if 'auto_bounds' not in st.session_state:
                 st.session_state.auto_bounds = attempt_auto_bounds(all_tables, column_a)
 
             selections = st.session_state.auto_bounds
+
+            # Error handling: Ensure selections is a list of tuples with 3 elements each
+            if not isinstance(selections, list) or not all(isinstance(i, tuple) and len(i) == 3 for i in selections):
+                st.error("Error: Selections are not correctly structured. Please check the auto_bounds initialization.")
+                return
 
             st.subheader("Setting Bounds")
             clear_button_clicked = st.button("Clear Bounds")
@@ -268,6 +83,7 @@ def balance_sheet_BS():
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}", index=options.index(start_label) if start_label else 0)
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}", index=options.index(end_label) if end_label else 0)
                 st.session_state.auto_bounds = [(label, start_label, end_label) if label == label_name else (label_name, start, end) for label_name, start, end in st.session_state.auto_bounds]
+
 
             st.subheader("Rename Columns")
             new_column_names = {}
