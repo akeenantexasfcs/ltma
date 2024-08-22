@@ -2259,9 +2259,9 @@ def main():
     # HTML code to style the image position in the sidebar
     logo_html = """
         <div style="position: fixed; 
-                    bottom: 20px; 
-                    left: 20px;">
-            <img src="https://raw.githubusercontent.com/akeenantexasfcs/ltma/main/TFCLogo.jpg" width="200"/>
+                    bottom: 30px; 
+                    left: 30px;">
+            <img src="https://raw.githubusercontent.com/akeenantexasfcs/ltma/main/TFCLogo.jpg" width="300"/>
         </div>
         """
     # Display the logo in the sidebar using HTML
