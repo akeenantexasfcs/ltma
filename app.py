@@ -2255,6 +2255,18 @@ def extras_tab():
 
 def main():
     st.sidebar.title("Navigation")
+
+    # HTML code to style the image position in the sidebar
+    logo_html = """
+        <div style="position: fixed; 
+                    bottom: 10px; 
+                    left: 10px;">
+            <img src="https://raw.githubusercontent.com/akeenantexasfcs/ltma/main/TFCLogo.jpg" width="100"/>
+        </div>
+        """
+    # Display the logo in the sidebar using HTML
+    st.sidebar.markdown(logo_html, unsafe_allow_html=True)
+
     selection = st.sidebar.radio("Go to", ["Balance Sheet", "Cash Flow Statement", "Income Statement", "Populate CIQ Template", "Extras"])
 
     if selection == "Balance Sheet":
@@ -2270,5 +2282,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
