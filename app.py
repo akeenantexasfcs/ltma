@@ -2261,7 +2261,7 @@ def main():
         <div style="position: fixed; 
                     bottom: 30px; 
                     left: 30px;">
-            <img src="https://raw.githubusercontent.com/akeenantexasfcs/ltma/main/TFCLogo.jpg" width="300"/>
+            <img src="https://raw.githubusercontent.com/akeenantexasfcs/ltma/main/TFCLogo.jpg" width="250"/>
         </div>
         """
     # Display the logo in the sidebar using HTML
