@@ -13,7 +13,6 @@ from Levenshtein import distance as levenshtein_distance
 import re
 import anthropic
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
@@ -21,12 +20,23 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Load a pre-trained sentence transformer model
+import time
+from sentence_transformers import SentenceTransformer
+
 @st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+def load_model(max_retries=3, base_wait=5):
+    for attempt in range(max_retries):
+        try:
+            return SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            if attempt == max_retries - 1:
+                st.error(f"Failed to load model after {max_retries} attempts: {str(e)}")
+                raise
+            wait_time = base_wait * (2 ** attempt)
+            st.warning(f"Attempt {attempt + 1} failed. Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
 
 model = load_model()
-
 # Set up the Anthropic client with error handling
 @st.cache_resource
 def setup_anthropic_client():
