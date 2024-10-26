@@ -351,43 +351,42 @@ def balance_sheet_BS():
                 df['Label'] = ''
                 account_column = new_column_names.get(column_a, column_a)
 
+                # Insert index numbers in blank cells for easier identification
+                df[account_column] = df[account_column].apply(lambda x: str(x) if pd.notna(x) else '')
+
+                for index in df.index:
+                    if df.at[index, account_column] == '':
+                        df.at[index, account_column] = f"[Blank {index}]"
+
+                # Use selections to set label bounds
                 for label, start_label, end_label in selections:
                     if start_label or end_label:
                         try:
-                            # Split the label to get base label and instance number
-                            if start_label:
+                            # If start_label is a blank (indicated by index), use index directly
+                            if start_label.startswith("[Blank"):
+                                start_index = int(re.search(r"\d+", start_label).group())
+                            else:
                                 start_label_parts = start_label.split()
                                 start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
                                 start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
+                                start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
+                                start_index = start_indices[start_instance - 1] if len(start_indices) >= start_instance else None
+                            
+                            # If end_label is a blank (indicated by index), use index directly
+                            if end_label.startswith("[Blank"):
+                                end_index = int(re.search(r"\d+", end_label).group())
                             else:
-                                start_index = 0  # Start from the beginning if no start label is provided
-
-                            if end_label:
                                 end_label_parts = end_label.split()
                                 end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
                                 end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
-                            else:
-                                end_index = df.index[-1]  # End at the last index if no end label is provided
-
-                            # Locate indices for start and end labels based on instances
-                            if start_label:
-                                start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
-                                if len(start_indices) >= start_instance:
-                                    start_index = start_indices[start_instance - 1]
-                                else:
-                                    st.warning(f"Start label '{start_label}' not found in the data. Using the beginning of the dataset.")
-                                    start_index = 0  # Fallback to the first row
-
-                            if end_label:
                                 end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
-                                if len(end_indices) >= end_instance:
-                                    end_index = end_indices[end_instance - 1]
-                                else:
-                                    st.warning(f"End label '{end_label}' not found in the data. Using the end of the dataset.")
-                                    end_index = df.index[-1]  # Fallback to the last row
-
-                            # Set the label for the specified range
-                            df.loc[start_index:end_index, 'Label'] = label
+                                end_index = end_indices[end_instance - 1] if len(end_indices) >= end_instance else None
+                            
+                            # Ensure start and end indices are set, or skip if missing
+                            if start_index is not None and end_index is not None:
+                                df.loc[start_index:end_index, 'Label'] = label
+                            else:
+                                st.error(f"Invalid label bounds for {label}. Ensure both start and end labels are properly defined.")
 
                         except KeyError as e:
                             st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
@@ -480,7 +479,6 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
-
 
     with tab2:
         st.subheader("Aggregate My Data")
