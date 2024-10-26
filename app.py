@@ -214,37 +214,6 @@ def update_labels(df):
     
     return df
 
-def process_file(file):
-    logging.info(f"Processing file: {file.name}")
-    try:
-        df = pd.read_excel(file, sheet_name=None)
-        first_sheet_name = list(df.keys())[0]
-        df = df[first_sheet_name]
-        return df
-    except Exception as e:
-        st.error(f"Error processing file {file.name}: {e}")
-        return None
-
-def clean_numeric_value(value):
-    logging.info(f"Cleaning numeric value: {value}")
-    try:
-        value_str = str(value).strip()
-        
-        # Remove any number of spaces between $ and (
-        value_str = re.sub(r'\$\s*\(', '$(', value_str)
-        
-        # Handle negative values in parentheses with or without dollar sign
-        if (value_str.startswith('$(') and value_str.endswith(')')) or            (value_str.startswith('(') and value_str.endswith(')')):
-            value_str = '-' + value_str.lstrip('$(').rstrip(')')
-        
-        # Remove dollar signs and commas
-        cleaned_value = re.sub(r'[$,]', '', value_str)
-        
-        return float(cleaned_value)
-    except (ValueError, TypeError) as e:
-        logging.error(f"Error converting value: {value} with error: {e}")
-        return 0
-
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
 
@@ -330,8 +299,6 @@ def balance_sheet_BS():
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
 
-
-
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown", index=0)
@@ -405,6 +372,7 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
+
 
     with tab2:
         st.subheader("Aggregate My Data")
