@@ -37,6 +37,7 @@ def load_model(max_retries=3, base_wait=5):
             time.sleep(wait_time)
 
 model = load_model()
+
 # Set up the Anthropic client with error handling
 @st.cache_resource
 def setup_anthropic_client():
@@ -126,9 +127,6 @@ def load_balance_sheet_data():
     except FileNotFoundError:
         return pd.DataFrame(initial_balance_sheet_lookup_data)
 
-if 'balance_sheet_data' not in st.session_state:
-    st.session_state.balance_sheet_data = load_balance_sheet_data()
-
 def save_and_update_balance_sheet_data(df):
     logging.info("Saving and updating balance sheet data...")
     st.session_state.balance_sheet_data = df
@@ -138,7 +136,84 @@ def save_lookup_table(df, file_path):
     logging.info("Writing data to Excel...")
     df.to_excel(file_path, index=False)
 
-# General Utility Functions
+# Updated function to handle blank rows in options
+def get_unique_options(series):
+    unique_options = ['']  # Start with empty option
+    occurrence_counts = {}
+    
+    for idx, item in enumerate(series):
+        item_str = str(item).strip()
+        if pd.isna(item) or item_str == '':
+            unique_options.append(f'<blank>{idx}')
+        else:
+            if item in occurrence_counts:
+                occurrence_counts[item] += 1
+                unique_options.append(f"{item} {occurrence_counts[item]}")
+            else:
+                occurrence_counts[item] = 1
+                unique_options.append(item)
+    
+    return unique_options
+
+# Updated function to handle label assignment with blank rows
+def update_labels(df):
+    df['Label'] = ''
+    account_column = new_column_names.get(column_a, column_a)
+    
+    # Create a mapping of row content to indices, including blanks
+    row_mapping = {}
+    for idx, content in enumerate(df[account_column]):
+        content_str = str(content).strip()
+        if content_str == '' or pd.isna(content):
+            key = f'<blank>{idx}'
+        else:
+            key = content
+            
+        if key not in row_mapping:
+            row_mapping[key] = []
+        row_mapping[key].append(idx)
+    
+    for label, start_label, end_label in selections:
+        if start_label and end_label:
+            try:
+                # Handle blank rows in start_label
+                if start_label.startswith('<blank>'):
+                    start_index = int(start_label.split('>')[1])
+                else:
+                    start_label_parts = start_label.split()
+                    start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
+                    start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
+                    matching_starts = [idx for content, indices in row_mapping.items() 
+                                    if str(content).strip() and start_label_base in str(content)]
+                    if matching_starts:
+                        start_index = matching_starts[start_instance - 1]
+                    else:
+                        st.error(f"Could not find start label '{start_label}' for {label}")
+                        continue
+                
+                # Handle blank rows in end_label
+                if end_label.startswith('<blank>'):
+                    end_index = int(end_label.split('>')[1])
+                else:
+                    end_label_parts = end_label.split()
+                    end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
+                    end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
+                    matching_ends = [idx for content, indices in row_mapping.items() 
+                                   if str(content).strip() and end_label_base in str(content)]
+                    if matching_ends:
+                        end_index = matching_ends[end_instance - 1]
+                    else:
+                        st.error(f"Could not find end label '{end_label}' for {label}")
+                        continue
+                
+                # Assign labels
+                df.loc[start_index:end_index, 'Label'] = label
+                
+            except Exception as e:
+                st.error(f"Error processing label {label}: {str(e)}")
+    
+    return df
+
 def process_file(file):
     logging.info(f"Processing file: {file.name}")
     try:
@@ -149,42 +224,6 @@ def process_file(file):
     except Exception as e:
         st.error(f"Error processing file {file.name}: {e}")
         return None
-
-def create_combined_df(dfs):
-    logging.info("Combining data frames...")
-    combined_df = pd.DataFrame()
-    for i, df in enumerate(dfs):
-        final_mnemonic_col = 'Final Mnemonic Selection'
-        if final_mnemonic_col not in df.columns:
-            st.error(f"Column '{final_mnemonic_col}' not found in dataframe {i+1}")
-            continue
-
-        date_cols = [col for col in df.columns if col not in ['Label', 'Account', final_mnemonic_col, 'Mnemonic', 'Manual Selection']]
-        if not date_cols:
-            st.error(f"No date columns found in dataframe {i+1}")
-            continue
-
-        df_grouped = df.groupby([final_mnemonic_col, 'Label']).sum(numeric_only=True).reset_index()
-        df_melted = df_grouped.melt(id_vars=[final_mnemonic_col, 'Label'], value_vars=date_cols, var_name='Date', value_name='Value')
-        df_pivot = df_melted.pivot(index=['Label', final_mnemonic_col], columns='Date', values='Value')
-
-        if combined_df.empty:
-            combined_df = df_pivot
-        else:
-            combined_df = combined_df.join(df_pivot, how='outer')
-    return combined_df.reset_index()
-
-def aggregate_data(df):
-    logging.info("Aggregating data...")
-    if 'Label' not in df.columns or 'Account' not in df.columns:
-        st.error("'Label' and/or 'Account' columns not found in the data.")
-        return df
-
-    pivot_table = df.pivot_table(index=['Label', 'Account'], 
-                                 values=[col for col in df.columns if col not in ['Label', 'Account', 'Mnemonic', 'Manual Selection']], 
-                                 aggfunc='sum').reset_index()
-    return pivot_table
-
 
 def clean_numeric_value(value):
     logging.info(f"Cleaning numeric value: {value}")
@@ -201,63 +240,10 @@ def clean_numeric_value(value):
         # Remove dollar signs and commas
         cleaned_value = re.sub(r'[$,]', '', value_str)
         
-        # Convert text to number
-        try:
-            cleaned_value = w2n.word_to_num(cleaned_value)
-        except ValueError:
-            pass
-        
         return float(cleaned_value)
     except (ValueError, TypeError) as e:
         logging.error(f"Error converting value: {value} with error: {e}")
         return 0
-
-def sort_by_label_and_account(df):
-    logging.info("Sorting by label and account...")
-    sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
-    }
-
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Account'].str.contains('Total', case=False).astype(int)
-
-    df = df.sort_values(by=['Label_Order', 'Label', 'Total_Order', 'Account']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def sort_by_label_and_final_mnemonic(df):
-    logging.info("Sorting by label and final mnemonic selection...")
-    sort_order = {
-        "Current Assets": 0,
-        "Non Current Assets": 1,
-        "Current Liabilities": 2,
-        "Non Current Liabilities": 3,
-        "Equity": 4,
-        "Total Equity and Liabilities": 5
-    }
-
-    df['Label_Order'] = df['Label'].map(sort_order)
-    df['Total_Order'] = df['Final Mnemonic Selection'].str.contains('Total', case=False).astype(int)
-
-    df = df.sort_values(by=['Label_Order', 'Total_Order', 'Final Mnemonic Selection']).drop(columns=['Label_Order', 'Total_Order'])
-    return df
-
-def apply_unit_conversion(df, columns, factor):
-    logging.info("Applying unit conversion...")
-    for selected_column in columns:
-        if selected_column in df.columns:
-            df[selected_column] = df[selected_column].apply(
-                lambda x: x * factor if isinstance(x, (int, float)) else x)
-    return df
-
-def check_all_zeroes(df):
-    logging.info("Checking for all zeroes in data frame...")
-    zeroes = (df.iloc[:, 2:] == 0).all(axis=1)
-    return zeroes
 
 def balance_sheet_BS():
     st.title("BALANCE SHEET LTMA")
@@ -267,7 +253,6 @@ def balance_sheet_BS():
     with tab1:
         uploaded_file = st.file_uploader("Choose a JSON file", type="json", key='json_uploader')
 
-        # Persist uploaded file across sessions
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
 
@@ -309,6 +294,7 @@ def balance_sheet_BS():
                     table_df = pd.DataFrame.from_dict(table, orient='index').sort_index()
                     table_df = table_df.sort_index(axis=1)
                     tables.append(table_df)
+            
             all_tables = pd.concat(tables, axis=0, ignore_index=True)
             if len(all_tables.columns) == 0:
                 st.error("No columns found in the uploaded JSON file.")
@@ -320,73 +306,31 @@ def balance_sheet_BS():
             st.subheader("Data Preview")
             st.dataframe(all_tables)
 
-            def get_unique_options(series):
-                counts = series.value_counts()
-                unique_options = []
-                occurrence_counts = {}
-                for item in series:
-                    if counts[item] > 1:
-                        if item not in occurrence_counts:
-                            occurrence_counts[item] = 1
-                        else:
-                            occurrence_counts[item] += 1
-                        unique_options.append(f"{item} {occurrence_counts[item]}")
-                    else:
-                        unique_options.append(item)
-                return unique_options
-
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
                       "Non Current Liabilities", "Equity", "Total Equity and Liabilities"]
             selections = []
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + get_unique_options(all_tables[column_a].dropna())
+                options = get_unique_options(all_tables[column_a].dropna())
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
 
             new_column_names = {col: col for col in all_tables.columns}
 
-            def update_labels(df):
-                df['Label'] = ''
-                account_column = new_column_names.get(column_a, column_a)
-                for label, start_label, end_label in selections:
-                    if start_label and end_label:
-                        try:
-                            start_label_parts = start_label.split()
-                            end_label_parts = end_label.split()
-                            start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
-                            end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
-                            start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
-                            end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
-
-                            start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
-                            end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
-
-                            if len(start_indices) >= start_instance and len(end_indices) >= end_instance:
-                                start_index = start_indices[start_instance - 1]
-                                end_index = end_indices[end_instance - 1]
-
-                                df.loc[start_index:end_index, 'Label'] = label
-                            else:
-                                st.error(f"Invalid label bounds for {label}. Not enough instances found.")
-                        except KeyError as e:
-                            st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
-                    else:
-                        st.info(f"No selections made for {label}. Skipping...")
-                return df
-
             if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
                 preview_table = update_labels(all_tables.copy())
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
 
+
             st.subheader("Rename Columns")
-            new_column_names = {}
             fiscal_year_options = [f"FY{year}" for year in range(2018, 2027)]
             ytd_options = [f"YTD{quarter}{year}" for year in range(2018, 2027) for quarter in range(1, 4)]
             dropdown_options = [''] + ['Account'] + fiscal_year_options + ytd_options
+
+
 
             for col in all_tables.columns:
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text")
