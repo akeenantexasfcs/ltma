@@ -156,7 +156,7 @@ def get_unique_options(series):
     return unique_options
 
 # Updated function to handle label assignment with blank rows
-def update_labels(df, new_column_names):
+def update_labels(df, new_column_names, column_a):
     df['Label'] = ''
     account_column = new_column_names.get(column_a, column_a)
     
@@ -289,7 +289,7 @@ def balance_sheet_BS():
             new_column_names = {col: col for col in all_tables.columns}
 
             if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
-                preview_table = update_labels(all_tables.copy(), new_column_names)
+                preview_table = update_labels(all_tables.copy(), new_column_names, column_a)
                 st.subheader("Preview of Setting Bounds")
                 st.dataframe(preview_table)
 
@@ -342,7 +342,7 @@ def balance_sheet_BS():
             }
 
             if st.button("Apply Selected Labels and Generate Excel", key="apply_selected_labels_generate_excel_tab1"):
-                updated_table = update_labels(editable_df.copy(), new_column_names)
+                updated_table = update_labels(editable_df.copy(), new_column_names, column_a)
                 updated_table = updated_table[[col for col in columns_to_keep if col in updated_table.columns]]
 
                 updated_table = updated_table[updated_table['Label'].str.strip() != '']
