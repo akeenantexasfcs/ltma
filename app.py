@@ -320,18 +320,24 @@ def balance_sheet_BS():
             st.dataframe(all_tables)
 
             def get_unique_options(series):
+                """
+                Generate a list of unique options for selection, adding index labels for blanks.
+                """
                 counts = series.value_counts()
                 unique_options = []
                 occurrence_counts = {}
-                for item in series:
-                    if counts[item] > 1:
-                        if item not in occurrence_counts:
-                            occurrence_counts[item] = 1
-                        else:
-                            occurrence_counts[item] += 1
-                        unique_options.append(f"{item} {occurrence_counts[item]}")
+                for idx, item in series.items():
+                    if pd.isna(item) or item == '':
+                        unique_options.append(f"[Blank {idx}]")
                     else:
-                        unique_options.append(item)
+                        if counts[item] > 1:
+                            if item not in occurrence_counts:
+                                occurrence_counts[item] = 1
+                            else:
+                                occurrence_counts[item] += 1
+                            unique_options.append(f"{item} {occurrence_counts[item]}")
+                        else:
+                            unique_options.append(item)
                 return unique_options
 
             labels = ["Current Assets", "Non Current Assets", "Current Liabilities",
@@ -340,7 +346,7 @@ def balance_sheet_BS():
 
             for label in labels:
                 st.subheader(f"Setting bounds for {label}")
-                options = [''] + get_unique_options(all_tables[column_a].dropna())
+                options = [''] + get_unique_options(all_tables[column_a].fillna(''))
                 start_label = st.selectbox(f"Start Label for {label}", options, key=f"start_{label}")
                 end_label = st.selectbox(f"End Label for {label}", options, key=f"end_{label}")
                 selections.append((label, start_label, end_label))
@@ -479,6 +485,7 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
+
 
     with tab2:
         st.subheader("Aggregate My Data")
