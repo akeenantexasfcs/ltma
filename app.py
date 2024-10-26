@@ -185,7 +185,6 @@ def aggregate_data(df):
                                  aggfunc='sum').reset_index()
     return pivot_table
 
-
 def clean_numeric_value(value):
     logging.info(f"Cleaning numeric value: {value}")
     try:
@@ -195,7 +194,7 @@ def clean_numeric_value(value):
         value_str = re.sub(r'\$\s*\(', '$(', value_str)
         
         # Handle negative values in parentheses with or without dollar sign
-        if (value_str.startswith('$(') and value_str.endswith(')')) or            (value_str.startswith('(') and value_str.endswith(')')):
+        if (value_str.startswith('$(') and value_str.endswith(')')) or (value_str.startswith('(') and value_str.endswith(')')):
             value_str = '-' + value_str.lstrip('$(').rstrip(')')
         
         # Remove dollar signs and commas
@@ -351,30 +350,50 @@ def balance_sheet_BS():
             def update_labels(df):
                 df['Label'] = ''
                 account_column = new_column_names.get(column_a, column_a)
+
                 for label, start_label, end_label in selections:
-                    if start_label and end_label:
+                    if start_label or end_label:
                         try:
-                            start_label_parts = start_label.split()
-                            end_label_parts = end_label.split()
-                            start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
-                            end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
-                            start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
-                            end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
-
-                            start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
-                            end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
-
-                            if len(start_indices) >= start_instance and len(end_indices) >= end_instance:
-                                start_index = start_indices[start_instance - 1]
-                                end_index = end_indices[end_instance - 1]
-
-                                df.loc[start_index:end_index, 'Label'] = label
+                            # Split the label to get base label and instance number
+                            if start_label:
+                                start_label_parts = start_label.split()
+                                start_label_base = " ".join(start_label_parts[:-1]) if start_label_parts[-1].isdigit() else start_label
+                                start_instance = int(start_label_parts[-1]) if start_label_parts[-1].isdigit() else 1
                             else:
-                                st.error(f"Invalid label bounds for {label}. Not enough instances found.")
+                                start_index = 0  # Start from the beginning if no start label is provided
+
+                            if end_label:
+                                end_label_parts = end_label.split()
+                                end_label_base = " ".join(end_label_parts[:-1]) if end_label_parts[-1].isdigit() else end_label
+                                end_instance = int(end_label_parts[-1]) if end_label_parts[-1].isdigit() else 1
+                            else:
+                                end_index = df.index[-1]  # End at the last index if no end label is provided
+
+                            # Locate indices for start and end labels based on instances
+                            if start_label:
+                                start_indices = df[df[account_column].str.contains(start_label_base, regex=False, na=False)].index
+                                if len(start_indices) >= start_instance:
+                                    start_index = start_indices[start_instance - 1]
+                                else:
+                                    st.warning(f"Start label '{start_label}' not found in the data. Using the beginning of the dataset.")
+                                    start_index = 0  # Fallback to the first row
+
+                            if end_label:
+                                end_indices = df[df[account_column].str.contains(end_label_base, regex=False, na=False)].index
+                                if len(end_indices) >= end_instance:
+                                    end_index = end_indices[end_instance - 1]
+                                else:
+                                    st.warning(f"End label '{end_label}' not found in the data. Using the end of the dataset.")
+                                    end_index = df.index[-1]  # Fallback to the last row
+
+                            # Set the label for the specified range
+                            df.loc[start_index:end_index, 'Label'] = label
+
                         except KeyError as e:
                             st.error(f"Error accessing column '{account_column}': {e}. Skipping...")
                     else:
-                        st.info(f"No selections made for {label}. Skipping...")
+                        st.info(f"No start or end label provided for {label}. Skipping...")
+
                 return df
 
             if st.button("Preview Setting Bounds ONLY", key="preview_setting_bounds"):
@@ -461,6 +480,7 @@ def balance_sheet_BS():
                     st.dataframe(duplicated_accounts)
                 else:
                     st.success("No duplicates identified")
+
 
     with tab2:
         st.subheader("Aggregate My Data")
