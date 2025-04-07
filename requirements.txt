@@ -12,3 +12,4 @@ numpy
 sentence-transformers
 requests_cache
 word2number
+scikit-learn>=1.6.1
