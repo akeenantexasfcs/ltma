@@ -15,9 +15,16 @@ import anthropic
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import logging
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
+# Global vectorizer
+tfidf_vectorizer = None
 
 # Load a pre-trained sentence transformer model
 import time
@@ -25,18 +32,26 @@ from sentence_transformers import SentenceTransformer
 
 @st.cache_resource
 def load_model(max_retries=3, base_wait=5):
+    global tfidf_vectorizer
+    # Initialize fallback vectorizer
+    tfidf_vectorizer = TfidfVectorizer()
+    
+    # Try loading transformer model with current settings
     for attempt in range(max_retries):
         try:
             return SentenceTransformer('all-MiniLM-L6-v2')
         except Exception as e:
             if attempt == max_retries - 1:
-                st.error(f"Failed to load model after {max_retries} attempts: {str(e)}")
-                raise
+                st.warning(f"Failed to load transformer model: {str(e)}")
+                st.info("Using fallback text comparison. Results may be less accurate.")
+                return None
             wait_time = base_wait * (2 ** attempt)
             st.warning(f"Attempt {attempt + 1} failed. Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
 
+# Try to load the model, accept None if it fails
 model = load_model()
+
 # Set up the Anthropic client with error handling
 @st.cache_resource
 def setup_anthropic_client():
@@ -65,11 +80,43 @@ def generate_response(prompt, max_tokens=10000):
         return "I'm sorry, but I encountered an error while processing your request."
 
 @st.cache_data
+@st.cache_data
 def get_embedding(text):
-    return model.encode(text)
+    # Try transformer model first if available
+    if model is not None:
+        try:
+            return model.encode(text)
+        except Exception:
+            pass
+    
+    # Fallback to TF-IDF
+    global tfidf_vectorizer
+    if not hasattr(tfidf_vectorizer, 'vocabulary_') or tfidf_vectorizer.vocabulary_ is None:
+        # Train on financial terms to improve matching
+        sample_corpus = [text, "revenue", "assets", "liabilities", "cash flow", 
+                         "income", "net profit", "expenses", "equity", "tax", 
+                         "depreciation", "amortization", "current assets",
+                         "non-current assets", "operating activities"]
+        tfidf_vectorizer.fit(sample_corpus)
+    
+    vector = tfidf_vectorizer.transform([text]).toarray()[0]
+    return vector
 
 def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    # Handle both transformer embeddings and TF-IDF vectors
+    a_array = np.array(a)
+    b_array = np.array(b)
+    
+    # Calculate cosine similarity with safeguards
+    dot_product = np.dot(a_array, b_array)
+    norm_a = np.linalg.norm(a_array)
+    norm_b = np.linalg.norm(b_array)
+    
+    # Prevent division by zero
+    if norm_a == 0 or norm_b == 0:
+        return 0
+    
+    return dot_product / (norm_a * norm_b)
 
 def get_ai_suggested_mapping_BS(label, account, balance_sheet_lookup_df, nearby_rows):
     logging.info("Computing AI suggested mapping...")
