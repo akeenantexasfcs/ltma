@@ -663,7 +663,7 @@ def balance_sheet_BS():
                     st.session_state.balance_sheet_data.reset_index(drop=True, inplace=True)
                     save_and_update_balance_sheet_data(st.session_state.balance_sheet_data)
                     st.success("Data Dictionary Updated Successfully")
-                    st.experimental_rerun()
+                    st.rerun()
 
     with tab4:
         st.subheader("Balance Sheet Data Dictionary")
@@ -1871,7 +1871,7 @@ def aws_textract_tab():
         # Add a button to reset the process
         if st.button("Process another document"):
             reset_aws_process()
-            st.experimental_rerun()
+            st.rerun()
 
 def extras_tab():
     st.title("Extras")
