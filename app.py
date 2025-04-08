@@ -1162,18 +1162,21 @@ def cash_flow_statement_CF():
 def income_statement():
     # Initial setup and data loading
     income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
-    
+
     def load_lookup_table(filename):
         try:
             return pd.read_excel(filename)
         except FileNotFoundError:
             return pd.DataFrame(columns=['Account', 'Mnemonic', 'CIQ'])
+
     if 'income_statement_lookup_df' not in st.session_state:
         st.session_state.income_statement_lookup_df = load_lookup_table(income_statement_data_dictionary_file)
+
     def sort_by_sort_index(df):
         if 'Sort Index' in df.columns:
             df = df.sort_values(by=['Sort Index'])
         return df
+
     def aggregate_data_IS(uploaded_files):
         dataframes = []
         unique_accounts = set()
@@ -1205,6 +1208,7 @@ def income_statement():
         final_df['Sort Index'] = sort_index_column
         final_df.sort_values('Sort Index', inplace=True)
         return final_df
+
     def update_negative_values(df):
         criteria = [
             "IQ_COGS",
@@ -1215,13 +1219,20 @@ def income_statement():
             "IQ_OTHER_OPER",
             "IQ_INC_TAX"
         ]
-        
         for index, row in df.iterrows():
             if row['CIQ'] in criteria:
-                for col in df.columns[2:]:  # Start from column index 2 (skip 'Final Mnemonic Selection' and 'CIQ')
+                for col in df.columns[2:]:
                     if isinstance(row[col], (int, float)) and row[col] < 0:
                         df.at[index, col] = row[col] * 1
         return df
+
+    # Conversion factors (was missing)
+    conversion_factors = {
+        "Actuals": 1,
+        "Thousands": 1_000,
+        "Millions": 1_000_000,
+        "Billions": 1_000_000_000
+    }
 
     st.title("INCOME STATEMENT LTMA")
     tab1, tab2, tab3, tab4 = st.tabs(["Table Extractor", "Aggregate My Data", "Mappings and Data Consolidation", "Income Statement Data Dictionary"])
@@ -1272,7 +1283,7 @@ def income_statement():
                 new_name_text = st.text_input(f"Rename '{col}' to:", value=col, key=f"rename_{col}_text_is")
                 new_name_dropdown = st.selectbox(f"Or select predefined name for '{col}':", dropdown_options, key=f"rename_{col}_dropdown_is")
                 new_column_names[col] = new_name_dropdown if new_name_dropdown else new_name_text
-            
+
             all_tables.rename(columns=new_column_names, inplace=True)
             st.write("Updated Columns:", all_tables.columns.tolist())
             st.dataframe(all_tables)
@@ -1303,7 +1314,7 @@ def income_statement():
 
                 for col in numerical_columns:
                     updated_table[col] = updated_table[col].apply(clean_numeric_value)
-                
+
                 if selected_conversion_factor and selected_conversion_factor in conversion_factors:
                     conversion_factor = conversion_factors[selected_conversion_factor]
                     updated_table = apply_unit_conversion(updated_table, selected_columns, conversion_factor)
@@ -1314,6 +1325,7 @@ def income_statement():
                 updated_table.to_excel(excel_file, index=False)
                 excel_file.seek(0)
                 st.download_button("Download Excel", excel_file, "Table_Extractor_Income_Statement.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
     with tab2:
         st.subheader("Aggregate My Data")
