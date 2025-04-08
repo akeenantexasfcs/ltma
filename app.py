@@ -6,15 +6,23 @@
 
 import io
 import json
+import os
+import re
+import tempfile
+import time
+
+# Third-party libraries
+import boto3
+import botocore
+import numpy as np
 import pandas as pd
 import streamlit as st
-from openpyxl import load_workbook
 from Levenshtein import distance as levenshtein_distance
-import re
-import numpy as np
+from openpyxl import load_workbook
+
+# Module configuration
 import logging
-import os
-import time
+logging.basicConfig(level=logging.INFO)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
