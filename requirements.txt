@@ -9,7 +9,9 @@ xlsxwriter
 openai>=1.0.0
 anthropic>=0.3.0
 numpy
-sentence-transformers
+sentence-transformers==2.2.2
+transformers==4.27.4
+torch>=1.6.0
 requests_cache
 word2number
 scikit-learn>=1.6.1
