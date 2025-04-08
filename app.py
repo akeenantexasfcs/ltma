@@ -405,7 +405,7 @@ def balance_sheet_BS():
             st.dataframe(all_tables)
 
             st.subheader("Edit Data Frame")
-            editable_df = st.experimental_data_editor(all_tables)
+            editable_df = st.data_editor(all_tables)
             st.write("Editable Data Frame:", editable_df)
 
             st.subheader("Select columns to keep before export")
@@ -493,7 +493,7 @@ def balance_sheet_BS():
             zero_rows_indices = aggregated_table.index[zero_rows].tolist()
             st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
 
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+            edited_data = st.data_editor(aggregated_table, num_rows="dynamic")
 
             st.write("Highlighted rows with all zero values for potential removal:")
             for index in zero_rows_indices:
@@ -885,7 +885,7 @@ def cash_flow_statement_CF():
             st.dataframe(all_tables)
 
             st.subheader("Edit Data Frame")
-            editable_df = st.experimental_data_editor(all_tables)
+            editable_df = st.data_editor(all_tables)
             
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
@@ -961,7 +961,7 @@ def cash_flow_statement_CF():
             zero_rows_indices = aggregated_table.index[zero_rows].tolist()
             st.write("Rows where all values (past the first 2 columns) are zero:", aggregated_table.loc[zero_rows_indices])
             
-            edited_data = st.experimental_data_editor(aggregated_table, num_rows="dynamic")
+            edited_data = st.data_editor(aggregated_table, num_rows="dynamic")
             
             st.write("Highlighted rows with all zero values for potential removal:")
             for index in zero_rows_indices:
@@ -1278,7 +1278,7 @@ def income_statement():
             st.dataframe(all_tables)
 
             st.subheader("Edit and Remove Rows")
-            editable_df = st.experimental_data_editor(all_tables, num_rows="dynamic", use_container_width=True)
+            editable_df = st.data_editor(all_tables, num_rows="dynamic", use_container_width=True)
 
             st.subheader("Select columns to keep before export")
             columns_to_keep = []
@@ -1330,7 +1330,7 @@ def income_statement():
                 if columns_to_order:
                     aggregated_df = aggregated_df[columns_to_order]
 
-                editable_df = st.experimental_data_editor(aggregated_df, use_container_width=True)
+                editable_df = st.data_editor(aggregated_df, use_container_width=True)
                 editable_df_excluded = editable_df.iloc[:-1]
 
                 for col in editable_df_excluded.columns:
