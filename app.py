@@ -1151,7 +1151,7 @@ def cash_flow_statement_CF():
         st.session_state.cash_flow_lookup_df.to_excel(excel_file, index=False)
         excel_file.seek(0)
         st.download_button(download_label, excel_file, "cash_flow_data_dictionary.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
- def income_statement():
+def income_statement():
     # Initial setup and data loading
     income_statement_data_dictionary_file = 'income_statement_data_dictionary.xlsx'
     
